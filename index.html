@@ -77,7 +77,7 @@ transition:transform .32s cubic-bezier(.4,0,.2,1)}
 .overlay.hide{transform:translateX(100%)}
 #sh{z-index:30}
 .ovtop{padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;display:flex;align-items:center;gap:10px;
-border-bottom:1px solid var(--line)}
+border-bottom:1px solid var(--line);flex:0 0 auto}
 .back{width:34px;height:34px;display:grid;place-items:center;border-radius:50%}
 .back:active{background:rgba(0,0,0,.06)}
 .ovtop b{font-size:16px;font-weight:600}
@@ -103,10 +103,11 @@ white-space:nowrap}
 max-height:220px;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .bub.typing{color:var(--mute);letter-spacing:3px}
 .memo{align-self:flex-start;font-size:11px;color:var(--mute);padding:0 4px 10px;max-width:82%}
+.hl{box-shadow:0 0 0 2.5px #f5c400;border-radius:18px}
 .blockbar{display:none;padding:10px 16px;background:#ffe9e7;color:#c0392b;
-font-size:12px;text-align:center;letter-spacing:.02em}
+font-size:12px;text-align:center;letter-spacing:.02em;flex:0 0 auto}
 .inputbar{display:flex;gap:8px;padding:10px 16px calc(env(safe-area-inset-bottom) + 14px);
-border-top:1px solid var(--line);background:var(--bg)}
+border-top:1px solid var(--line);background:var(--bg);flex:0 0 auto}
 .inputbar input{flex:1;background:#fff;border:1px solid var(--line);border-radius:22px;
 padding:12px 18px;font-size:15px;color:var(--ink)}
 .inputbar input::placeholder{color:#c9c9c5}
@@ -118,7 +119,7 @@ padding:12px 18px;font-size:15px;color:var(--ink)}
 .big{font-size:21px;font-weight:600;letter-spacing:-.4px;line-height:1.45}
 .sub{font-size:12.5px;color:var(--mute);margin-top:9px;line-height:1.7}
 .item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 0;
-border-bottom:1px solid var(--line);font-size:14.5px;color:inherit;text-decoration:none}
+border-bottom:1px solid var(--line);font-size:14.5px;color:inherit;text-decoration:none;min-height:52px}
 .item:last-child{border-bottom:0}
 .item em{font-style:normal;color:var(--mute);font-size:11px;letter-spacing:.08em;white-space:nowrap;
 display:flex;align-items:center}
@@ -134,13 +135,10 @@ border-bottom:1px solid var(--line);font-size:14px}
 .field input{flex:1;max-width:62%;text-align:right;border:0;background:transparent;
 color:var(--ink);font-size:14px;padding:0}
 .field input::placeholder{color:#c9c9c5}
-.btn{display:block;width:100%;padding:14px;border-radius:16px;border:0;background:#111;color:#fff;
-font-size:15px;margin-top:10px;text-align:center}
-.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
 .st{font-size:11.5px;color:var(--mute);margin-top:12px;white-space:pre-wrap;word-break:break-all;line-height:1.7}
 textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:14px;
 padding:12px 14px;font-size:14px;line-height:1.6;background:#fbfbfa;color:var(--ink);
-resize:vertical;-webkit-user-select:text;user-select:text}
+margin:12px 0;display:block;-webkit-user-select:text;user-select:text}
 textarea::placeholder{color:#c9c9c5}
 .memrow{display:flex;gap:10px;align-items:flex-start;padding:12px 0;
 border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.65}
@@ -206,7 +204,8 @@ animation:breathe 8s ease-in-out infinite}
     </div>
     <b>聊天详情</b>
   </div>
-  <div id="shbody"></div>
+  <div id="shbody" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding:18px 16px calc(env(safe-area-inset-bottom) + 20px)"></div>
 </div>
 
 <script>
@@ -348,7 +347,6 @@ function parseReply(raw){
   return { text, think: thinks.join('\n').trim(), mems };
 }
 
-/* 估个 token 数（没有真实用量时兜底） */
 function estTokens(s){
   const t = String(s || '');
   let cjk = 0, other = 0;
@@ -366,8 +364,8 @@ function pickTokens(item){
 
 function renderChat(scroll){
   const box = $('msgs'); if (!box) return;
-  box.innerHTML = CHAT.map(m => {
-    if (m.role === 'user') return `<div class="bub me">${esc(m.text)}</div>`;
+  box.innerHTML = CHAT.map((m, i) => {
+    if (m.role === 'user') return `<div class="bub me" data-i="${i}">${esc(m.text)}</div>`;
     if (m.typing) return `<div class="bub kai typing">···</div>`;
     const think = m.think
       ? `<details class="think"><summary>深度思考</summary><div class="tb">${esc(m.think)}</div></details>`
@@ -376,7 +374,7 @@ function renderChat(scroll){
     if (m.ms) bits.push('思考 ' + (m.ms / 1000).toFixed(1) + 's');
     if (m.tok) bits.push('≈' + m.tok + ' tokens');
     const meta = bits.length ? `<div class="meta">${bits.join(' · ')}</div>` : '';
-    return `<div class="wrap">${think}<div class="bub kai">${esc(m.text)}</div>${meta}</div>`;
+    return `<div class="wrap" data-i="${i}">${think}<div class="bub kai">${esc(m.text)}</div>${meta}</div>`;
   }).join('');
   if (scroll) box.scrollTop = box.scrollHeight;
 }
@@ -475,7 +473,6 @@ async function sendChat(){
   if (msg._saved && msg._saved.length) flashMemo(msg._saved.join(' · '));
 }
 
-/* 回到前台 / 刚打开时，把后台跑完的回复捞回来 */
 async function pullOutbox(){
   if (SENDING || !S.key || !S.relay) return;
   try {
@@ -502,6 +499,47 @@ async function pullOutbox(){
   } catch(e){}
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pullOutbox(); });
+
+/* ---------- 右滑返回（跟 iPhone 一样） ---------- */
+function attachSwipeBack(el, closeFn){
+  let startX = 0, startY = 0, dx = 0, live = false;
+  el.addEventListener('touchstart', e => {
+    if (el.classList.contains('hide')) return;
+    const t = e.touches[0];
+    if (t.clientX > 48) return;
+    live = true; startX = t.clientX; startY = t.clientY; dx = 0;
+    el.style.transition = 'none';
+  }, { passive: true });
+  el.addEventListener('touchmove', e => {
+    if (!live) return;
+    const t = e.touches[0];
+    const mx = t.clientX - startX, my = t.clientY - startY;
+    if (my > 30 && Math.abs(my) > Math.abs(mx)){ live = false; el.style.transition=''; el.style.transform=''; return; }
+    dx = Math.max(0, mx);
+    e.preventDefault();
+    el.style.transform = `translateX(${dx}px)`;
+  }, { passive: false });
+  el.addEventListener('touchend', () => {
+    if (!live) return;
+    live = false;
+    if (dx > 80){
+      el.style.transition = 'transform .22s ease-out';
+      el.style.transform = 'translateX(100%)';
+      setTimeout(() => {
+        closeFn();
+        el.style.transition = 'none';
+        el.style.transform = '';
+        requestAnimationFrame(() => { el.style.transition = ''; });
+      }, 220);
+    } else {
+      el.style.transition = '';
+      el.style.transform = '';
+    }
+    dx = 0;
+  }, { passive: true });
+}
+attachSwipeBack($('ov'), closeOv);
+attachSwipeBack($('sh'), closeSheet);
 
 /* ---------- 推送 ---------- */
 function urlB64ToUint8Array(b64){
@@ -978,18 +1016,30 @@ function openChatInfo(){
   $('sh').classList.remove('hide');
 }
 function tgl(k){ S[k] = S[k] ? 0 : 1; save(); openChatInfo(); }
+
 function findInChat(){
   const q = prompt('找什么？');
   if (!q) return;
-  const hits = CHAT.filter(m => m.text && m.text.indexOf(q) > -1);
+  const hits = [];
+  CHAT.forEach((m, i) => { if (m.text && m.text.indexOf(q) > -1) hits.push({ i, m }); });
   $('shbody').innerHTML = `<div class="card">
-    <div class="eyebrow">找到 ${hits.length} 条</div>
+    <div class="eyebrow">找到 ${hits.length} 条 · 点一下跳过去</div>
     ${hits.length
-      ? hits.map(m => `<div class="quote">${esc(m.text)}
-          <em>${m.role === 'user' ? '小咩' : '祁砚'}</em></div>`).join('')
+      ? hits.map(h => `<div class="quote" onclick="jumpTo(${h.i})">${esc(h.m.text)}
+          <em>${h.m.role === 'user' ? '小咩' : '祁砚'}</em></div>`).join('')
       : '<div class="empty">没有。</div>'}
     </div>
-    <button class="btn ghost" onclick="openChatInfo()">返回</button>`;
+    <div class="item" onclick="openChatInfo()"><span>返回</span><em>›</em></div>`;
+}
+function jumpTo(i){
+  closeSheet();
+  setTimeout(() => {
+    const el = document.querySelector('#msgs [data-i="' + i + '"]');
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.classList.add('hl');
+    setTimeout(() => el.classList.remove('hl'), 1500);
+  }, 340);
 }
 function pickChatBg(){
   $('shbody').innerHTML = `<div class="card">
@@ -998,7 +1048,7 @@ function pickChatBg(){
       `<span class="swt${(S.chatBg||'') === c ? ' now' : ''}"
         style="background:${c || '#f4f4f2'}" onclick="setChatBg(${i})"></span>`).join('')}</div>
     </div>
-    <button class="btn ghost" onclick="openChatInfo()">返回</button>`;
+    <div class="item" onclick="openChatInfo()"><span>返回</span><em>›</em></div>`;
 }
 function setChatBg(i){
   S.chatBg = CHAT_BGS[i] || '';
@@ -1064,14 +1114,14 @@ function vAlbum(){
   return `<div class="card">
     <div class="eyebrow">PHOTOS</div>
     <div class="item"><span>相册</span><em>${p.length}/9</em></div>
-    <button class="btn ghost" onclick="pickPhoto()">加照片</button>
+    <div class="item" onclick="pickPhoto()"><span>加照片</span><em>›</em></div>
     <input id="pFile" type="file" accept="image/*" multiple hidden onchange="addPhoto(this)">
   </div>
   ${p.length
     ? `<div class="card"><div class="album" style="margin-top:0">${p.map((u,i) =>
         `<img src="${u}" onclick="delPhoto(${i})">`).join('')}</div>
         <div class="sub" style="text-align:center">点一下照片就删掉</div></div>`
-    : `<div class="empty">还没有照片。上面那个按钮点一下，从相册里挑。</div>`}`;
+    : `<div class="empty">还没有照片。上面那行点一下，从相册里挑。</div>`}`;
 }
 function pickPhoto(){ const f = $('pFile'); if (f) f.click(); }
 function vCal(){
@@ -1107,8 +1157,10 @@ function vGame(){
     <div class="field" style="margin-top:14px"><span>你的答案</span>
       <input id="gIn" type="number" inputmode="numeric" placeholder="——"></div>
   </div>
-  <button class="btn" onclick="gGuess()">猜</button>
-  <button class="btn ghost" onclick="newGame()">重来</button>`;
+  <div class="card">
+    <div class="item" onclick="gGuess()"><span>猜</span><em>›</em></div>
+    <div class="item" onclick="newGame()"><span>重来</span><em>›</em></div>
+  </div>`;
 }
 function vWatch(){
   return `<div class="card"><div class="eyebrow">WATCH</div>
@@ -1132,7 +1184,7 @@ function vNight(){
   return `<div class="card"><div class="eyebrow">NIGHT</div>
     <div class="big">${line}</div>
     <div class="sub">${S.anniv.replace(/-/g,'.')} 起，第 ${days()} 天。</div></div>
-    <button class="btn" onclick="sayNight()">说晚安</button>
+    <div class="card"><div class="item" onclick="sayNight()"><span>说晚安</span><em>›</em></div></div>
     <div class="st" id="nightOut"></div>`;
 }
 function sayNight(){ $('nightOut').textContent = '晚安，' + S.name + '。我在这儿，睡吧。'; }
@@ -1145,7 +1197,7 @@ function vBreathe(){
     <div class="big" id="bText">吸气</div>
     <div class="sub">跟着圆走。胀到最大的时候吸气，缩回去的时候呼气。</div>
   </div>
-  <button class="btn ghost" onclick="stopBreathe()">停</button>`;
+  <div class="card"><div class="item" onclick="stopBreathe()"><span>停</span><em>›</em></div></div>`;
 }
 function startBreathe(){
   let inhale = true;
@@ -1158,29 +1210,29 @@ function stopBreathe(){ clearInterval(bTimer); bTimer = null; }
 function vSet(){
   return `<div class="card">
     <div class="eyebrow">PUSH</div>
-    <div class="sub" style="margin:0 0 4px">开了之后，就算你没停在咩&amp;砚这个画面，
-      他的回复也会弹到手机上。iPhone 必须先「添加到主屏幕」，再从主屏幕的图标打开才给推送。</div>
+    <div class="sub" style="margin:0 0 6px">开了之后，就算你没停在咩&amp;砚这个画面，
+      他的回复也会弹到手机上。iPhone 要先「添加到主屏幕」，再从主屏幕那个图标打开才给推送。</div>
     <div class="item"><span>推送状态</span><em id="pushState">未开启</em></div>
-    <button class="btn ghost" onclick="enablePush()">开启推送</button>
-    <button class="btn ghost" onclick="testPush()">发一条测试通知</button>
-    <button class="btn ghost" onclick="disablePush()">关掉推送</button>
+    <div class="item" onclick="enablePush()"><span>开启推送</span><em>›</em></div>
+    <div class="item" onclick="testPush()"><span>发送测试通知</span><em>›</em></div>
+    <div class="item" onclick="disablePush()"><span>关闭推送</span><em>›</em></div>
     <div class="st" id="pushMsg"></div>
   </div>
   <div class="card">
     <div class="eyebrow">MEMORY</div>
-    <div class="sub" style="margin:0 0 4px">它自己判断哪句值得记。值得记的，回完会自动写进来；
+    <div class="sub" style="margin:0 0 6px">它自己判断哪句值得记。值得记的，回完会自动写进来；
       一次性的闲聊不会。这里也能自己加、自己删。</div>
     <div class="item" onclick="toggleAuto()"><span>自动记忆</span>
       <em>${S.autoMem ? 'ON' : 'OFF'}</em></div>
     <textarea id="mNew" placeholder="手动加一条，例：她怕打雷"></textarea>
-    <button class="btn ghost" onclick="addMem()">加一条</button>
+    <div class="item" onclick="addMem()"><span>加一条</span><em>›</em></div>
     <div class="memlist">
       ${MEM.length
         ? MEM.slice().reverse().map(m => `<div class="memrow"><span>${esc(m)}</span>
             <b onclick="delMemText(this)">×</b></div>`).join('')
         : '<div class="empty">还没记住什么。</div>'}
     </div>
-    ${MEM.length ? `<button class="btn ghost" onclick="clearMem()">全部清掉</button>` : ''}
+    ${MEM.length ? `<div class="item" onclick="clearMem()"><span style="color:#ff3b30">全部清掉</span><em>›</em></div>` : ''}
   </div>
   <div class="card">
     <div class="eyebrow">LOOK</div>
@@ -1206,11 +1258,13 @@ function vSet(){
     <div class="field"><span>名字</span><input id="sName" value="${S.name}"></div>
     <div class="field"><span>纪念日</span><input id="sAnniv" type="date" value="${S.anniv}"></div>
   </div>
-  <button class="btn" onclick="saveSet()">保存</button>
-  <button class="btn ghost" onclick="testRelay()">测试中继</button>
-  <button class="btn ghost" onclick="resetLayout()">还原桌面顺序</button>
-  <button class="btn ghost" onclick="clearChat()">清空聊天记录</button>
-  <div class="st" id="stTest"></div>`;
+  <div class="card">
+    <div class="item" onclick="saveSet()"><span>保存设置</span><em>›</em></div>
+    <div class="item" onclick="testRelay()"><span>测试中继</span><em>›</em></div>
+    <div class="item" onclick="resetLayout()"><span>还原桌面顺序</span><em>›</em></div>
+    <div class="item" onclick="clearChat()"><span>清空聊天记录</span><em>›</em></div>
+    <div class="st" id="stTest"></div>
+  </div>`;
 }
 
 function toggleAuto(){ S.autoMem = S.autoMem ? 0 : 1; save(); openApp('set'); }
