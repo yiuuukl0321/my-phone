@@ -29,11 +29,8 @@ transition:transform .45s cubic-bezier(.4,0,.2,1),opacity .45s}
 #home{position:fixed;inset:0;display:flex;flex-direction:column;background-color:#f2f2ef;
 background-image:linear-gradient(120deg,#ffffff,#efefec 60%,#e6e6e2);
 background-size:cover;background-position:center;background-repeat:no-repeat}
-.sb{display:flex;justify-content:space-between;align-items:center;
-padding:calc(env(safe-area-inset-top) + 10px) 20px 2px}
-.sb .t{font-size:15px;font-weight:600;letter-spacing:.01em}
-.sb .r{display:flex;align-items:center;gap:5px}
-.pages{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 14px 6px}
+.pages{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+padding:calc(env(safe-area-inset-top) + 26px) 14px 6px}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px 10px}
 .tile{display:flex;flex-direction:column;align-items:center;gap:8px;
 -webkit-user-select:none;user-select:none}
@@ -98,8 +95,8 @@ border-bottom:1px solid var(--line);font-size:14px}
 .field input{flex:1;max-width:62%;text-align:right;border:0;background:transparent;
 color:var(--ink);font-size:14px;padding:0}
 .field input::placeholder{color:#c9c9c5}
-.btn{width:100%;padding:14px;border-radius:16px;border:0;background:#111;color:#fff;
-font-size:15px;margin-top:10px}
+.btn{display:block;width:100%;padding:14px;border-radius:16px;border:0;background:#111;color:#fff;
+font-size:15px;margin-top:10px;text-align:center}
 .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
 .st{font-size:11.5px;color:var(--mute);margin-top:12px;white-space:pre-wrap;word-break:break-all;line-height:1.7}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:13px}
@@ -108,7 +105,7 @@ font-size:15px;margin-top:10px}
 .d.now{background:#111;color:#fff;font-weight:600}
 .album{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:14px}
 .album img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px}
-.empty{font-size:12.5px;color:var(--mute);padding:14px 0}
+.empty{font-size:12.5px;color:var(--mute);padding:16px 2px 2px;line-height:1.7}
 .quote{font-size:14px;line-height:1.75;padding:15px 0;border-bottom:1px solid var(--line)}
 .quote:last-child{border-bottom:0}
 .quote em{display:block;font-style:normal;font-size:10px;letter-spacing:.14em;
@@ -130,26 +127,6 @@ animation:breathe 8s ease-in-out infinite}
 </div>
 
 <div id="home">
-  <div class="sb">
-    <span class="t" id="sbTime">--:--</span>
-    <span class="r">
-      <svg width="17" height="11" viewBox="0 0 17 11" fill="#0b0b0b">
-        <rect x="0" y="7.5" width="3" height="3.5" rx="1"/>
-        <rect x="4.6" y="5" width="3" height="6" rx="1"/>
-        <rect x="9.2" y="2.5" width="3" height="8.5" rx="1"/>
-        <rect x="13.8" y="0" width="3" height="11" rx="1"/></svg>
-      <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="#0b0b0b"
-        stroke-width="1.5" stroke-linecap="round">
-        <path d="M1.2 3.7a10.2 10.2 0 0 1 13.6 0"/>
-        <path d="M3.8 6.4a6.6 6.6 0 0 1 8.4 0"/>
-        <circle cx="8" cy="9.3" r="1.05" fill="#0b0b0b" stroke="none"/></svg>
-      <svg width="25" height="12" viewBox="0 0 25 12">
-        <rect x="0.5" y="0.5" width="21" height="11" rx="3.5" fill="none"
-          stroke="#0b0b0b" stroke-opacity=".35"/>
-        <rect x="2" y="2" width="15" height="8" rx="2" fill="#0b0b0b"/>
-        <path d="M23 4.2v3.6a2 2 0 0 0 0-3.6z" fill="#0b0b0b" fill-opacity=".4"/></svg>
-    </span>
-  </div>
   <div class="pages"><div class="grid" id="grid"></div></div>
   <div class="dock" id="dock"></div>
 </div>
@@ -185,10 +162,9 @@ const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
 const days = () => Math.floor((new Date(new Date().toDateString()) - new Date(S.anniv)) / 864e5) + 1;
 
 function tick(){
-  const d = new Date(), p = n => String(n).padStart(2,'0'), hm = `${p(d.getHours())}:${p(d.getMinutes())}`;
+  const d = new Date(), p = n => String(n).padStart(2,'0');
   $('lkDate').textContent = `${d.getMonth()+1}.${p(d.getDate())} 星期${'日一二三四五六'[d.getDay()]}`;
-  $('lkTime').textContent = hm;
-  $('sbTime').textContent = hm;
+  $('lkTime').textContent = `${p(d.getHours())}:${p(d.getMinutes())}`;
   $('lkDays').innerHTML = `<b>${days()}</b>days with you`;
 }
 tick(); setInterval(tick, 15000);
@@ -329,17 +305,16 @@ const FRAGMENTS = [
   ['你可以慢一点，我不会走。','2026.09.09']
 ];
 
-/* ---------- 应用 ---------- */
-/* cell = 贴纸图上的第几只（从左到右、从上到下数，从 0 开始）
-   schemes = 打开原生 App 的地址，打不开才退回 fallback */
+/* ---------- 应用 ----------
+   cell   = 贴纸图上的第几只（从左到右、从上到下，从 0 开始）
+   href   = https 链接，iOS 认得出就直接开 App，不弹窗
+   schemes= 只有 scheme 才唤得起的，才用这个，失败退回 fallback */
 const APPS = {
   chat:   { cell:6,  n:'聊天',   v:vChat, full:true },
   netease:{ cell:12, n:'网易云', schemes:['orpheus://','neteasecloudmusic://'],
-            fallback:'https://apps.apple.com/app/id590338362' },
-  douyin: { cell:20, n:'抖音',   schemes:['snssdk1128://'],
-            fallback:'https://apps.apple.com/app/id1142110895' },
-  ig:     { cell:21, n:'IG',     schemes:['instagram://'],
-            fallback:'https://apps.apple.com/app/id389801252' },
+            fallback:'https://music.163.com' },
+  douyin: { cell:20, n:'抖音',   href:'https://www.douyin.com/' },
+  ig:     { cell:21, n:'IG',     href:'https://www.instagram.com/' },
   album:  { cell:25, n:'相册',   v:vAlbum },
   cal:    { cell:2,  n:'日历',   v:vCal },
   days:   { cell:1,  n:'纪念日', v:vDays },
@@ -576,7 +551,13 @@ document.addEventListener('touchend', () => {
   if (!EDIT) holdEl = null;
 }, { passive: true });
 
-/* 打开原生 App：用 a 标签触发，两种协议各试一次，1.5 秒没跳走才退回 */
+/* 开 https 链接：新开一页，不弹「在 App 中打开」 */
+function goOut(url){
+  const a = document.createElement('a');
+  a.href = url; a.target = '_blank'; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+/* 只有 scheme 才唤得起的 App：两次机会，1.5 秒没跳走才退回 */
 function openNative(schemes, fallback){
   let left = false;
   const onHide = () => { left = true; };
@@ -599,7 +580,8 @@ document.addEventListener('click', e => {
   const el = e.target.closest('.tile'); if (!el) return;
   if (EDIT || swallow) return;
   const app = APPS[el.dataset.k]; if (!app) return;
-  if (app.schemes) openNative(app.schemes, app.fallback);
+  if (app.href) goOut(app.href);
+  else if (app.schemes) openNative(app.schemes, app.fallback);
   else openApp(el.dataset.k);
 });
 
@@ -635,12 +617,16 @@ function vAlbum(){
   return `<div class="card">
     <div class="eyebrow">PHOTOS</div>
     <div class="item"><span>相册</span><em>${p.length}/9</em></div>
-    <label class="btn ghost" style="display:block;text-align:center">加照片
-      <input type="file" accept="image/*" multiple hidden onchange="addPhoto(this)"></label>
-    <div class="album">${p.length
-      ? p.map((u,i) => `<img src="${u}" onclick="delPhoto(${i})">`).join('')
-      : '<div class="empty">还没有照片，点上面的按钮加</div>'}</div></div>`;
+    <button class="btn ghost" onclick="pickPhoto()">加照片</button>
+    <input id="pFile" type="file" accept="image/*" multiple hidden onchange="addPhoto(this)">
+  </div>
+  ${p.length
+    ? `<div class="card"><div class="album" style="margin-top:0">${p.map((u,i) =>
+        `<img src="${u}" onclick="delPhoto(${i})">`).join('')}</div>
+        <div class="sub" style="text-align:center">点一下照片就删掉</div></div>`
+    : `<div class="empty">还没有照片。上面那个按钮点一下，从相册里挑。</div>`}`;
 }
+function pickPhoto(){ const f = $('pFile'); if (f) f.click(); }
 function vCal(){
   const d = new Date(), y = d.getFullYear(), m = d.getMonth();
   const first = new Date(y,m,1).getDay(), n = new Date(y,m+1,0).getDate();
@@ -752,7 +738,9 @@ function vSet(){
 }
 
 function addPhoto(inp){
-  [...inp.files].slice(0,9).forEach(f => {
+  const files = [...inp.files].slice(0, 9);
+  if (!files.length) return;
+  files.forEach(f => {
     const r = new FileReader();
     r.onload = e => {
       const im = new Image();
