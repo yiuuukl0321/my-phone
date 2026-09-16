@@ -1727,29 +1727,38 @@ background-color:#eceae5;background-repeat:no-repeat;background-position:center;
 <div id="dbg" style="position:fixed;left:0;bottom:0;z-index:99999;background:#000;color:#0f0;
 font:11px/1.3 monospace;padding:3px 5px"></div>
 <script>
+
 (function(){
-  var el = document.getElementById('wall'), d = document.getElementById('dbg');
+  var st = document.createElement('style');
+  st.textContent = 'html{overflow:hidden;background-color:#eceae5;background-repeat:no-repeat;background-position:center top;background-size:cover}body{height:100%;overflow:hidden;background:transparent}';
+  document.head.appendChild(st);
+  var old = document.getElementById('wall');
+  if (old) old.style.display = 'none';
+  function tall(){ return Math.max(innerHeight, screen.height, document.documentElement.clientHeight); }
   function paint(){
     var w = S.wall || WALL_DEFAULT, dim = Math.max(0, Math.min(.6, +S.dim || 0));
-    el.style.backgroundImage =
+    var de = document.documentElement;
+    de.style.setProperty('height', tall() + 'px', 'important');
+    de.style.setProperty('background-image',
       'linear-gradient(rgba(0,0,0,.34),rgba(0,0,0,0) 130px),' +
       'linear-gradient(rgba(0,0,0,' + dim + '),rgba(0,0,0,' + dim + ')),' +
-      "url('" + w + "')";
+      "url('" + w + "')", 'important');
   }
   window.applyWall = paint;
-  document.documentElement.style.backgroundImage = 'none';
   paint();
+  var d = document.createElement('div');
+  d.style.cssText = 'position:fixed;left:0;bottom:0;z-index:99999;background:#000;color:#0f0;font:11px/1.3 monospace;padding:3px 5px';
+  document.body.appendChild(d);
   function up(){
     var v = window.visualViewport || {};
     d.textContent = 'ih=' + innerHeight + ' vv=' + Math.round(v.height || 0) +
       ' doc=' + document.documentElement.clientHeight + ' scr=' + screen.height +
-      'x' + screen.width + ' dpr=' + devicePixelRatio;
+      ' set=' + document.documentElement.style.height;
   }
   up();
-  addEventListener('resize', up);
-  addEventListener('orientationchange', up);
+  addEventListener('resize', function(){ paint(); up(); });
+  addEventListener('orientationchange', function(){ paint(); up(); });
   if (window.visualViewport) visualViewport.addEventListener('resize', up);
-  setTimeout(up, 600);
 })();
 </script>
 </body>
