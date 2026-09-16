@@ -355,3 +355,19 @@
     b.insertBefore(card, b.firstChild);
   };
 })();
+
+
+
+/* ===== 5. 锁住比例：键盘弹出不放大、双指不缩放 ===== */
+(function(){
+  var vp = document.querySelector('meta[name="viewport"]');
+  if (vp) vp.setAttribute('content',
+    'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover,interactive-widget=resizes-content');
+  var st = document.createElement('style');
+  st.textContent =
+    'html{-webkit-text-size-adjust:100%;text-size-adjust:100%}' +
+    'input,textarea,select{font-size:16px !important}' +
+    'input,textarea,select,button,.item,.tile{touch-action:manipulation}';
+  document.head.appendChild(st);
+})();
+
