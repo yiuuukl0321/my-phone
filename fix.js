@@ -371,3 +371,215 @@
   document.head.appendChild(st);
 })();
 
+
+
+/* ===== 6. 键盘顶起：聊天页跟随可视视口，键盘弹出不再把页面往上顶 ===== */
+(function(){
+  var vv = window.visualViewport;
+  var root = document.documentElement;
+  var st = document.createElement('style');
+  st.textContent =
+    '#ov,#sh{top:var(--vvt,0px);height:var(--vvh,100%);bottom:auto}' +
+    'html[data-kb="1"] .inputbar{padding-bottom:12px}';
+  document.head.appendChild(st);
+
+  var lastH = 0;
+  function sync(){
+    var h = vv ? vv.height : window.innerHeight;
+    var t = vv ? vv.offsetTop : 0;
+    root.style.setProperty('--vvh', h + 'px');
+    root.style.setProperty('--vvt', t + 'px');
+    var open = h < window.innerHeight - 60;
+    root.dataset.kb = open ? '1' : '0';
+    if (open && h < lastH - 20){
+      var m = document.getElementById('msgs');
+      if (m) m.scrollTop = m.scrollHeight;
+    }
+    lastH = h;
+  }
+  if (vv){ vv.addEventListener('resize', sync); vv.addEventListener('scroll', sync); }
+  window.addEventListener('resize', sync);
+  window.addEventListener('orientationchange', function(){ setTimeout(sync, 250); });
+  sync();
+})();
+
+/* ===== 7. 语音朗读：系统内置 / OpenAI 兼容 / ElevenLabs ===== */
+(function(){
+  try {
+    var KEY = 'xm_tts';
+    var cfg = Object.assign({ on: 1, auto: 0, provider: 'system', url: '', key: '', model: '', voice: '', speed: 1 },
+      JSON.parse(localStorage.getItem(KEY) || '{}'));
+    var saveCfg = function(){ try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch(e){} };
+    var audio = null;
+
+    function toast(t){
+      var d = document.createElement('div');
+      d.textContent = t;
+      d.style.cssText = 'position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:14px;z-index:99;max-width:80vw;text-align:center';
+      document.body.appendChild(d);
+      setTimeout(function(){ d.remove(); }, 2400);
+    }
+    function stop(){
+      try { if (audio){ audio.pause(); audio.src = ''; audio = null; } } catch(e){}
+      try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){}
+    }
+    function voices(){ try { return speechSynthesis.getVoices() || []; } catch(e){ return []; } }
+
+    function speak(raw){
+      var text = String(raw || '').replace(/\s+/g, ' ').trim();
+      if (!text) return;
+      stop();
+      if (!+cfg.on) return;
+      var sp = Math.max(.5, Math.min(2, +cfg.speed || 1));
+      if (cfg.provider === 'system'){
+        try {
+          var u = new SpeechSynthesisUtterance(text.slice(0, 900));
+          u.rate = sp;
+          u.lang = /[\u4e00-\u9fff]/.test(text) ? 'zh-CN' : 'en-US';
+          var list = voices(), v = null;
+          if (cfg.voice) v = list.filter(function(x){ return x.name === cfg.voice; })[0];
+          if (!v) v = list.filter(function(x){ return /zh[-_]|Chinese|中文|粤|Yue/i.test(x.lang + ' ' + x.name); })[0];
+          if (v) u.voice = v;
+          speechSynthesis.speak(u);
+        } catch(e){ toast('这台设备的系统语音用不了'); }
+        return;
+      }
+      var url = String(cfg.url || '').replace(/\/+$/, '');
+      if (!url || !cfg.key){ toast('先在语音设置里填地址和 Key'); return; }
+      var req;
+      if (cfg.provider === 'elevenlabs'){
+        req = fetch(url + '/v1/text-to-speech/' + encodeURIComponent(cfg.voice || '21m00Tcm4TlvDq8ikWAM'), {
+          method: 'POST',
+          headers: { 'xi-api-key': cfg.key, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: text.slice(0, 2500), model_id: cfg.model || 'eleven_multilingual_v2' })
+        });
+      } else {
+        var ep = /\/v\d+$/.test(url) ? url : url + '/v1';
+        req = fetch(ep + '/audio/speech', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + cfg.key, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: cfg.model || 'gpt-4o-mini-tts', input: text.slice(0, 1500), voice: cfg.voice || 'alloy', response_format: 'mp3' })
+        });
+      }
+      toast('合成中…');
+      req.then(function(r){
+        if (!r.ok) return r.text().then(function(t){ throw new Error(r.status + ' ' + String(t).slice(0, 120)); });
+        return r.blob();
+      }).then(function(b){
+        var ou = URL.createObjectURL(b);
+        audio = new Audio(ou);
+        audio.playbackRate = sp;
+        audio.onended = function(){ try { URL.revokeObjectURL(ou); } catch(e){} audio = null; };
+        return audio.play();
+      }).catch(function(e){ toast('朗读失败：' + ((e && e.message) || e)); });
+    }
+
+    function openPanel(){
+      var old = document.getElementById('ttsPanel'); if (old) old.remove();
+      var d = document.createElement('div');
+      d.id = 'ttsPanel';
+      d.style.cssText = 'position:fixed;inset:0;z-index:80;background:#f4f4f2;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top) + 16px) 18px calc(env(safe-area-inset-bottom) + 30px);font-size:14px';
+      var ipt = 'flex:1;max-width:64%;text-align:right;border:0;background:transparent;font-size:14px;color:#0b0b0b';
+      var rowS = 'padding:14px 0;border-bottom:1px solid rgba(0,0,0,.08);display:flex;align-items:center;justify-content:space-between;gap:12px';
+      var isSys = cfg.provider === 'system';
+      var voiceCtl = isSys
+        ? '<select id="ttsVoice" style="' + ipt + '"><option value="">默认</option>' +
+            voices().map(function(v){ return '<option value="' + v.name + '"' + (cfg.voice === v.name ? ' selected' : '') + '>' + v.name + '</option>'; }).join('') +
+          '</select>'
+        : '<input id="ttsVoice" style="' + ipt + '" value="' + (cfg.voice || '') + '" placeholder="alloy / Voice ID">';
+      d.innerHTML =
+        '<div style="display:flex;align-items:center;margin-bottom:8px">' +
+          '<b style="font-size:17px">语音朗读</b>' +
+          '<button id="ttsClose" style="margin-left:auto;border:0;background:#111;color:#fff;border-radius:18px;padding:8px 18px;font-size:13px">完成</button>' +
+        '</div>' +
+        '<div style="' + rowS + '"><span>开启朗读</span><input type="checkbox" id="ttsOn" ' + (+cfg.on ? 'checked' : '') + ' style="width:22px;height:22px"></div>' +
+        '<div style="' + rowS + '"><span>自动朗读新回复</span><input type="checkbox" id="ttsAuto" ' + (+cfg.auto ? 'checked' : '') + ' style="width:22px;height:22px"></div>' +
+        '<div style="' + rowS + '"><span>平台</span><select id="ttsProv" style="' + ipt + '">' +
+          '<option value="system"' + (isSys ? ' selected' : '') + '>系统内置（免费）</option>' +
+          '<option value="openai"' + (cfg.provider === 'openai' ? ' selected' : '') + '>OpenAI 兼容</option>' +
+          '<option value="elevenlabs"' + (cfg.provider === 'elevenlabs' ? ' selected' : '') + '>ElevenLabs</option>' +
+        '</select></div>' +
+        '<div id="ttsOnline"' + (isSys ? ' style="display:none"' : '') + '>' +
+          '<div style="' + rowS + '"><span>API 地址</span><input id="ttsUrl" style="' + ipt + '" value="' + (cfg.url || '') + '" placeholder="' + (cfg.provider === 'elevenlabs' ? 'https://api.elevenlabs.io' : 'https://api.openai.com') + '"></div>' +
+          '<div style="' + rowS + '"><span>API Key</span><input id="ttsKey" type="password" style="' + ipt + '" value="' + (cfg.key || '') + '" placeholder="sk-..."></div>' +
+          '<div style="' + rowS + '"><span>模型</span><input id="ttsModel" style="' + ipt + '" value="' + (cfg.model || '') + '" placeholder="' + (cfg.provider === 'elevenlabs' ? 'eleven_multilingual_v2' : 'gpt-4o-mini-tts') + '"></div>' +
+        '</div>' +
+        '<div style="' + rowS + '"><span>音色</span>' + voiceCtl + '</div>' +
+        '<div style="' + rowS + '"><span>语速</span><span style="display:flex;align-items:center;gap:10px;flex:1;max-width:64%;justify-content:flex-end">' +
+          '<input id="ttsSpeed" type="range" min="0.5" max="2" step="0.05" value="' + (+cfg.speed || 1) + '" style="width:120px">' +
+          '<b id="ttsSpeedV" style="font-size:13px;color:#a0a09c;width:34px;text-align:right">' + (+cfg.speed || 1).toFixed(2) + '</b></span></div>' +
+        '<div style="display:flex;gap:10px;margin-top:18px">' +
+          '<button id="ttsTest" style="flex:1;border:0;background:#111;color:#fff;border-radius:18px;padding:13px;font-size:14px">试听</button>' +
+          '<button id="ttsLast" style="flex:1;border:1px solid rgba(0,0,0,.12);background:#fff;color:#0b0b0b;border-radius:18px;padding:13px;font-size:14px">读最后一条</button>' +
+        '</div>' +
+        '<div style="font-size:11px;color:#a0a09c;line-height:1.75;margin-top:14px">系统内置不用 Key，用手机自带音色（设置 → 辅助功能 → 朗读内容 可下载更多）。OpenAI 兼容填平台根地址（如 https://api.openai.com），会自动接 /v1/audio/speech。ElevenLabs 填 https://api.elevenlabs.io，音色填 Voice ID。在线合成需要平台允许浏览器跨域，报错就先用系统内置。</div>';
+      document.body.appendChild(d);
+
+      var q = function(id){ return d.querySelector('#' + id); };
+      q('ttsClose').onclick = function(){ d.remove(); };
+      q('ttsOn').onchange = function(){ cfg.on = this.checked ? 1 : 0; saveCfg(); if (!+cfg.on) stop(); };
+      q('ttsAuto').onchange = function(){ cfg.auto = this.checked ? 1 : 0; saveCfg(); };
+      q('ttsProv').onchange = function(){ cfg.provider = this.value; saveCfg(); openPanel(); };
+      if (q('ttsUrl')) q('ttsUrl').oninput = function(){ cfg.url = this.value.trim(); saveCfg(); };
+      if (q('ttsKey')) q('ttsKey').oninput = function(){ cfg.key = this.value.trim(); saveCfg(); };
+      if (q('ttsModel')) q('ttsModel').oninput = function(){ cfg.model = this.value.trim(); saveCfg(); };
+      if (q('ttsVoice')) q('ttsVoice').onchange = function(){ cfg.voice = this.value; saveCfg(); };
+      q('ttsSpeed').oninput = function(){ cfg.speed = +this.value; q('ttsSpeedV').textContent = (+this.value).toFixed(2); saveCfg(); };
+      q('ttsTest').onclick = function(){ speak('你好，我是祁砚。这是现在的语速。'); };
+      q('ttsLast').onclick = function(){
+        var els = document.querySelectorAll('#msgs .bub.kai:not(.typing)');
+        var el = els[els.length - 1];
+        if (el) speak(el.textContent); else toast('还没有可以读的消息');
+      };
+    }
+
+    function addTop(){
+      var bar = document.querySelector('#ov .ovtop');
+      if (!bar || bar.querySelector('.ttsTop')) return;
+      var b = document.createElement('div');
+      b.className = 'ttsTop';
+      b.textContent = '🔊';
+      b.style.cssText = 'font-size:17px;padding:2px 8px;opacity:.8';
+      b.onclick = function(e){ e.stopPropagation(); openPanel(); };
+      var act = bar.querySelector('.ovact');
+      if (act) bar.insertBefore(b, act); else bar.appendChild(b);
+    }
+
+    var lastText = '';
+    function decorate(){
+      var box = document.getElementById('msgs');
+      if (!box) return;
+      var wraps = box.querySelectorAll('.wrap');
+      for (var i = 0; i < wraps.length; i++){
+        var w = wraps[i];
+        if (w.querySelector('.spk')) continue;
+        var bub = w.querySelector('.bub.kai');
+        if (!bub || bub.classList.contains('typing')) continue;
+        (function(el, host){
+          var s = document.createElement('span');
+          s.className = 'spk';
+          s.textContent = '🔊';
+          s.style.cssText = 'font-size:11px;opacity:.38;align-self:flex-end;margin-top:2px;padding:2px 4px';
+          s.onclick = function(ev){ ev.stopPropagation(); speak(el.textContent); };
+          host.appendChild(s);
+        })(bub, w);
+      }
+      if (+cfg.on && +cfg.auto){
+        var els = box.querySelectorAll('.bub.kai:not(.typing)');
+        var last = els[els.length - 1];
+        if (last){
+          var t = last.textContent.trim();
+          if (t && t !== lastText){ lastText = t; speak(t); }
+        }
+      }
+    }
+
+    addTop();
+    var box = document.getElementById('msgs');
+    if (box) new MutationObserver(function(){ setTimeout(decorate, 80); })
+      .observe(box, { childList: true, subtree: true, characterData: true });
+    decorate();
+    window.addEventListener('load', addTop);
+  } catch(e){ console.warn('tts block failed', e); }
+})();
+
