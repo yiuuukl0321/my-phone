@@ -1862,6 +1862,78 @@ font:11px/1.3 monospace;padding:3px 5px"></div>
   inject();
 })();
 
+(function(){
+  var CACHE = {}, LAST = [];
+
+  function strip(html){
+    var s = String(html || '');
+    s = s.replace(/<script[\s\S]*?<\/script>/gi, ' ')
+         .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+         .replace(/<!--[\s\S]*?-->/g, ' ')
+         .replace(/<br\s*\/?>/gi, '\n')
+         .replace(/<\/(p|div|li|h[1-6]|tr)>/gi, '\n')
+         .replace(/<[^>]+>/g, ' ');
+    s = s.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+         .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+    s = s.replace(/[ \t\r\f\v]+/g, ' ').replace(/\n\s*\n\s*\n+/g, '\n\n').trim();
+    return s;
+  }
+  function shorten(t, n){
+    t = String(t || '').trim();
+    return t.length <= n ? t : t.slice(0, n) + '\n…（后面截掉了）';
+  }
+  async function grab(url){
+    if (CACHE[url]) return CACHE[url];
+    var out = '';
+    try {
+      var r = await fetch('https://r.jina.ai/' + url, { headers: { 'Accept': 'text/plain' } });
+      if (r.ok) out = await r.text();
+    } catch(e){}
+    if (!out || out.length < 40){
+      try {
+        var r2 = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(url));
+        if (r2.ok) out = strip(await r2.text());
+      } catch(e){}
+    }
+    out = shorten(out, 6000);
+    CACHE[url] = out;
+    return out;
+  }
+
+  var _send = window.sendChat;
+  window.sendChat = async function(){
+    var inp = document.getElementById('mIn');
+    var ph = inp ? inp.placeholder : '';
+    var text = inp ? inp.value : '';
+    var urls = (String(text).match(/https?:\/\/[^\s，。、）)】]+/g) || []).slice(0, 3);
+    LAST = [];
+    if (urls.length){
+      if (inp) inp.placeholder = '正在抓网页…';
+      for (var i = 0; i < urls.length; i++){
+        var t = await grab(urls[i]);
+        if (t) LAST.push('【' + urls[i] + '】\n' + t);
+      }
+      if (inp) inp.placeholder = ph;
+    }
+    return _send.apply(this, arguments);
+  };
+
+  var _bm = window.buildMessages;
+  window.buildMessages = function(){
+    var m = _bm.apply(this, arguments);
+    if (LAST.length && Array.isArray(m)){
+      for (var i = m.length - 1; i >= 0; i--){
+        if (m[i] && m[i].role === 'user'){
+          m[i] = { role: 'user', content: m[i].content + '\n\n（下面是网页正文）\n' + LAST.join('\n\n') };
+          break;
+        }
+      }
+    }
+    return m;
+  };
+})();
+
+
 </script>
 </body>
 </html>
