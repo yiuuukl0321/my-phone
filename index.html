@@ -45,16 +45,15 @@ overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 margin:0 14px calc(env(safe-area-inset-bottom) + 16px);padding:13px 12px;
 background:rgba(255,255,255,.66);backdrop-filter:blur(24px);
 border:1px solid rgba(0,0,0,.06);border-radius:28px}
-body.edit .tile{animation:jig .3s infinite alternate ease-in-out}
-body.edit .tile:nth-child(2n){animation-delay:.06s}
-body.edit .tile:nth-child(3n){animation-delay:.12s}
-body.edit .tile:nth-child(5n){animation-delay:.18s}
+body.edit .tile{animation:jig .5s infinite alternate ease-in-out}
+body.edit .tile:nth-child(2n){animation-delay:.09s}
+body.edit .tile:nth-child(3n){animation-delay:.18s}
+body.edit .tile:nth-child(4n){animation-delay:.27s}
 body.dragging .tile{animation:none!important}
-@keyframes jig{from{transform:rotate(-1.3deg)}to{transform:rotate(1.3deg)}}
-.tile.placeholder{opacity:.22}
-.ghost{position:fixed;z-index:99;pointer-events:none;margin:0;
-filter:drop-shadow(0 14px 26px rgba(0,0,0,.28));will-change:transform}
-.ghost .ico{transform:scale(1.16)}
+@keyframes jig{from{transform:rotate(-.7deg)}to{transform:rotate(.7deg)}}
+.tile.placeholder{opacity:.2}
+.ghost{position:fixed;z-index:99;pointer-events:none;margin:0;will-change:transform}
+.ghost .ico{transform:scale(1.16);box-shadow:0 12px 22px rgba(0,0,0,.22)}
 #doneBtn{position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:16px;z-index:35;
 background:#111;color:#fff;border:0;border-radius:18px;padding:7px 18px;font-size:13px;display:none}
 body.edit #doneBtn{display:block}
@@ -306,13 +305,11 @@ const FRAGMENTS = [
 ];
 
 /* ---------- 应用 ----------
-   cell   = 贴纸图上的第几只（从左到右、从上到下，从 0 开始）
-   href   = https 链接，iOS 认得出就直接开 App，不弹窗
-   schemes= 只有 scheme 才唤得起的，才用这个，失败退回 fallback */
+   cell = 贴纸图上的第几只（从左到右、从上到下，从 0 开始）
+   href = https 链接，iOS 认得出就直接开 App，不会弹「在 App 中打开」 */
 const APPS = {
   chat:   { cell:6,  n:'聊天',   v:vChat, full:true },
-  netease:{ cell:12, n:'网易云', schemes:['orpheus://','neteasecloudmusic://'],
-            fallback:'https://music.163.com' },
+  netease:{ cell:12, n:'网易云', href:'https://music.163.com/' },
   douyin: { cell:20, n:'抖音',   href:'https://www.douyin.com/' },
   ig:     { cell:21, n:'IG',     href:'https://www.instagram.com/' },
   album:  { cell:25, n:'相册',   v:vAlbum },
@@ -443,9 +440,9 @@ buildIcons();
 applyWall();
 applyTouchIcon();
 
-/* ---------- 长按整理（跟手 + 让位动画） ---------- */
+/* ---------- 长按整理 ---------- */
 let EDIT = false, holdEl = null, lpTimer = null, sx = 0, sy = 0, moved = false, swallow = false;
-let ghost = null, dragStart = null, rafId = 0, lastPt = null;
+let ghost = null, dragStart = null, rafId = 0, lastPt = null, lastSwap = 0;
 
 function flip(container, mutate){
   const before = new Map();
@@ -459,7 +456,7 @@ function flip(container, mutate){
     el.style.transition = 'none';
     el.style.transform = `translate(${dx}px,${dy}px)`;
     el.getBoundingClientRect();
-    el.style.transition = 'transform .32s cubic-bezier(.2,.85,.25,1)';
+    el.style.transition = 'transform .3s cubic-bezier(.2,.85,.25,1)';
     el.style.transform = '';
   });
 }
@@ -493,6 +490,7 @@ function beginDrag(t){
   holdEl.classList.add('placeholder');
   document.body.classList.add('dragging');
   dragStart = { x: t.clientX, y: t.clientY };
+  lastSwap = 0;
 }
 function endDrag(){
   if (ghost){ ghost.remove(); ghost = null; }
@@ -507,19 +505,24 @@ function moveGhost(){
   if (!ghost || !lastPt || !dragStart) return;
   const t = lastPt;
   ghost.style.transform = `translate3d(${t.clientX - dragStart.x}px,${t.clientY - dragStart.y}px,0)`;
+
+  /* 换位要有间隔，不然会在两个格子之间来回跳 */
+  const now = Date.now();
+  if (now - lastSwap < 200) return;
+
   const under = document.elementFromPoint(t.clientX, t.clientY);
   const target = under && under.closest ? under.closest('.tile') : null;
-  if (target && target !== holdEl && !target.classList.contains('ghost')
-      && target.parentNode === holdEl.parentNode){
-    const kids = [...holdEl.parentNode.children];
-    const a = kids.indexOf(holdEl), b = kids.indexOf(target);
-    if (a !== -1 && b !== -1 && a !== b){
-      flip(holdEl.parentNode, () => {
-        if (b > a) holdEl.parentNode.insertBefore(holdEl, target.nextSibling);
-        else holdEl.parentNode.insertBefore(holdEl, target);
-      });
-    }
-  }
+  if (!target || target === holdEl || target.parentNode !== holdEl.parentNode) return;
+
+  const kids = [...holdEl.parentNode.children];
+  const a = kids.indexOf(holdEl), b = kids.indexOf(target);
+  if (a === -1 || b === -1 || a === b) return;
+
+  lastSwap = now;
+  flip(holdEl.parentNode, () => {
+    if (b > a) holdEl.parentNode.insertBefore(holdEl, target.nextSibling);
+    else holdEl.parentNode.insertBefore(holdEl, target);
+  });
 }
 
 document.addEventListener('touchstart', e => {
@@ -551,29 +554,11 @@ document.addEventListener('touchend', () => {
   if (!EDIT) holdEl = null;
 }, { passive: true });
 
-/* 开 https 链接：新开一页，不弹「在 App 中打开」 */
+/* 开 https 链接：iOS 认得出就唤起对应 App，认不出就开网页，都不会弹确认框 */
 function goOut(url){
   const a = document.createElement('a');
   a.href = url; a.target = '_blank'; a.rel = 'noopener';
   document.body.appendChild(a); a.click(); a.remove();
-}
-/* 只有 scheme 才唤得起的 App：两次机会，1.5 秒没跳走才退回 */
-function openNative(schemes, fallback){
-  let left = false;
-  const onHide = () => { left = true; };
-  document.addEventListener('visibilitychange', onHide);
-  const go = s => {
-    const a = document.createElement('a');
-    a.href = s; a.style.display = 'none';
-    document.body.appendChild(a); a.click();
-    setTimeout(() => a.remove(), 60);
-  };
-  go(schemes[0]);
-  if (schemes[1]) setTimeout(() => { if (!left && !document.hidden) go(schemes[1]); }, 220);
-  setTimeout(() => {
-    document.removeEventListener('visibilitychange', onHide);
-    if (!left && !document.hidden && fallback) window.location.href = fallback;
-  }, 1500);
 }
 
 document.addEventListener('click', e => {
@@ -581,7 +566,6 @@ document.addEventListener('click', e => {
   if (EDIT || swallow) return;
   const app = APPS[el.dataset.k]; if (!app) return;
   if (app.href) goOut(app.href);
-  else if (app.schemes) openNative(app.schemes, app.fallback);
   else openApp(el.dataset.k);
 });
 
