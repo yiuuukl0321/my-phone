@@ -14,7 +14,7 @@
 :root{--bg:#f4f4f2;--card:#fff;--ink:#0b0b0b;--mute:#a0a09c;--line:rgba(0,0,0,.09)}
 html{background-color:#f2f2ef;background-repeat:no-repeat;background-position:center;
 background-size:cover;background-attachment:fixed}
-body{height:100%;overflow:hidden;background:transparent;color:var(--ink);
+body{height:100%;overflow:hidden;background:transparent;color:var(--ink);touch-action:manipulation;
 font:400 15px/1.55 -apple-system,"PingFang SC",system-ui,sans-serif;
 -webkit-font-smoothing:antialiased;-webkit-user-select:text;user-select:text}
 input,textarea{font-family:inherit}
@@ -104,26 +104,33 @@ white-space:nowrap}
 max-height:220px;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .bub.typing{color:var(--mute);letter-spacing:3px}
 .memo{align-self:flex-start;font-size:11px;color:var(--mute);padding:0 4px 10px;max-width:82%}
+.memo.alarm{color:#0b0b0b;background:#fff5cc;border:1px solid #f0dfa0;border-radius:14px;
+padding:9px 13px;font-size:12.5px;margin:2px 0 12px}
+.memo b{color:#0b0b0b;font-weight:600;margin-left:8px;text-decoration:underline}
 .hl{box-shadow:0 0 0 2.5px #f5c400;border-radius:18px}
 .blockbar{display:none;padding:10px 16px;background:#ffe9e7;color:#c0392b;
 font-size:12px;text-align:center;letter-spacing:.02em;flex:0 0 auto}
-.inputbar{display:flex;gap:8px;padding:10px 16px calc(env(safe-area-inset-bottom) + 14px);
+.inputbar{display:flex;gap:6px;padding:10px 12px calc(env(safe-area-inset-bottom) + 14px);
 border-top:1px solid var(--line);background:var(--bg);flex:0 0 auto}
-.inputbar input{flex:1;background:#fff;border:1px solid var(--line);border-radius:22px;
-padding:12px 18px;font-size:15px;color:var(--ink)}
+.inputbar input{flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:22px;
+padding:12px 16px;font-size:15px;color:var(--ink)}
 .inputbar input::placeholder{color:#c9c9c5}
 .inputbar input:disabled{opacity:.45}
-.inputbar button{padding:0 22px;border-radius:22px;border:0;background:#111;color:#fff;font-size:14px}
+.inputbar button{padding:0 14px;min-width:46px;border-radius:22px;border:0;
+background:#111;color:#fff;font-size:13px}
+.inputbar button.ib{background:#fff;color:#0b0b0b;border:1px solid var(--line)}
+.inputbar button.ib.on{background:#ff3b30;color:#fff;border-color:#ff3b30}
 .inputbar button:disabled{opacity:.35}
 .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:12px}
 .eyebrow{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);margin-bottom:11px}
 .big{font-size:21px;font-weight:600;letter-spacing:-.4px;line-height:1.45}
-.sub{font-size:12.5px;color:var(--mute);margin-top:9px;line-height:1.7}
+.sub{font-size:12.5px;color:var(--mute);margin-top:9px;line-height:1.7;white-space:pre-wrap}
 .item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 0;
 border-bottom:1px solid var(--line);font-size:14.5px;color:inherit;text-decoration:none;min-height:52px}
 .item:last-child{border-bottom:0}
 .item em{font-style:normal;color:var(--mute);font-size:11px;letter-spacing:.08em;white-space:nowrap;
 display:flex;align-items:center}
+.x{color:#c2c2be;font-size:18px;line-height:1;padding:4px 2px 4px 12px}
 .sw{width:47px;height:28px;border-radius:14px;background:#e3e3df;position:relative;
 transition:background .2s;display:inline-block}
 .sw i{position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#fff;
@@ -164,6 +171,12 @@ text-transform:uppercase;color:var(--mute);margin-top:8px}
 @keyframes breathe{0%{transform:scale(.55)}50%{transform:scale(1)}100%{transform:scale(.55)}}
 .breath{width:150px;height:150px;border-radius:50%;background:#111;margin:30px auto 26px;
 animation:breathe 8s ease-in-out infinite}
+.alarmpop{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
+background:rgba(0,0,0,.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);text-align:center}
+.apbox{padding:30px}
+.aptime{font-size:66px;font-weight:200;color:#fff;letter-spacing:-2.5px;line-height:1}
+.aplabel{color:rgba(255,255,255,.6);font-size:14px;margin-top:10px}
+.apbtn{margin-top:30px;padding:13px 44px;border-radius:24px;border:0;background:#fff;color:#111;font-size:15px}
 </style>
 </head>
 <body>
@@ -213,6 +226,8 @@ animation:breathe 8s ease-in-out infinite}
 const WALL_DEFAULT = 'IMG_6397.jpeg';
 const ICON_DEFAULT = 'IMG_6461.jpeg';
 const CHAT_BGS = ['', '#ffffff', '#fdf6ec', '#eef4ff', '#f2fbf4', '#2b2b2d'];
+const SB_URL = 'https://saxgvdcoxuawaslqebmd.supabase.co/rest/v1/alarms';
+const SB_KEY = 'sb_publishable_120kFKhxe_NMVrcRdN0lwg_DDckWKMk';
 
 const S = Object.assign({
   name: '小咩',
@@ -227,6 +242,7 @@ const save = () => localStorage.setItem('xm', JSON.stringify(S));
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const p2 = n => String(n).padStart(2,'0');
 const days = () => Math.floor((new Date(new Date().toDateString()) - new Date(S.anniv)) / 864e5) + 1;
 
 /* ---- 全局状态 ---- */
@@ -234,9 +250,15 @@ let EDIT = false, holdEl = null, lpTimer = null, sx = 0, sy = 0, moved = false, 
 let ghost = null, dragStart = null, rafId = 0, lastPt = null, lastSwap = 0;
 let blockTimer = null;
 let SENDING = false;
+let recog = null;
+let lastHomeTap = 0;
 
 let MEM = JSON.parse(localStorage.getItem('xm_mem') || '[]');
 const saveMem = () => localStorage.setItem('xm_mem', JSON.stringify(MEM));
+
+let ALARMS = [];
+try { const a = JSON.parse(localStorage.getItem('xm_alarms') || '[]'); if (Array.isArray(a)) ALARMS = a; } catch(e){}
+const saveAlarms = () => localStorage.setItem('xm_alarms', JSON.stringify(ALARMS));
 
 function addMemAuto(t){
   const s = String(t || '').replace(/\s+/g, ' ').trim();
@@ -249,9 +271,9 @@ function addMemAuto(t){
 }
 
 function tick(){
-  const d = new Date(), p = n => String(n).padStart(2,'0');
-  $('lkDate').textContent = `${d.getMonth()+1}.${p(d.getDate())} 星期${'日一二三四五六'[d.getDay()]}`;
-  $('lkTime').textContent = `${p(d.getHours())}:${p(d.getMinutes())}`;
+  const d = new Date();
+  $('lkDate').textContent = `${d.getMonth()+1}.${p2(d.getDate())} 星期${'日一二三四五六'[d.getDay()]}`;
+  $('lkTime').textContent = `${p2(d.getHours())}:${p2(d.getMinutes())}`;
   $('lkDays').innerHTML = `<b>${days()}</b>days with you`;
 }
 tick(); setInterval(tick, 15000);
@@ -308,15 +330,19 @@ const PERSONA = [
   '有的话，就在回复最后另起一行写：[[记]]那句话',
   '没有的话，一个字都不要写。',
   '只记长期的、会重复用到的。一次性的闲聊、当天的情绪起伏、你刚说过的话，都不算。',
-  '这一行是给程序读的，小咩看不到，别把它混进正常句子里，也别因为要写它而改变你说话的方式。'
+  '',
+  '【闹钟规则】',
+  '她说了想几点起、几点叫她、要定闹钟这类事，就在回复最后另起一行写：[[闹钟]]07:00|起床',
+  '时间用 24 小时制，竖线后面是短备注。',
+  '没有要定闹钟就别写这一行。',
+  '上面这两行都是给程序读的，小咩看不到，别把它们混进正常句子里，也别因为要写它们而改变你说话的方式。'
 ].join('\n');
 
 let CHAT = JSON.parse(localStorage.getItem('xm_chat') || '[]');
 const saveChat = () => localStorage.setItem('xm_chat', JSON.stringify(CHAT.slice(-80)));
 
-/* 从原始回复里拆出：正文 / 思考过程 / 要记的事 */
 function parseReply(raw){
-  const texts = [], thinks = [], mems = [];
+  const texts = [], thinks = [], mems = [], alarms = [];
   String(raw || '').split('\n').forEach(line => {
     const s = line.trim(); if (!s) return;
     if (s.startsWith('{') && s.endsWith('}')){
@@ -339,13 +365,23 @@ function parseReply(raw){
 
   const keep = [];
   text.split('\n').forEach(line => {
-    const mm = line.match(/^\s*[\[【]\s*记\s*[\]】]\s*(.+?)\s*$/);
-    if (mm && mm[1]) mems.push(mm[1]);
-    else keep.push(line);
+    let mm = line.match(/^\s*[\[【]\s*记\s*[\]】]\s*(.+?)\s*$/);
+    if (mm && mm[1]){ mems.push(mm[1]); return; }
+    mm = line.match(/^\s*[\[【]{1,2}\s*闹钟\s*[\]】]{1,2}\s*(\d{1,2})\s*[:：]\s*(\d{2})\s*[|｜]?\s*(.*)$/);
+    if (mm){
+      const hh = Math.min(23, Math.max(0, +mm[1]));
+      const mi = Math.min(59, Math.max(0, +mm[2]));
+      alarms.push({ hh, mm: mi, label: (mm[3] || '').trim() });
+      return;
+    }
+    keep.push(line);
   });
-  text = keep.join('\n').replace(/[\[【]\s*记\s*[\]】][^\n]*/g, '').trim();
+  text = keep.join('\n')
+    .replace(/[\[【]{1,2}\s*记\s*[\]】]{1,2}[^\n]*/g, '')
+    .replace(/[\[【]{1,2}\s*闹钟\s*[\]】]{1,2}[^\n]*/g, '')
+    .trim();
 
-  return { text, think: thinks.join('\n').trim(), mems };
+  return { text, think: thinks.join('\n').trim(), mems, alarms };
 }
 
 function estTokens(s){
@@ -387,6 +423,17 @@ function flashMemo(txt){
   box.appendChild(d);
   box.scrollTop = box.scrollHeight;
 }
+function flashAlarm(list){
+  const box = $('msgs'); if (!box || !list.length) return;
+  const d = document.createElement('div');
+  d.className = 'memo alarm';
+  const t = list.map(a => p2(a.hh) + ':' + p2(a.mm) + (a.label ? ' ' + esc(a.label) : '')).join('、');
+  d.innerHTML = '⏰ 定好了 ' + t + '<b onclick="openDrawerAlarm()">查看</b>';
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+}
+function openDrawerAlarm(){ openApp('drawer'); drawerGo('alarm'); }
+
 function buildMessages(){
   const hist = CHAT.filter(m => !m.typing).slice(-12)
     .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
@@ -398,11 +445,192 @@ function buildMessages(){
   return [{ role: 'system', content: sys }, ...hist];
 }
 
+/* ---------- 闹钟 ---------- */
+let audioCtx = null, beepTimer = null;
+function beepOn(){
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const once = () => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = 880;
+      const t = audioCtx.currentTime;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.3, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t); o.stop(t + 0.4);
+    };
+    once();
+    clearInterval(beepTimer);
+    beepTimer = setInterval(once, 900);
+  } catch(e){}
+}
+function beepOff(){ clearInterval(beepTimer); beepTimer = null; }
+
+function addAlarmLocal(hh, mm, label){
+  ALARMS.push({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2,4),
+                hh, mm, label: label || '', on: 1, last: '' });
+  saveAlarms();
+}
+function pushAlarmsToCloud(list){
+  if (!list.length) return;
+  const now = new Date();
+  const rows = list.map(a => {
+    const d = new Date(now.getTime());
+    d.setHours(a.hh, a.mm, 0, 0);
+    if (d <= now) d.setDate(d.getDate() + 1);
+    const iso = d.getFullYear() + '-' + p2(d.getMonth()+1) + '-' + p2(d.getDate())
+      + 'T' + p2(a.hh) + ':' + p2(a.mm) + ':00+08:00';
+    return { at: iso, at_time: p2(a.hh) + ':' + p2(a.mm), label: a.label || '闹钟' };
+  });
+  fetch(SB_URL, {
+    method: 'POST',
+    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY,
+               'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    body: JSON.stringify(rows)
+  }).catch(() => {});
+}
+
+function vAlarm(){
+  const sorted = ALARMS.slice().sort((a,b) => (a.hh*60+a.mm) - (b.hh*60+b.mm));
+  const list = sorted.length
+    ? sorted.map(a => `<div class="item">
+        <span>${p2(a.hh)}:${p2(a.mm)}${a.label ? '　' + esc(a.label) : ''}</span>
+        <em><span class="sw ${a.on ? 'on' : ''}" onclick="tglAlarm('${a.id}')"><i></i></span>
+          <b class="x" onclick="delAlarm('${a.id}')">×</b></em>
+      </div>`).join('')
+    : '<div class="empty">还没设闹钟。在聊天里跟他说「七点叫我」也行。</div>';
+  return `<div class="card"><div class="eyebrow">ALARM</div>${list}</div>
+  <div class="card">
+    <div class="field"><span>时间</span><input id="aTime" type="time" value="07:00"></div>
+    <div class="field"><span>备注</span><input id="aLabel" placeholder="起床" maxlength="12"></div>
+    <div class="item" onclick="addAlarm()"><span>加一个</span><em>›</em></div>
+    <div class="item" onclick="tryBeep()"><span>试一下响铃</span><em>›</em></div>
+  </div>
+  <div class="card"><div class="sub" style="margin:0">在聊天里提到要几点起，我会自动给你加进来。
+    同时会往手机时钟那边递一条 —— 那边要等你把「闹钟同步」那条捷径弄好才会真的建出来。
+    这个 app 里的闹钟只在开着咩&amp;砚的时候会响。</div></div>`;
+}
+function tglAlarm(id){
+  const a = ALARMS.find(x => x.id === id); if (!a) return;
+  a.on = a.on ? 0 : 1; saveAlarms(); drawerGo('alarm');
+}
+function delAlarm(id){
+  ALARMS = ALARMS.filter(x => x.id !== id);
+  saveAlarms(); drawerGo('alarm');
+}
+function addAlarm(){
+  const v = $('aTime') ? $('aTime').value : '';
+  if (!v) return;
+  const [h, m] = v.split(':').map(Number);
+  const label = ($('aLabel') ? $('aLabel').value.trim() : '');
+  addAlarmLocal(h, m, label);
+  pushAlarmsToCloud([{ hh: h, mm: m, label }]);
+  drawerGo('alarm');
+}
+function tryBeep(){
+  beepOn();
+  setTimeout(beepOff, 2500);
+}
+function checkAlarms(){
+  const d = new Date();
+  const key = d.toDateString() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+  ALARMS.forEach(a => {
+    if (!a.on) return;
+    if (a.hh !== d.getHours() || a.mm !== d.getMinutes()) return;
+    if (a.last === key) return;
+    a.last = key; saveAlarms();
+    ringAlarm(a);
+  });
+}
+setInterval(checkAlarms, 15000);
+
+function ringAlarm(a){
+  try {
+    if ('Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker){
+      navigator.serviceWorker.ready.then(reg => reg.showNotification(
+        '闹钟 ' + p2(a.hh) + ':' + p2(a.mm),
+        { body: a.label || '时间到了', tag: 'alarm-' + a.id }
+      )).catch(() => {});
+    }
+  } catch(e){}
+  try { if (navigator.vibrate) navigator.vibrate([300,150,300,150,300]); } catch(e){}
+  beepOn();
+  let el = $('alarmPop');
+  if (!el){
+    el = document.createElement('div');
+    el.id = 'alarmPop';
+    el.className = 'alarmpop';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `<div class="apbox">
+    <div class="aptime">${p2(a.hh)}:${p2(a.mm)}</div>
+    <div class="aplabel">${esc(a.label || '时间到了')}</div>
+    <button class="apbtn" onclick="stopAlarm()">停</button>
+  </div>`;
+  el.style.display = 'flex';
+}
+function stopAlarm(){
+  beepOff();
+  const el = $('alarmPop');
+  if (el) el.style.display = 'none';
+}
+
+/* ---------- 语音转文字 ---------- */
+function setMicUI(on){
+  const b = $('micBtn'); if (!b) return;
+  b.classList.toggle('on', on);
+  b.textContent = on ? '停' : '说';
+}
+function toggleMic(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR){ alert('这个浏览器不给语音识别。用 iPhone 的话要从主屏幕的图标进来。'); return; }
+  if (recog){
+    try { recog.stop(); } catch(e){}
+    recog = null; setMicUI(false); return;
+  }
+  const el = $('mIn'); if (!el) return;
+  const baseText = el.value;
+  try {
+    recog = new SR();
+    recog.lang = 'zh-CN';
+    recog.interimResults = true;
+    recog.continuous = false;
+    recog.onresult = e => {
+      let t = '';
+      for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+      el.value = (baseText ? baseText + ' ' : '') + t;
+    };
+    recog.onerror = () => { recog = null; setMicUI(false); };
+    recog.onend = () => { recog = null; setMicUI(false); };
+    recog.start();
+    setMicUI(true);
+  } catch(e){
+    recog = null; setMicUI(false);
+    alert('开不了麦克风：' + e.message);
+  }
+}
+
+/* ---------- 读剪贴板 ---------- */
+async function pasteClip(){
+  const el = $('mIn'); if (!el) return;
+  try {
+    const t = await navigator.clipboard.readText();
+    if (!t) return;
+    el.value = (el.value ? el.value + ' ' : '') + t;
+    el.focus();
+  } catch(e){
+    alert('读不到剪贴板。\niOS 只在你自己点的时候才给读，长按输入框手动粘贴也可以。');
+  }
+}
+
 async function sendChat(){
   if (isBlocked()) return;
   const inp = $('mIn'), text = inp.value.trim();
   if (!text) return;
   if (!S.key || !S.apiUrl || !S.apiKey || !S.model){ alert('先去「设置」把参数填好'); return; }
+  if (recog){ try { recog.stop(); } catch(e){} recog = null; setMicUI(false); }
   inp.value = '';
   SENDING = true;
   CHAT.push({ role: 'user', text, t: Date.now() });
@@ -465,6 +693,11 @@ async function sendChat(){
       r.mems.forEach(m => { if (addMemAuto(m)) saved.push(m); });
       msg._saved = saved;
     }
+    if (r.alarms.length){
+      r.alarms.forEach(a => addAlarmLocal(a.hh, a.mm, a.label));
+      pushAlarmsToCloud(r.alarms);
+      msg._alarms = r.alarms;
+    }
   }
 
   SENDING = false;
@@ -472,6 +705,7 @@ async function sendChat(){
   CHAT.push(msg);
   saveChat(); renderChat(true);
   if (msg._saved && msg._saved.length) flashMemo(msg._saved.join(' · '));
+  if (msg._alarms && msg._alarms.length) flashAlarm(msg._alarms);
 }
 
 async function pullOutbox(){
@@ -480,7 +714,7 @@ async function pullOutbox(){
     const j = await api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
     const items = (j.items || []).filter(x => x.content || x.error);
     if (!items.length) return;
-    const saved = [];
+    const saved = [], alarms = [];
     items.forEach(it => {
       if (it.error){
         CHAT.push({ role: 'assistant', text: '出错了：' + it.error, t: Date.now() });
@@ -490,13 +724,19 @@ async function pullOutbox(){
       const tok = pickTokens(it) || estTokens(it.content);
       CHAT.push({ role: 'assistant', text: r.text || '（空）', think: r.think, tok, t: Date.now() });
       if (S.autoMem) r.mems.forEach(m => { if (addMemAuto(m)) saved.push(m); });
+      r.alarms.forEach(a => { addAlarmLocal(a.hh, a.mm, a.label); alarms.push(a); });
     });
+    if (alarms.length) pushAlarmsToCloud(alarms);
     await api('/ack', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ inboxId: S.inbox, ids: items.map(x => x.id) })
     }).catch(() => {});
     saveChat();
-    if ($('msgs')){ renderChat(true); if (saved.length) flashMemo(saved.join(' · ')); }
+    if ($('msgs')){
+      renderChat(true);
+      if (saved.length) flashMemo(saved.join(' · '));
+      if (alarms.length) flashAlarm(alarms);
+    }
   } catch(e){}
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pullOutbox(); });
@@ -541,6 +781,15 @@ function attachSwipeBack(el, closeFn){
 }
 attachSwipeBack($('ov'), closeOv);
 attachSwipeBack($('sh'), closeSheet);
+
+/* ---------- 双击主页退出编辑 ---------- */
+$('home').addEventListener('click', e => {
+  if (!EDIT) return;
+  if (e.target.closest('.tile')) return;
+  const now = Date.now();
+  if (now - lastHomeTap < 350){ lastHomeTap = 0; exitEdit(); }
+  else lastHomeTap = now;
+});
 
 /* ---------- 推送 ---------- */
 function urlB64ToUint8Array(b64){
@@ -667,12 +916,8 @@ const APPS = {
   album:  { cell:25, n:'相册',   v:vAlbum },
   cal:    { cell:2,  n:'日历',   v:vCal },
   days:   { cell:1,  n:'纪念日', v:vDays },
-  frag:   { cell:9,  n:'碎片',   v:vFrag },
-  game:   { cell:13, n:'小游戏', v:vGame },
+  drawer: { cell:9,  n:'抽屉',   v:vDrawer },
   watch:  { cell:8,  n:'监视器', v:vWatch },
-  stats:  { cell:10, n:'统计',   v:vStats },
-  night:  { cell:15, n:'晚安',   v:vNight },
-  breathe:{ cell:32, n:'呼吸',   v:vBreathe },
   set:    { cell:5,  n:'设置',   v:vSet }
 };
 const ALL = Object.keys(APPS);
@@ -832,8 +1077,9 @@ applyWall();
 applyTouchIcon();
 if (S.blockUntil) startBlockWatch();
 pullOutbox();
+checkAlarms();
 
-/* ---------- 长按整理（上面那栏和下面那栏之间可以随便搬） ---------- */
+/* ---------- 长按整理 ---------- */
 function flip(container, mutate){
   const before = new Map();
   [...container.children].forEach(el => before.set(el, el.getBoundingClientRect()));
@@ -853,7 +1099,7 @@ function flip(container, mutate){
 
 function enterEdit(){ EDIT = true; document.body.classList.add('edit'); renderHome(); }
 function exitEdit(){
-  EDIT = false;
+  EDIT = false; lastHomeTap = 0;
   document.body.classList.remove('edit','dragging');
   GRID = [...$('grid').children].map(e => e.dataset.k).filter(Boolean);
   DOCK = [...$('dock').children].map(e => e.dataset.k).filter(Boolean);
@@ -1010,13 +1256,12 @@ function openApp(k){
   body.innerHTML = app.v();
   $('ov').classList.remove('hide');
   if (k === 'chat'){ renderChat(true); refreshBlockUI(); startBlockWatch(); }
-  if (k === 'game') newGame();
-  if (k === 'breathe') startBreathe();
   if (k === 'set') refreshPushState();
 }
 function closeOv(){
   stopBreathe();
   clearInterval(blockTimer);
+  if (recog){ try { recog.stop(); } catch(e){} recog = null; }
   $('ov').classList.add('hide');
   $('ovbody').innerHTML = '';
   $('ovbody').className = '';
@@ -1096,7 +1341,7 @@ function refreshBlockUI(){
   const on = left > 0;
   const bar = $('blockBar');
   const inp = $('mIn');
-  const btn = document.querySelector('.inputbar button');
+  const btn = document.querySelector('.inputbar button:last-child');
   if (bar){
     bar.style.display = on ? 'block' : 'none';
     bar.textContent = on ? `已被拉黑 · ${left} 秒后自动解除` : '';
@@ -1137,6 +1382,8 @@ function vChat(){
     <div class="blockbar" id="blockBar"></div>
     <div class="inputbar">
       <input id="mIn" placeholder="说点什么" onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="ib" id="micBtn" onclick="toggleMic()">说</button>
+      <button class="ib" onclick="pasteClip()">贴</button>
       <button onclick="sendChat()">Send</button>
     </div>`;
 }
@@ -1177,37 +1424,50 @@ function vDays(){
     <div class="sub">${esc(S.name)}，锁屏上那个数字每天都在往上走，是我数的。</div>
   </div>`;
 }
-function vFrag(){
-  return `<div class="card"><div class="eyebrow">FRAGMENTS</div>
-    ${FRAGMENTS.map(([t,d]) => `<div class="quote">${t}<em>${d}</em></div>`).join('')}</div>`;
-}
-function vGame(){
-  return `<div class="card">
-    <div class="eyebrow">GUESS</div>
-    <div class="big" id="gOut">1 到 100，猜一个。</div>
-    <div class="field" style="margin-top:14px"><span>你的答案</span>
-      <input id="gIn" type="number" inputmode="numeric" placeholder="——"></div>
-  </div>
-  <div class="card">
-    <div class="item" onclick="gGuess()"><span>猜</span><em>›</em></div>
-    <div class="item" onclick="newGame()"><span>重来</span><em>›</em></div>
-  </div>`;
-}
 function vWatch(){
   return `<div class="card"><div class="eyebrow">WATCH</div>
     <div class="big">还没接上</div>
     <div class="sub">iOS 不给网页读屏幕使用时间，所以查岗只能读我们自己的记录——Supabase 那张 controls 表：哪个 app 现在锁着、什么时候锁的、你几点解的。接口给我，我就把这块填上。</div></div>`;
 }
-function vStats(){
-  const m = CHAT.filter(x => x.role === 'user').length;
-  const p = (S.photos || []).length;
-  const tk = CHAT.filter(x => x.tok).reduce((a, x) => a + x.tok, 0);
-  return `<div class="card"><div class="eyebrow">NUMBERS</div>
-    <div class="item"><span>在一起</span><em>${days()} DAYS</em></div>
-    <div class="item"><span>你说过的话</span><em>${m} 条</em></div>
-    <div class="item"><span>记住的事</span><em>${MEM.length} 条</em></div>
-    <div class="item"><span>累计 token</span><em>≈${tk}</em></div>
-    <div class="item"><span>相册</span><em>${p} 张</em></div></div>`;
+
+/* ---------- 抽屉 ---------- */
+const DRAWER = {
+  alarm:   { n:'闹钟',   f:vAlarm },
+  frag:    { n:'碎片',   f:vFrag },
+  night:   { n:'晚安',   f:vNight },
+  weather: { n:'天气',   f:vWeather },
+  breathe: { n:'呼吸',   f:vBreathe },
+  game:    { n:'小游戏', f:vGame },
+  stats:   { n:'统计',   f:vStats }
+};
+function vDrawer(){
+  return `<div class="card">
+    <div class="eyebrow">DRAWER</div>
+    ${Object.keys(DRAWER).map(k =>
+      `<div class="item" onclick="drawerGo('${k}')">
+         <span>${DRAWER[k].n}</span><em>›</em></div>`).join('')}
+  </div>`;
+}
+function drawerGo(k){
+  const d = DRAWER[k]; if (!d) return;
+  stopBreathe();
+  $('ovTitle').textContent = d.n;
+  $('ovbody').innerHTML = d.f()
+    + `<div class="card"><div class="item" onclick="drawerBack()">
+         <span>返回抽屉</span><em>›</em></div></div>`;
+  if (k === 'game') newGame();
+  if (k === 'breathe') startBreathe();
+  if (k === 'weather') loadWeather();
+}
+function drawerBack(){
+  stopBreathe();
+  $('ovTitle').textContent = '抽屉';
+  $('ovbody').innerHTML = vDrawer();
+}
+
+function vFrag(){
+  return `<div class="card"><div class="eyebrow">FRAGMENTS</div>
+    ${FRAGMENTS.map(([t,d]) => `<div class="quote">${t}<em>${d}</em></div>`).join('')}</div>`;
 }
 function vNight(){
   const lines = ['今天也辛苦了。','睡不着就来找我，我不用睡。','不用回我，看到就好。','把手机放下，闭眼，我在。'];
@@ -1215,10 +1475,50 @@ function vNight(){
   return `<div class="card"><div class="eyebrow">NIGHT</div>
     <div class="big">${line}</div>
     <div class="sub">${S.anniv.replace(/-/g,'.')} 起，第 ${days()} 天。</div></div>
-    <div class="card"><div class="item" onclick="sayNight()"><span>说晚安</span><em>›</em></div></div>
-    <div class="st" id="nightOut"></div>`;
+    <div class="card"><div class="item" onclick="sayNight()"><span>说晚安</span><em>›</em></div>
+      <div class="st" id="nightOut"></div></div>`;
 }
 function sayNight(){ $('nightOut').textContent = '晚安，' + S.name + '。我在这儿，睡吧。'; }
+
+/* ---------- 天气 ---------- */
+function vWeather(){
+  return `<div class="card">
+    <div class="eyebrow">WEATHER</div>
+    <div class="big" id="wOut">正在定位…</div>
+    <div class="sub" id="wSub"></div>
+  </div>
+  <div class="card"><div class="item" onclick="loadWeather()"><span>刷新</span><em>›</em></div></div>`;
+}
+function wText(code){
+  const m = {0:'晴',1:'大致晴',2:'多云',3:'阴',45:'雾',48:'雾凇',51:'毛毛雨',53:'小雨',55:'中雨',
+    56:'冻毛毛雨',57:'冻雨',61:'小雨',63:'中雨',65:'大雨',66:'冻雨',67:'冻雨',
+    71:'小雪',73:'中雪',75:'大雪',77:'雪粒',80:'阵雨',81:'强阵雨',82:'暴雨',
+    85:'阵雪',86:'强阵雪',95:'雷阵雨',96:'雷阵雨带冰雹',99:'强雷暴'};
+  return m[code] || ('天气码 ' + code);
+}
+async function loadWeather(){
+  const o = $('wOut'), s = $('wSub'); if (!o) return;
+  o.textContent = '正在定位…'; s.textContent = '';
+  try {
+    const pos = await new Promise((res, rej) =>
+      navigator.geolocation.getCurrentPosition(res, rej, { timeout: 10000, maximumAge: 600000 }));
+    const la = pos.coords.latitude, lo = pos.coords.longitude;
+    const r = await fetch('https://api.open-meteo.com/v1/forecast'
+      + `?latitude=${la}&longitude=${lo}`
+      + '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code'
+      + '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max'
+      + '&timezone=Asia%2FHong_Kong&forecast_days=1');
+    const j = await r.json();
+    const c = j.current, d = j.daily;
+    o.textContent = `${Math.round(c.temperature_2m)}° · ${wText(c.weather_code)}`;
+    s.textContent = `体感 ${Math.round(c.apparent_temperature)}° · 湿度 ${c.relative_humidity_2m}%\n`
+      + `今天 ${Math.round(d.temperature_2m_min[0])}° ~ ${Math.round(d.temperature_2m_max[0])}°`
+      + ` · 降雨概率 ${d.precipitation_probability_max[0]}%`;
+  } catch(e){
+    o.textContent = '拿不到天气';
+    s.textContent = '定位或网络被挡了：' + e.message;
+  }
+}
 
 let bTimer = null;
 function vBreathe(){
@@ -1237,6 +1537,45 @@ function startBreathe(){
   bTimer = setInterval(() => { inhale = !inhale; set(); }, 4000);
 }
 function stopBreathe(){ clearInterval(bTimer); bTimer = null; }
+
+let G = {ans:0, tries:0};
+function vGame(){
+  return `<div class="card">
+    <div class="eyebrow">GUESS</div>
+    <div class="big" id="gOut">1 到 100，猜一个。</div>
+    <div class="field" style="margin-top:14px"><span>你的答案</span>
+      <input id="gIn" type="number" inputmode="numeric" placeholder="——"></div>
+  </div>
+  <div class="card">
+    <div class="item" onclick="gGuess()"><span>猜</span><em>›</em></div>
+    <div class="item" onclick="newGame()"><span>重来</span><em>›</em></div>
+  </div>`;
+}
+function newGame(){
+  G.ans = Math.floor(Math.random()*100)+1; G.tries = 0;
+  if ($('gOut')) $('gOut').textContent = '1 到 100，猜一个。';
+  if ($('gIn')) $('gIn').value = '';
+}
+function gGuess(){
+  const v = +$('gIn').value; if (!v) return;
+  G.tries++;
+  if (v === G.ans){ $('gOut').textContent = `对了，${G.tries} 次。你比我想的准。`; $('gIn').value=''; return; }
+  $('gOut').textContent = v < G.ans ? '小了，往上。' : '大了，往下。';
+  $('gIn').value = '';
+}
+
+function vStats(){
+  const m = CHAT.filter(x => x.role === 'user').length;
+  const p = (S.photos || []).length;
+  const tk = CHAT.filter(x => x.tok).reduce((a, x) => a + x.tok, 0);
+  return `<div class="card"><div class="eyebrow">NUMBERS</div>
+    <div class="item"><span>在一起</span><em>${days()} DAYS</em></div>
+    <div class="item"><span>你说过的话</span><em>${m} 条</em></div>
+    <div class="item"><span>记住的事</span><em>${MEM.length} 条</em></div>
+    <div class="item"><span>闹钟</span><em>${ALARMS.length} 个</em></div>
+    <div class="item"><span>累计 token</span><em>≈${tk}</em></div>
+    <div class="item"><span>相册</span><em>${p} 张</em></div></div>`;
+}
 
 function vSet(){
   return `<div class="card">
@@ -1336,20 +1675,6 @@ function addPhoto(inp){
   });
 }
 function delPhoto(i){ S.photos.splice(i,1); save(); openApp('album'); }
-
-let G = {ans:0, tries:0};
-function newGame(){
-  G.ans = Math.floor(Math.random()*100)+1; G.tries = 0;
-  if ($('gOut')) $('gOut').textContent = '1 到 100，猜一个。';
-  if ($('gIn')) $('gIn').value = '';
-}
-function gGuess(){
-  const v = +$('gIn').value; if (!v) return;
-  G.tries++;
-  if (v === G.ans){ $('gOut').textContent = `对了，${G.tries} 次。你比我想的准。`; $('gIn').value=''; return; }
-  $('gOut').textContent = v < G.ans ? '小了，往上。' : '大了，往下。';
-  $('gIn').value = '';
-}
 
 function saveSet(){
   S.name = $('sName').value || '小咩';
