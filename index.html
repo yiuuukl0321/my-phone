@@ -1717,20 +1717,20 @@ if (location.search.indexOf('chat=1') > -1){
   setTimeout(() => { openApp('chat'); }, 400);
 }
 </script>
-  <!-- ↓↓↓ 整段粘在 </body> 前面 ↓↓↓ -->
 <style>
-html{height:100%;background-image:none!important;background-attachment:scroll}
+html{height:100%;background:#eceae5;background-image:none!important;background-attachment:scroll}
 body{height:100%}
-#wall{position:fixed;left:0;right:0;top:-1px;bottom:-1px;z-index:-1;pointer-events:none;
+#wall{position:fixed;left:0;right:0;top:0;height:100vh;z-index:-1;pointer-events:none;
 background-color:#eceae5;background-repeat:no-repeat;background-position:center;background-size:cover}
 </style>
 <div id="wall"></div>
+<div id="dbg" style="position:fixed;left:0;bottom:0;z-index:99999;background:#000;color:#0f0;
+font:11px/1.3 monospace;padding:3px 5px"></div>
 <script>
 (function(){
-  var el = document.getElementById('wall');
+  var el = document.getElementById('wall'), d = document.getElementById('dbg');
   function paint(){
-    var w = S.wall || WALL_DEFAULT;
-    var dim = Math.max(0, Math.min(.6, +S.dim || 0));
+    var w = S.wall || WALL_DEFAULT, dim = Math.max(0, Math.min(.6, +S.dim || 0));
     el.style.backgroundImage =
       'linear-gradient(rgba(0,0,0,.34),rgba(0,0,0,0) 130px),' +
       'linear-gradient(rgba(0,0,0,' + dim + '),rgba(0,0,0,' + dim + ')),' +
@@ -1739,9 +1739,18 @@ background-color:#eceae5;background-repeat:no-repeat;background-position:center;
   window.applyWall = paint;
   document.documentElement.style.backgroundImage = 'none';
   paint();
+  function up(){
+    var v = window.visualViewport || {};
+    d.textContent = 'ih=' + innerHeight + ' vv=' + Math.round(v.height || 0) +
+      ' doc=' + document.documentElement.clientHeight + ' scr=' + screen.height +
+      'x' + screen.width + ' dpr=' + devicePixelRatio;
+  }
+  up();
+  addEventListener('resize', up);
+  addEventListener('orientationchange', up);
+  if (window.visualViewport) visualViewport.addEventListener('resize', up);
+  setTimeout(up, 600);
 })();
 </script>
-<!-- ↑↑↑ 到 </script> 结束 ↑↑↑ -->
-
 </body>
 </html>
