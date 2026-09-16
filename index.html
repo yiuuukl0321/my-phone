@@ -12,7 +12,9 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{--bg:#f4f4f2;--card:#fff;--ink:#0b0b0b;--mute:#a0a09c;--line:rgba(0,0,0,.09)}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+html{background-color:#f2f2ef;background-repeat:no-repeat;background-position:center;
+background-size:cover;background-attachment:fixed}
+body{height:100%;overflow:hidden;background:transparent;color:var(--ink);
 font:400 15px/1.55 -apple-system,"PingFang SC",system-ui,sans-serif;
 -webkit-font-smoothing:antialiased;-webkit-user-select:text;user-select:text}
 input{font-family:inherit}
@@ -27,9 +29,7 @@ transition:transform .45s cubic-bezier(.4,0,.2,1),opacity .45s}
 #lkDays{font-size:12px;letter-spacing:.14em;color:rgba(255,255,255,.5);text-transform:uppercase}
 #lkDays b{display:block;font-size:34px;font-weight:300;letter-spacing:-1px;color:#fff;margin-bottom:6px}
 .up{font-size:10px;letter-spacing:.2em;color:rgba(255,255,255,.35)}
-#home{position:fixed;inset:0;display:flex;flex-direction:column;background-color:#f2f2ef;
-background-image:linear-gradient(120deg,#ffffff,#efefec 60%,#e6e6e2);
-background-size:cover;background-position:center;background-repeat:no-repeat}
+#home{position:fixed;inset:0;display:flex;flex-direction:column;background:transparent}
 .pages{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
 padding:calc(env(safe-area-inset-top) + 26px) 14px 6px}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px 10px}
@@ -177,10 +177,11 @@ function tick(){
 }
 tick(); setInterval(tick, 15000);
 
+/* 壁纸铺在 html 上，整页盖满，下面不会露底色 */
 function applyWall(){
   const w = S.wall || WALL_DEFAULT;
   const dim = Math.max(0, Math.min(.6, +S.dim || 0));
-  $('home').style.backgroundImage =
+  document.documentElement.style.backgroundImage =
     `linear-gradient(rgba(0,0,0,.34),rgba(0,0,0,0) 130px),` +
     `linear-gradient(rgba(0,0,0,${dim}),rgba(0,0,0,${dim})),url('${w}')`;
 }
