@@ -671,3 +671,127 @@
     .observe(box, { childList: true, subtree: true });
 })();
 
+
+/* ===== 9. 语音界面增强：模型名自动纠正 + 模型快捷选择 + 一键拉取 ElevenLabs 音色 ===== */
+(function(){
+  var KEY = 'xm_tts';
+  var MODELS = [
+    ['eleven_multilingual_v2', 'Multilingual v2'],
+    ['eleven_turbo_v2_5', 'Turbo v2.5'],
+    ['eleven_flash_v2_5', 'Flash v2.5'],
+    ['eleven_v3', 'v3']
+  ];
+  function read(){ try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e){ return {}; } }
+  function norm(v){
+    var s = String(v || '').trim().toLowerCase().replace(/[\s\-]+/g, '_');
+    if (/^eleven_[a-z0-9_]+$/.test(s)) return s;
+    if (s.indexOf('multilingual') >= 0) return 'eleven_multilingual_v2';
+    if (s.indexOf('turbo') >= 0) return 'eleven_turbo_v2_5';
+    if (s.indexOf('flash') >= 0) return 'eleven_flash_v2_5';
+    if (s.indexOf('v3') >= 0) return 'eleven_v3';
+    return 'eleven_multilingual_v2';
+  }
+  function tip(t){
+    var d = document.createElement('div');
+    d.textContent = t;
+    d.style.cssText = 'position:fixed;left:50%;bottom:140px;transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:14px;z-index:99;max-width:80vw;text-align:center';
+    document.body.appendChild(d);
+    setTimeout(function(){ d.remove(); }, 2200);
+  }
+
+  // 兜底：凡是发给 ElevenLabs 的合成请求，model_id 一律转成合法 ID
+  var rawFetch = window.fetch.bind(window);
+  window.fetch = function(url, opts){
+    try {
+      if (typeof url === 'string' && url.indexOf('/text-to-speech/') >= 0 && opts && typeof opts.body === 'string'){
+        var o = JSON.parse(opts.body);
+        if (o && o.model_id !== undefined && norm(o.model_id) !== o.model_id){
+          o.model_id = norm(o.model_id);
+          opts = Object.assign({}, opts, { body: JSON.stringify(o) });
+        }
+      }
+    } catch(e){}
+    return rawFetch(url, opts);
+  };
+
+  function decorate(){
+    var p = document.getElementById('ttsPanel');
+    if (!p || p.getAttribute('data-enh')) return;
+    var prov = p.querySelector('#ttsProv');
+    var mEl = p.querySelector('#ttsModel');
+    if (!prov || !mEl) return;
+    p.setAttribute('data-enh', '1');
+    var isEl = prov.value === 'elevenlabs';
+    if (!isEl) return;
+
+    // 模型名纠正 + 快捷选择
+    var fixed = norm(mEl.value);
+    if (mEl.value !== fixed){ mEl.value = fixed; if (mEl.oninput) mEl.oninput(); }
+    var chips = document.createElement('div');
+    chips.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:10px';
+    MODELS.forEach(function(m){
+      var c = document.createElement('button');
+      c.textContent = m[1];
+      c.style.cssText = 'border:1px solid rgba(0,0,0,.12);background:#fff;color:#0b0b0b;border-radius:14px;padding:7px 12px;font-size:12.5px';
+      c.onclick = function(){
+        mEl.value = m[0];
+        if (mEl.oninput) mEl.oninput();
+        tip('模型：' + m[0]);
+      };
+      chips.appendChild(c);
+    });
+    if (mEl.parentNode && mEl.parentNode.parentNode) mEl.parentNode.parentNode.insertBefore(chips, mEl.parentNode.nextSibling);
+
+    // 拉取账号里的音色
+    var vEl = p.querySelector('#ttsVoice');
+    if (!vEl || p.querySelector('#ttsPull')) return;
+    var bar = document.createElement('div');
+    bar.style.cssText = 'margin-top:12px';
+    bar.innerHTML = '<button id="ttsPull" style="width:100%;border:1px solid rgba(0,0,0,.12);background:#fff;color:#0b0b0b;border-radius:18px;padding:12px;font-size:14px">拉取我的音色</button>';
+    var box = document.createElement('div');
+    box.id = 'ttsVoices';
+    box.style.cssText = 'margin-top:6px';
+    var host = vEl.parentNode && vEl.parentNode.parentNode ? vEl.parentNode.parentNode : p;
+    host.insertBefore(bar, vEl.parentNode.nextSibling);
+    host.insertBefore(box, bar.nextSibling);
+
+    bar.querySelector('#ttsPull').onclick = function(){
+      var cfg = read();
+      var url = String(cfg.url || '').replace(/\/+$/, '') || 'https://api.elevenlabs.io';
+      if (!cfg.key){ box.textContent = '先在上面把 API Key 填好'; return; }
+      box.textContent = '读取中…';
+      rawFetch(url + '/v1/voices?page_size=100', { headers: { 'xi-api-key': cfg.key } })
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          var vs = (j && j.voices) || [];
+          if (!vs.length){ box.textContent = '没读到音色：' + JSON.stringify(j).slice(0, 160); return; }
+          box.innerHTML = '';
+          vs.forEach(function(v){
+            var b = document.createElement('div');
+            b.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 4px;border-bottom:1px solid rgba(0,0,0,.08);font-size:13.5px';
+            b.innerHTML = '<span>' + (v.name || '') + '</span><em style="font-style:normal;color:#a0a09c;font-size:11px">' + (v.voice_id || '') + '</em>';
+            b.onclick = function(){
+              var inp = p.querySelector('#ttsVoice');
+              if (inp){
+                inp.value = v.voice_id;
+                if (inp.onchange) inp.onchange();
+              }
+              box.querySelectorAll('div').forEach(function(x){ x.style.background = ''; });
+              b.style.background = 'rgba(146,163,214,.20)';
+              tip('音色：' + (v.name || v.voice_id));
+            };
+            box.appendChild(b);
+          });
+        })
+        .catch(function(e){ box.textContent = '拉取失败：' + ((e && e.message) || e); });
+    };
+  }
+
+  var pend = 0;
+  new MutationObserver(function(){
+    if (pend) return;
+    pend = setTimeout(function(){ pend = 0; decorate(); }, 120);
+  }).observe(document.body, { childList: true, subtree: true });
+})();
+
+
