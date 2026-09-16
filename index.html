@@ -86,10 +86,21 @@ border-bottom:1px solid var(--line)}
 padding:18px 16px calc(env(safe-area-inset-bottom) + 20px)}
 #ovbody.ovchat{display:flex;flex-direction:column;overflow:hidden;padding:0}
 #msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;padding:18px 16px}
-.bub{max-width:82%;padding:11px 15px;border-radius:18px;font-size:15px;line-height:1.55;
-margin-bottom:9px;white-space:pre-wrap;word-break:break-word;-webkit-user-select:text;user-select:text}
-.me{align-self:flex-end;background:#111;color:#fff;border-bottom-right-radius:5px}
+.bub{padding:11px 15px;border-radius:18px;font-size:15px;line-height:1.55;
+white-space:pre-wrap;word-break:break-word;-webkit-user-select:text;user-select:text}
+.me{align-self:flex-end;background:#111;color:#fff;border-bottom-right-radius:5px;max-width:82%}
 .kai{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:5px}
+.wrap{align-self:flex-start;max-width:82%;display:flex;flex-direction:column;margin-bottom:9px}
+.wrap .bub{max-width:100%;margin-bottom:0}
+.meta{align-self:flex-end;font-size:10px;color:#b4b4b0;margin-top:4px;letter-spacing:.02em;
+white-space:nowrap}
+.think{margin-bottom:7px;padding-left:10px;border-left:2px solid rgba(0,0,0,.1)}
+.think summary{list-style:none;font-size:11px;color:var(--mute);letter-spacing:.04em}
+.think summary::-webkit-details-marker{display:none}
+.think summary::before{content:'▸ '}
+.think[open] summary::before{content:'▾ '}
+.tb{margin-top:7px;font-size:12.5px;line-height:1.7;color:#8f8f8b;white-space:pre-wrap;
+max-height:220px;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .bub.typing{color:var(--mute);letter-spacing:3px}
 .memo{align-self:flex-start;font-size:11px;color:var(--mute);padding:0 4px 10px;max-width:82%}
 .blockbar{display:none;padding:10px 16px;background:#ffe9e7;color:#c0392b;
@@ -218,7 +229,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
 const days = () => Math.floor((new Date(new Date().toDateString()) - new Date(S.anniv)) / 864e5) + 1;
 
-/* ---- 全局状态（一定要在使用之前声明） ---- */
+/* ---- 全局状态 ---- */
 let EDIT = false, holdEl = null, lpTimer = null, sx = 0, sy = 0, moved = false, swallow = false;
 let ghost = null, dragStart = null, rafId = 0, lastPt = null, lastSwap = 0;
 let blockTimer = null;
@@ -303,36 +314,70 @@ const PERSONA = [
 let CHAT = JSON.parse(localStorage.getItem('xm_chat') || '[]');
 const saveChat = () => localStorage.setItem('xm_chat', JSON.stringify(CHAT.slice(-80)));
 
-function visible(raw){
-  if (!raw) return '';
-  const out = [];
-  String(raw).split('\n').forEach(line => {
+/* 从原始回复里拆出：正文 / 思考过程 / 要记的事 */
+function parseReply(raw){
+  const texts = [], thinks = [], mems = [];
+  String(raw || '').split('\n').forEach(line => {
     const s = line.trim(); if (!s) return;
     if (s.startsWith('{') && s.endsWith('}')){
-      try { const o = JSON.parse(s); if (o.t === 'text' && o.c) { out.push(o.c); return; } if (o.t) return; } catch(e){}
+      try {
+        const o = JSON.parse(s);
+        if (o.t === 'text' && o.c){ texts.push(o.c); return; }
+        if (o.t === 'think' || o.t === 'thinking' || o.t === 'reasoning'){
+          thinks.push(o.c || o.content || ''); return;
+        }
+        if (o.t) return;
+      } catch(e){}
     }
-    out.push(s);
+    texts.push(s);
   });
-  return out.join('\n') || String(raw);
-}
-function splitMem(raw){
-  const mems = [];
+
+  let text = texts.join('\n');
+
+  const m = text.match(/<think(?:ing)?>([\s\S]*?)<\/think(?:ing)?>/i);
+  if (m){ thinks.push(m[1]); text = text.replace(m[0], ''); }
+
   const keep = [];
-  String(raw || '').split('\n').forEach(line => {
-    const m = line.match(/^\s*[\[【]\s*记\s*[\]】]\s*(.+?)\s*$/);
-    if (m && m[1]) mems.push(m[1]);
+  text.split('\n').forEach(line => {
+    const mm = line.match(/^\s*[\[【]\s*记\s*[\]】]\s*(.+?)\s*$/);
+    if (mm && mm[1]) mems.push(mm[1]);
     else keep.push(line);
   });
-  let text = keep.join('\n');
-  text = text.replace(/[\[【]\s*记\s*[\]】][^\n]*/g, '').trim();
-  return { text, mems };
+  text = keep.join('\n').replace(/[\[【]\s*记\s*[\]】][^\n]*/g, '').trim();
+
+  return { text, think: thinks.join('\n').trim(), mems };
+}
+
+/* 估个 token 数（没有真实用量时兜底） */
+function estTokens(s){
+  const t = String(s || '');
+  let cjk = 0, other = 0;
+  for (const ch of t){
+    if (/[\u3400-\u9fff\uf900-\ufaff\u3000-\u303f\uff00-\uffef]/.test(ch)) cjk++;
+    else other++;
+  }
+  return Math.round(cjk + other / 4);
+}
+function pickTokens(item){
+  const u = item && (item.usage || item.tokens_used || {});
+  const n = (u && (u.total_tokens || u.totalTokens)) || (item && item.tokens) || 0;
+  return n > 0 ? Math.round(n) : 0;
 }
 
 function renderChat(scroll){
   const box = $('msgs'); if (!box) return;
-  box.innerHTML = CHAT.map(m =>
-    `<div class="bub ${m.role==='user'?'me':'kai'}${m.typing?' typing':''}">${m.typing?'···':esc(m.text)}</div>`
-  ).join('');
+  box.innerHTML = CHAT.map(m => {
+    if (m.role === 'user') return `<div class="bub me">${esc(m.text)}</div>`;
+    if (m.typing) return `<div class="bub kai typing">···</div>`;
+    const think = m.think
+      ? `<details class="think"><summary>深度思考</summary><div class="tb">${esc(m.think)}</div></details>`
+      : '';
+    const bits = [];
+    if (m.ms) bits.push('思考 ' + (m.ms / 1000).toFixed(1) + 's');
+    if (m.tok) bits.push('≈' + m.tok + ' tokens');
+    const meta = bits.length ? `<div class="meta">${bits.join(' · ')}</div>` : '';
+    return `<div class="wrap">${think}<div class="bub kai">${esc(m.text)}</div>${meta}</div>`;
+  }).join('');
   if (scroll) box.scrollTop = box.scrollHeight;
 }
 function flashMemo(txt){
@@ -365,7 +410,8 @@ async function sendChat(){
   CHAT.push({ role: 'assistant', text: '', typing: true });
   saveChat(); renderChat(true);
 
-  const rid = 'r' + Date.now() + Math.random().toString(36).slice(2,7);
+  const t0 = Date.now();
+  const rid = 'r' + t0 + Math.random().toString(36).slice(2,7);
   try {
     await api('/generate', {
       method: 'POST',
@@ -387,37 +433,46 @@ async function sendChat(){
     saveChat(); renderChat(true); return;
   }
 
-  let got = null;
+  let hit = null;
   for (let i = 0; i < 24; i++){
     await sleep(i ? 2000 : 400);
     try {
       const j = await api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
-      const hit = (j.items || []).find(x => String(x.requestId) === String(rid));
-      if (hit){
+      const f = (j.items || []).find(x => String(x.requestId) === String(rid));
+      if (f){
         await api('/ack', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ inboxId: S.inbox, ids: [hit.id] })
+          body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] })
         }).catch(() => {});
-        got = hit.error ? ('出错了：' + hit.error) : visible(hit.content);
+        hit = f;
         break;
       }
     } catch(e){}
   }
+  const ms = Date.now() - t0;
 
-  let saved = [];
-  if (got && !got.startsWith('出错了')){
-    const r = splitMem(got);
-    got = r.text || got;
+  let msg;
+  if (!hit){
+    msg = { role: 'assistant', text: '没等到回复，再发一次试试。', t: Date.now(), ms };
+  } else if (hit.error){
+    msg = { role: 'assistant', text: '出错了：' + hit.error, t: Date.now(), ms };
+  } else {
+    const r = parseReply(hit.content);
+    const tok = pickTokens(hit) || estTokens(hit.content);
+    msg = { role: 'assistant', text: r.text || '（空）', t: Date.now(),
+            think: r.think, ms, tok };
     if (S.autoMem){
+      const saved = [];
       r.mems.forEach(m => { if (addMemAuto(m)) saved.push(m); });
+      msg._saved = saved;
     }
   }
 
   SENDING = false;
   CHAT.pop();
-  CHAT.push({ role: 'assistant', text: got || '没等到回复，再发一次试试。', t: Date.now() });
+  CHAT.push(msg);
   saveChat(); renderChat(true);
-  if (saved.length) flashMemo(saved.join(' · '));
+  if (msg._saved && msg._saved.length) flashMemo(msg._saved.join(' · '));
 }
 
 /* 回到前台 / 刚打开时，把后台跑完的回复捞回来 */
@@ -429,11 +484,13 @@ async function pullOutbox(){
     if (!items.length) return;
     const saved = [];
     items.forEach(it => {
-      const raw = it.error ? ('出错了：' + it.error) : visible(it.content);
-      if (!raw) return;
-      const r = splitMem(raw);
-      const txt = r.text || raw;
-      CHAT.push({ role: 'assistant', text: txt, t: Date.now() });
+      if (it.error){
+        CHAT.push({ role: 'assistant', text: '出错了：' + it.error, t: Date.now() });
+        return;
+      }
+      const r = parseReply(it.content);
+      const tok = pickTokens(it) || estTokens(it.content);
+      CHAT.push({ role: 'assistant', text: r.text || '（空）', think: r.think, tok, t: Date.now() });
       if (S.autoMem) r.mems.forEach(m => { if (addMemAuto(m)) saved.push(m); });
     });
     await api('/ack', {
@@ -1061,10 +1118,12 @@ function vWatch(){
 function vStats(){
   const m = CHAT.filter(x => x.role === 'user').length;
   const p = (S.photos || []).length;
+  const tk = CHAT.filter(x => x.tok).reduce((a, x) => a + x.tok, 0);
   return `<div class="card"><div class="eyebrow">NUMBERS</div>
     <div class="item"><span>在一起</span><em>${days()} DAYS</em></div>
     <div class="item"><span>你说过的话</span><em>${m} 条</em></div>
     <div class="item"><span>记住的事</span><em>${MEM.length} 条</em></div>
+    <div class="item"><span>累计 token</span><em>≈${tk}</em></div>
     <div class="item"><span>相册</span><em>${p} 张</em></div></div>`;
 }
 function vNight(){
