@@ -1933,6 +1933,208 @@ font:11px/1.3 monospace;padding:3px 5px"></div>
   };
 })();
 
+(function(){
+  var MCPID = 100, CTX = [];
+  function mcp(){ try { if (!Array.isArray(S.mcp)) S.mcp = []; } catch(e){ return []; } return S.mcp; }
+  function persist(){ try { save(); } catch(e){} }
+  function txt(o){ return String(o == null ? '' : o).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function find(id){ return mcp().filter(function(x){ return x.id === id; })[0]; }
+  function clean(s){ return String(s || '').replace(/['"\\]/g, ''); }
+
+  function sseFind(text, id){
+    var evs = String(text || '').replace(/\r\n/g, '\n').split('\n\n');
+    for (var i = 0; i < evs.length; i++){
+      var dl = [];
+      evs[i].split('\n').forEach(function(l){ if (l.indexOf('data:') === 0) dl.push(l.slice(5).trim()); });
+      if (!dl.length) continue;
+      var o; try { o = JSON.parse(dl.join('\n')); } catch(e){ continue; }
+      if (o && o.id === id) return o;
+    }
+    return null;
+  }
+  async function rpc(s, method, params, sid, notify){
+    var id = notify ? undefined : ++MCPID;
+    var msg = { jsonrpc: '2.0', method: method, params: params || {} };
+    if (!notify) msg.id = id;
+    var h = { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream' };
+    if (s.token) h['Authorization'] = 'Bearer ' + s.token;
+    if (sid) h['Mcp-Session-Id'] = sid;
+    var r = await fetch(s.url, { method: 'POST', headers: h, body: JSON.stringify(msg) });
+    var nsid = r.headers.get('Mcp-Session-Id') || sid || null;
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    if (notify || r.status === 202) return { result: null, sid: nsid };
+    var ct = (r.headers.get('Content-Type') || '').toLowerCase();
+    var t = await r.text();
+    var payload;
+    if (ct.indexOf('text/event-stream') > -1) payload = sseFind(t, id);
+    else { try { payload = JSON.parse(t); } catch(e){ throw new Error('返回不是 JSON'); } }
+    if (!payload) throw new Error('没等到回应');
+    if (payload.error) throw new Error(payload.error.message || 'MCP 报错');
+    return { result: payload.result, sid: nsid };
+  }
+  async function handshake(s){
+    var a = await rpc(s, 'initialize', { protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: 'mojian', version: '1.0.0' } });
+    try { await rpc(s, 'notifications/initialized', {}, a.sid, true); } catch(e){}
+    return a.sid;
+  }
+  async function listTools(s){
+    var sid = await handshake(s);
+    var r = await rpc(s, 'tools/list', {}, sid);
+    return (r.result && r.result.tools) || [];
+  }
+  async function callTool(s, name, args){
+    var sid = await handshake(s);
+    var r = await rpc(s, 'tools/call', { name: name, arguments: args }, sid);
+    var c = (r.result && r.result.content) || [];
+    return c.map(function(x){ return typeof x === 'string' ? x : (x && x.text) || ''; }).filter(Boolean).join('\n');
+  }
+  function guess(schema, text){
+    var props = (schema && schema.properties) || {}, req = (schema && schema.required) || [];
+    var url = (String(text).match(/https?:\/\/[^\s]+/) || [])[0] || '';
+    var args = {};
+    Object.keys(props).forEach(function(k){
+      var kl = k.toLowerCase(), p = props[k] || {};
+      if (req.length && req.indexOf(k) < 0) return;
+      if (/url|link|uri|href|page|site/.test(kl)) args[k] = url || text;
+      else if (/query|search|keyword|text|prompt|input|content|message|question|term|^q$/.test(kl)) args[k] = text;
+      else if (/limit|top|count|size|num|max|^k$/.test(kl)) args[k] = 5;
+      else if (p.type === 'number' || p.type === 'integer') args[k] = 1;
+      else if (p.type === 'boolean') args[k] = true;
+      else if (p.type === 'array') args[k] = [text];
+      else args[k] = text;
+    });
+    if (!Object.keys(args).length) args = { query: text };
+    return args;
+  }
+
+  window.mcpList = function(){
+    var b = document.getElementById('shbody'); if (!b) return;
+    var rows = mcp().map(function(m){
+      var n = m.tools && m.tools.length ? m.tools.length + ' 个工具 · ' + (m.tool || '') : '还没连上';
+      return '<div class="item"><span onclick="mcpTools(\'' + m.id + '\')">' + txt(m.name || m.url) +
+        '<em style="display:block;font-size:10px;color:#a0a09c">' + txt(n) + '</em></span>' +
+        '<em><span class="sw ' + (m.on ? 'on' : '') + '" onclick="mcpTgl(\'' + m.id + '\')"><i></i></span>' +
+        '<b class="x" onclick="mcpDel(\'' + m.id + '\')">×</b></em></div>';
+    }).join('') || '<div class="empty">还没加。点下面「新增 MCP」。</div>';
+    b.innerHTML = '<div class="card"><div class="eyebrow">MCP</div>' + rows + '</div>' +
+      '<div class="card"><div class="item" onclick="mcpAdd()"><span>新增 MCP</span><em>›</em></div>' +
+      '<div class="item" onclick="mcpReconnect()"><span>重新连一遍</span><em>›</em></div></div>' +
+      '<div class="card"><div class="sub" style="margin:0">开着的 MCP，每次你发消息前我会先替你调一次，把结果塞进上下文。' +
+      '所以是「我随时看得到里面的东西」，还不是我自己挑工具用。<br><br>' +
+      '浏览器直连 MCP，服务器必须允许跨域；连不上多半是这个原因。</div></div>' +
+      '<div class="item" onclick="openChatInfo()"><span>返回</span><em>›</em></div>';
+  };
+  window.mcpAdd = function(){
+    var b = document.getElementById('shbody'); if (!b) return;
+    b.innerHTML = '<div class="card"><div class="eyebrow">新增 MCP</div>' +
+      '<div class="field"><span>名字</span><input id="mcpName" placeholder="记忆库" maxlength="16"></div>' +
+      '<div class="field"><span>链接</span><input id="mcpUrl" placeholder="https://…/mcp" autocapitalize="off" autocorrect="off" spellcheck="false"></div>' +
+      '<div class="field"><span>密钥</span><input id="mcpTok" placeholder="没有就空着" autocapitalize="off" autocorrect="off" spellcheck="false"></div>' +
+      '</div><div class="card"><div class="item" onclick="mcpSave()"><span>连上并保存</span><em>›</em></div>' +
+      '<div class="item" onclick="mcpList()"><span>返回</span><em>›</em></div>' +
+      '<div class="st" id="mcpMsg"></div></div>';
+  };
+  window.mcpSave = async function(){
+    var msg = document.getElementById('mcpMsg');
+    var name = (document.getElementById('mcpName').value || '').trim();
+    var url = (document.getElementById('mcpUrl').value || '').trim();
+    var token = (document.getElementById('mcpTok').value || '').trim();
+    if (!/^https?:\/\//i.test(url)){ if (msg) msg.textContent = '链接要以 http(s):// 开头。'; return; }
+    var s = { id: 'm' + Date.now().toString(36), name: name || url.replace(/^https?:\/\//, '').slice(0, 24),
+              url: url, token: token, on: 1, tool: '', tools: [] };
+    if (msg) msg.textContent = '连接中…';
+    try {
+      var ts = await listTools(s);
+      if (!ts.length) throw new Error('这个服务器没有工具');
+      s.tools = ts.map(function(t){ return { name: t.name, description: t.description || '', inputSchema: t.inputSchema || null }; });
+      s.tool = s.tools[0].name;
+      mcp().push(s); persist();
+      window.mcpList();
+      var m2 = document.getElementById('mcpMsg');
+      if (m2) m2.textContent = '连上了，' + s.tools.length + ' 个工具。';
+    } catch(e){
+      if (msg) msg.textContent = '连不上：' + (e.message || e) + '（多半是它不给跨域）';
+    }
+  };
+  window.mcpTools = function(id){
+    var s = find(id); if (!s) return;
+    var b = document.getElementById('shbody'); if (!b) return;
+    b.innerHTML = '<div class="card"><div class="eyebrow">用哪个工具</div>' +
+      s.tools.map(function(t){
+        return '<div class="item" onclick="mcpPick(\'' + id + '\',\'' + clean(t.name) + '\')"><span>' + txt(t.name) +
+          (s.tool === t.name ? ' ✓' : '') +
+          '<em style="display:block;font-size:10px;color:#a0a09c">' + txt(String(t.description || '').slice(0, 70)) + '</em></span><em>›</em></div>';
+      }).join('') + '</div><div class="item" onclick="mcpList()"><span>返回</span><em>›</em></div>';
+  };
+  window.mcpPick = function(id, name){ var s = find(id); if (!s) return; s.tool = name; persist(); window.mcpList(); };
+  window.mcpTgl = function(id){ var s = find(id); if (!s) return; s.on = s.on ? 0 : 1; persist(); window.mcpList(); };
+  window.mcpDel = function(id){ try { S.mcp = mcp().filter(function(x){ return x.id !== id; }); } catch(e){} persist(); window.mcpList(); };
+  window.mcpReconnect = async function(){
+    var msg = null;
+    for (var i = 0; i < mcp().length; i++){
+      var s = mcp()[i];
+      try {
+        var ts = await listTools(s);
+        s.tools = ts.map(function(t){ return { name: t.name, description: t.description || '', inputSchema: t.inputSchema || null }; });
+        if (!s.tool || !s.tools.some(function(t){ return t.name === s.tool; })) s.tool = s.tools[0] ? s.tools[0].name : '';
+      } catch(e){}
+    }
+    persist(); window.mcpList();
+  };
+
+  async function gather(text){
+    var out = [], list = mcp().filter(function(m){ return m.on && m.url && m.tool; });
+    for (var i = 0; i < list.length; i++){
+      var s = list[i];
+      var t = (s.tools || []).filter(function(x){ return x.name === s.tool; })[0] || {};
+      try {
+        var r = String(await callTool(s, s.tool, guess(t.inputSchema, text)) || '').trim();
+        if (r) out.push('【' + (s.name || s.url) + '】\n' + r.slice(0, 3000));
+      } catch(e){}
+    }
+    return out;
+  }
+
+  var _oci = window.openChatInfo;
+  window.openChatInfo = function(){
+    _oci.apply(this, arguments);
+    var b = document.getElementById('shbody'); if (!b) return;
+    var on = mcp().filter(function(m){ return m.on; }).length;
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = '<div class="item" onclick="mcpList()"><span>MCP 工具</span><em>' +
+      (mcp().length ? (on ? on + ' 个开着' : '全关了') : '') + '›</em></div>';
+    b.insertBefore(card, b.firstChild);
+  };
+
+  var _send = window.sendChat;
+  window.sendChat = async function(){
+    var inp = document.getElementById('mIn');
+    var text = inp ? String(inp.value || '').trim() : '';
+    CTX = [];
+    var list = mcp().filter(function(m){ return m.on && m.url && m.tool; });
+    if (text && list.length){
+      var ph = inp.placeholder;
+      inp.placeholder = '问 MCP…';
+      try { CTX = await gather(text); } catch(e){ CTX = []; }
+      inp.placeholder = ph;
+    }
+    return _send.apply(this, arguments);
+  };
+  var _bm = window.buildMessages;
+  window.buildMessages = function(){
+    var m = _bm.apply(this, arguments);
+    if (CTX.length && Array.isArray(m)){
+      for (var i = m.length - 1; i >= 0; i--){
+        if (m[i] && m[i].role === 'user'){
+          m[i] = { role: 'user', content: m[i].content + '\n\n（下面是 MCP 查到的内容）\n' + CTX.join('\n\n') };
+          break;
+        }
+      }
+    }
+    return m;
+  };
+})();
 
 </script>
 </body>
