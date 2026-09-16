@@ -286,12 +286,13 @@ const FRAGMENTS = [
 ];
 
 /* ---------- 应用 ---------- */
-/* cell = 贴纸图上的第几只（按从左到右、从上到下数，从 0 开始） */
+/* cell = 贴纸图上的第几只（从左到右、从上到下数，从 0 开始）
+   scheme = 打开原生 App 的地址，打不开才退回 fallback */
 const APPS = {
   chat:   { cell:6,  n:'聊天',   v:vChat, full:true },
-  netease:{ cell:12, n:'网易云', href:'https://music.163.com' },
-  douyin: { cell:20, n:'抖音',   href:'https://www.douyin.com' },
-  ig:     { cell:21, n:'IG',     href:'https://www.instagram.com' },
+  netease:{ cell:12, n:'网易云', scheme:'orpheus://', fallback:'https://apps.apple.com/app/id590338362' },
+  douyin: { cell:20, n:'抖音',   scheme:'snssdk1128://', fallback:'https://apps.apple.com/app/id1142110895' },
+  ig:     { cell:21, n:'IG',     scheme:'instagram://', fallback:'https://apps.apple.com/app/id389801252' },
   album:  { cell:25, n:'相册',   v:vAlbum },
   cal:    { cell:2,  n:'日历',   v:vCal },
   days:   { cell:1,  n:'纪念日', v:vDays },
@@ -514,17 +515,23 @@ document.addEventListener('touchend', () => {
   if (!EDIT) holdEl = null;
 }, { passive: true });
 
-function goOut(url){
-  const a = document.createElement('a');
-  a.href = url; a.target = '_blank'; a.rel = 'noopener';
-  document.body.appendChild(a); a.click(); a.remove();
+/* 打开原生 App：先试 scheme，两秒内没跳走就退回 App Store */
+function openNative(scheme, fallback){
+  let done = false;
+  const onHide = () => { done = true; };
+  document.addEventListener('visibilitychange', onHide);
+  const timer = setTimeout(() => {
+    document.removeEventListener('visibilitychange', onHide);
+    if (!done && !document.hidden && fallback) window.location.href = fallback;
+  }, 1800);
+  try { window.location.href = scheme; } catch(e){}
 }
 
 document.addEventListener('click', e => {
   const el = e.target.closest('.tile'); if (!el) return;
   if (EDIT || swallow) return;
   const app = APPS[el.dataset.k]; if (!app) return;
-  if (app.href) goOut(app.href);
+  if (app.scheme) openNative(app.scheme, app.fallback);
   else openApp(el.dataset.k);
 });
 
