@@ -1129,7 +1129,6 @@ self.addEventListener('notificationclick', e => {
     if (el && el.dataset && el.dataset.k === 'chat') setTimeout(poke, 400);
   }, true);
 
-  tip('操作栏 v12 已加载');
 
   setTimeout(function(){
     var box = document.getElementById('msgs');
