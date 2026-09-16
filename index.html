@@ -12,7 +12,7 @@
 :root{--bg:#f2f2f0;--card:#fff;--ink:#0b0b0b;--mute:#a0a09c;--line:rgba(0,0,0,.09)}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
 font:400 15px/1.55 -apple-system,"PingFang SC",system-ui,sans-serif;
--webkit-user-select:none;user-select:none;-webkit-font-smoothing:antialiased}
+-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-font-smoothing:antialiased}
 input{user-select:text;-webkit-user-select:text;font-family:inherit}
 button{font-family:inherit}
 
@@ -34,14 +34,29 @@ transition:transform .45s cubic-bezier(.4,0,.2,1),opacity .45s}
 .eyebrow{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--mute)}
 h1{font-size:25px;font-weight:600;letter-spacing:-.5px;margin-top:5px}
 .scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px 104px}
+
+/* 底栏 */
 .tabbar{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,1fr);
-background:rgba(255,255,255,.88);backdrop-filter:blur(20px);border-top:1px solid var(--line);
-padding:11px 0 calc(env(safe-area-inset-bottom) + 11px)}
-.tab{text-align:center;font-size:11px;color:var(--mute);letter-spacing:.02em}
-.tab i{display:block;width:5px;height:5px;border-radius:50%;background:transparent;margin:0 auto 6px;
-transition:background .2s}
+background:rgba(255,255,255,.9);backdrop-filter:blur(20px);border-top:1px solid var(--line);
+padding:11px 0 calc(env(safe-area-inset-bottom) + 11px);touch-action:pan-x}
+.tab{text-align:center;font-size:11px;color:var(--mute);letter-spacing:.02em;
+transition:transform .15s,opacity .15s;position:relative}
+.tab i{display:block;width:5px;height:5px;border-radius:50%;background:transparent;
+margin:0 auto 6px;transition:background .2s}
 .tab.on{color:var(--ink);font-weight:600}
 .tab.on i{background:var(--ink)}
+.tabbar.edit .tab{animation:jig .28s infinite alternate ease-in-out;color:var(--ink)}
+.tabbar.edit .tab:nth-child(2){animation-delay:.04s}
+.tabbar.edit .tab:nth-child(3){animation-delay:.08s}
+.tabbar.edit .tab:nth-child(4){animation-delay:.12s}
+.tabbar.edit .tab:nth-child(5){animation-delay:.16s}
+.tabbar.edit .tab.on i{background:var(--ink)}
+@keyframes jig{from{transform:rotate(-1.4deg)}to{transform:rotate(1.4deg)}}
+.tab.lift{opacity:.55;transform:scale(1.16)}
+#editDone{position:absolute;right:16px;bottom:calc(env(safe-area-inset-bottom) + 82px);
+background:#111;color:#fff;border:0;border-radius:20px;padding:9px 20px;font-size:13px;
+display:none;z-index:30}
+.tabbar.edit ~ #editDone{display:block}
 
 /* 卡片 */
 .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:12px}
@@ -65,8 +80,7 @@ color:var(--ink);font-size:14px;padding:0}
 .btn{width:100%;padding:14px;border-radius:16px;border:0;background:#111;color:#fff;
 font-size:15px;margin-top:10px}
 .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
-.st{font-size:11.5px;color:var(--mute);margin-top:12px;white-space:pre-wrap;word-break:break-all;
-line-height:1.7}
+.st{font-size:11.5px;color:var(--mute);margin-top:12px;white-space:pre-wrap;word-break:break-all;line-height:1.7}
 
 /* 日历 */
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:13px}
@@ -87,7 +101,8 @@ transition:transform .32s cubic-bezier(.4,0,.2,1)}
 justify-content:space-between;border-bottom:1px solid var(--line)}
 .ovtop b{font-size:15px;font-weight:600}
 .ovtop span{font-size:13px;color:var(--mute)}
-#ovbody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 16px calc(env(safe-area-inset-bottom) + 20px)}
+#ovbody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+padding:18px 16px calc(env(safe-area-inset-bottom) + 20px)}
 #ovbody.ovchat{display:flex;flex-direction:column;overflow:hidden;padding:0}
 #msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;padding:18px 16px}
 .bub{max-width:82%;padding:11px 15px;border-radius:18px;font-size:15px;line-height:1.55;
@@ -125,6 +140,7 @@ text-transform:uppercase;color:var(--mute);margin-top:8px}
   </div>
   <div class="scroll" id="scroll"></div>
   <div class="tabbar" id="tabbar"></div>
+  <button id="editDone" onclick="exitEdit()">完成</button>
 </div>
 
 <div class="overlay hide" id="ov">
@@ -306,8 +322,6 @@ function vHome(){
     <div class="item" onclick="openOv('chat')"><span>和祁砚说话</span><em>CHAT ›</em></div>
     <div class="item" onclick="openOv('songs')"><span>歌单</span><em>${SONGS.length} LISTS ›</em></div>
     <div class="item" onclick="openOv('game')"><span>小游戏</span><em>PLAY ›</em></div>
-    <div class="item" onclick="switchTab('archive')"><span>相册</span><em>${p} 张 ›</em></div>
-    <div class="item" onclick="switchTab('more')"><span>设置</span><em>SETTINGS ›</em></div>
   </div>`;
 }
 
@@ -392,35 +406,120 @@ function vMore(){
   </div>
   <button class="btn" onclick="saveSet()">保存</button>
   <button class="btn ghost" onclick="testRelay()">测试中继</button>
+  <button class="btn ghost" onclick="resetTabs()">还原底栏顺序</button>
   <button class="btn ghost" onclick="clearChat()">清空聊天记录</button>
   <div class="st" id="stTest"></div>`;
 }
 
 /* ---------- 页签 ---------- */
 const TABS = [
-  ['home','HOME','小咩的手机'],
-  ['rooms','ROOMS','说话的地方'],
-  ['time','TIMELINE','时间线'],
+  ['home','HOME','首页'],
+  ['rooms','ROOMS','房间'],
+  ['time','TIMELINE','时间'],
   ['archive','ARCHIVE','存档'],
-  ['more','MORE','把这里慢慢养好']
+  ['more','MORE','更多']
 ];
-let CUR = 'home';
-
-$('tabbar').innerHTML = TABS.map(([k,,cn]) =>
-  `<div class="tab" id="tab-${k}" onclick="switchTab('${k}')"><i></i>${cn}</div>`).join('');
-
 const VIEWS = { home: vHome, rooms: vRooms, time: vTime, archive: vArchive, more: vMore };
+const ALLK = TABS.map(t => t[0]);
+
+let ORDER = (() => {
+  try {
+    const o = JSON.parse(localStorage.getItem('xm_tabs') || 'null');
+    if (Array.isArray(o) && o.length === ALLK.length && ALLK.every(k => o.includes(k))) return o;
+  } catch(e){}
+  return [...ALLK];
+})();
+
+let CUR = ORDER[0];
+
+function renderTabs(){
+  $('tabbar').innerHTML = ORDER.map(k => {
+    const t = TABS.find(x => x[0] === k);
+    return `<div class="tab" data-k="${k}"><i></i>${t[2]}</div>`;
+  }).join('');
+  paintOn();
+}
+function paintOn(){
+  [...$('tabbar').children].forEach(el =>
+    el.classList.toggle('on', el.dataset.k === CUR && !EDIT));
+}
 
 function switchTab(k){
+  if (EDIT) return;
   CUR = k;
   const meta = TABS.find(t => t[0] === k);
   $('eyebrow').textContent = meta[1];
   $('ptitle').textContent = meta[2];
   $('scroll').innerHTML = VIEWS[k]();
   $('scroll').scrollTop = 0;
-  TABS.forEach(t => $('tab-' + t[0]).classList.toggle('on', t[0] === k));
+  paintOn();
 }
-switchTab('home');
+
+/* ---------- 长按排序 ---------- */
+let EDIT = false, lpTimer = null, holdEl = null, sx = 0, sy = 0;
+
+function enterEdit(){
+  EDIT = true;
+  $('tabbar').classList.add('edit');
+  $('editDone').style.display = 'block';
+  paintOn();
+}
+function exitEdit(){
+  EDIT = false;
+  holdEl = null;
+  $('tabbar').classList.remove('edit');
+  $('editDone').style.display = 'none';
+  ORDER = [...$('tabbar').children].map(el => el.dataset.k);
+  localStorage.setItem('xm_tabs', JSON.stringify(ORDER));
+  paintOn();
+}
+function resetTabs(){
+  ORDER = [...ALLK];
+  localStorage.setItem('xm_tabs', JSON.stringify(ORDER));
+  CUR = ORDER[0];
+  renderTabs();
+  $('stTest').textContent = '底栏顺序已还原。';
+}
+
+const bar = $('tabbar');
+
+bar.addEventListener('touchstart', e => {
+  const el = e.target.closest('.tab'); if (!el) return;
+  holdEl = el; sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+  clearTimeout(lpTimer);
+  if (EDIT) return;
+  lpTimer = setTimeout(() => { if (!EDIT) enterEdit(); }, 450);
+}, { passive: true });
+
+bar.addEventListener('touchmove', e => {
+  if (!holdEl) return;
+  const t = e.touches[0];
+  if (!EDIT){
+    if (Math.hypot(t.clientX - sx, t.clientY - sy) > 12){ clearTimeout(lpTimer); holdEl = null; }
+    return;
+  }
+  e.preventDefault();
+  holdEl.classList.add('lift');
+  const under = document.elementFromPoint(t.clientX, t.clientY);
+  const target = under && under.closest ? under.closest('.tab') : null;
+  if (target && target !== holdEl && target.parentNode === bar){
+    const kids = [...bar.children];
+    if (kids.indexOf(target) > kids.indexOf(holdEl)) bar.insertBefore(holdEl, target.nextSibling);
+    else bar.insertBefore(holdEl, target);
+  }
+}, { passive: false });
+
+bar.addEventListener('touchend', () => {
+  clearTimeout(lpTimer);
+  if (holdEl) holdEl.classList.remove('lift');
+  if (!EDIT) holdEl = null;
+}, { passive: true });
+
+bar.addEventListener('click', e => {
+  if (EDIT) return;
+  const el = e.target.closest('.tab'); if (!el) return;
+  switchTab(el.dataset.k);
+});
 
 /* ---------- 浮层 ---------- */
 function openOv(kind){
@@ -502,7 +601,7 @@ function saveSet(){
   S.apiKey = $('sApiKey').value.trim();
   S.model = $('sModel').value.trim();
   S.apiType = $('sType').value.trim() || 'openai';
-  save(); tick(); switchTab('home');
+  save(); tick(); switchTab(CUR);
 }
 function clearChat(){
   if (!confirm('清空本地聊天记录？')) return;
@@ -523,6 +622,10 @@ async function testRelay(){
     out.textContent = '连不上：' + e.message;
   }
 }
+
+/* ---------- 启动 ---------- */
+renderTabs();
+switchTab(CUR);
 </script>
 </body>
 </html>
