@@ -1717,5 +1717,31 @@ if (location.search.indexOf('chat=1') > -1){
   setTimeout(() => { openApp('chat'); }, 400);
 }
 </script>
+  <!-- ↓↓↓ 整段粘在 </body> 前面 ↓↓↓ -->
+<style>
+html{height:100%;background-image:none!important;background-attachment:scroll}
+body{height:100%}
+#wall{position:fixed;left:0;right:0;top:-1px;bottom:-1px;z-index:-1;pointer-events:none;
+background-color:#eceae5;background-repeat:no-repeat;background-position:center;background-size:cover}
+</style>
+<div id="wall"></div>
+<script>
+(function(){
+  var el = document.getElementById('wall');
+  function paint(){
+    var w = S.wall || WALL_DEFAULT;
+    var dim = Math.max(0, Math.min(.6, +S.dim || 0));
+    el.style.backgroundImage =
+      'linear-gradient(rgba(0,0,0,.34),rgba(0,0,0,0) 130px),' +
+      'linear-gradient(rgba(0,0,0,' + dim + '),rgba(0,0,0,' + dim + ')),' +
+      "url('" + w + "')";
+  }
+  window.applyWall = paint;
+  document.documentElement.style.backgroundImage = 'none';
+  paint();
+})();
+</script>
+<!-- ↑↑↑ 到 </script> 结束 ↑↑↑ -->
+
 </body>
 </html>
