@@ -1139,3 +1139,190 @@ self.addEventListener('notificationclick', e => {
   }, 5000);
 })();
 
+
+/* ===== 13. 翻译：在回复下面开一个译文框，自带朗读 ===== */
+(function(){
+  var KEY = 'xm_tts';
+  var CACHE = {};
+
+  function getCfg(){
+    try {
+      return Object.assign({ on: 1, provider: 'system', url: '', key: '', model: '', voice: '', speed: 1 },
+        JSON.parse(localStorage.getItem(KEY) || '{}'));
+    } catch(e){ return { on: 1, provider: 'system', speed: 1 }; }
+  }
+  function elId(v){
+    var s = String(v || '').trim().toLowerCase().replace(/[\s\-]+/g, '_');
+    if (/^eleven_[a-z0-9_]+$/.test(s)) return s;
+    if (s.indexOf('multilingual') >= 0) return 'eleven_multilingual_v2';
+    if (s.indexOf('turbo') >= 0) return 'eleven_turbo_v2_5';
+    if (s.indexOf('flash') >= 0) return 'eleven_flash_v2_5';
+    if (s.indexOf('v3') >= 0) return 'eleven_v3';
+    return 'eleven_multilingual_v2';
+  }
+
+  var audio = null;
+  function stopVoice(){
+    try { if (audio){ audio.pause(); audio.src = ''; audio = null; } } catch(e){}
+    try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){}
+  }
+  function speak(raw){
+    var text = String(raw || '').replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    stopVoice();
+    var c = getCfg();
+    if (!+c.on) return;
+    var sp = Math.max(.5, Math.min(2, +c.speed || 1));
+    if (!c.provider || c.provider === 'system'){
+      try {
+        var u = new SpeechSynthesisUtterance(text.slice(0, 900));
+        u.rate = sp;
+        u.lang = /[\u4e00-\u9fff]/.test(text) ? 'zh-CN' : 'en-US';
+        var list = speechSynthesis.getVoices() || [], v = null;
+        if (c.voice) v = list.filter(function(x){ return x.name === c.voice; })[0];
+        if (!v) v = list.filter(function(x){ return /zh[-_]|Chinese|中文|粤|Yue/i.test(x.lang + ' ' + x.name); })[0];
+        if (v) u.voice = v;
+        speechSynthesis.speak(u);
+      } catch(e){}
+      return;
+    }
+    var url = String(c.url || '').replace(/\/+$/, '');
+    if (!url || !c.key) return;
+    var req;
+    if (c.provider === 'elevenlabs'){
+      req = fetch(url + '/v1/text-to-speech/' + encodeURIComponent(c.voice || '21m00Tcm4TlvDq8ikWAM'), {
+        method: 'POST',
+        headers: { 'xi-api-key': c.key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text.slice(0, 2500), model_id: elId(c.model) })
+      });
+    } else {
+      var ep = /\/v\d+$/.test(url) ? url : url + '/v1';
+      req = fetch(ep + '/audio/speech', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + c.key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: c.model || 'gpt-4o-mini-tts', input: text.slice(0, 1500), voice: c.voice || 'alloy', response_format: 'mp3' })
+      });
+    }
+    req.then(function(r){
+      if (!r.ok) return r.text().then(function(t){ throw new Error(r.status + ' ' + String(t).slice(0, 100)); });
+      return r.blob();
+    }).then(function(b){
+      var ou = URL.createObjectURL(b);
+      audio = new Audio(ou);
+      audio.playbackRate = sp;
+      audio.onended = function(){ try { URL.revokeObjectURL(ou); } catch(e){} audio = null; };
+      return audio.play();
+    }).catch(function(){});
+  }
+
+  // 和上面那栏「播放语音」用的是同一个图标
+  var SAY = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><path d="M4 9.4h3.3L12.2 5v14l-4.9-4.4H4z"/><path d="M15.9 9.2a4.1 4.1 0 0 1 0 5.6"/><path d="M18.3 6.8a7.5 7.5 0 0 1 0 10.4"/></svg>';
+
+  function makeBox(i){
+    var d = document.createElement('div');
+    d.className = 'xlate';
+    d.setAttribute('data-for', i);
+    d.style.cssText = 'margin:2px 6px 14px;background:#fff;border:1px solid rgba(0,0,0,.09);border-radius:16px;padding:12px 14px;font-size:13.5px;line-height:1.75;color:#0b0b0b';
+    var t = document.createElement('div');
+    t.className = 'xtxt';
+    t.style.cssText = 'white-space:pre-wrap';
+    t.textContent = '翻译中…';
+    var bar = document.createElement('div');
+    bar.style.cssText = 'display:flex;align-items:center;gap:16px;margin-top:9px;color:#8f8f8b';
+    var say = document.createElement('button');
+    say.className = 'xsay';
+    say.style.cssText = 'border:0;background:none;padding:0;color:inherit;font-size:12.5px;line-height:0';
+    say.innerHTML = SAY;
+    var lab = document.createElement('span');
+    lab.textContent = '朗读';
+    lab.style.cssText = 'margin-left:6px;font-size:12.5px;vertical-align:4px';
+    say.appendChild(lab);
+    var del = document.createElement('button');
+    del.className = 'xdel';
+    del.style.cssText = 'border:0;background:none;padding:0;color:inherit;font-size:12.5px;line-height:1';
+    del.textContent = '收起来';
+    bar.appendChild(say); bar.appendChild(del);
+    d.appendChild(t); d.appendChild(bar);
+    return d;
+  }
+
+  function ask(text, cb){
+    if (!S.key || !S.apiUrl || !S.apiKey){ cb('先去设置把参数填好。'); return; }
+    var rid = 'tr' + Date.now() + Math.random().toString(36).slice(2, 6);
+    api('/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestId: rid, inboxId: S.inbox,
+        messages: [
+          { role: 'system', content: '你是翻译。把用户发来的文本翻译成中文；如果本来就是中文，就翻译成英文。只输出译文，不要解释，不要加引号。' },
+          { role: 'user', content: text }
+        ],
+        settings: { mainApiUrl: S.apiUrl, mainApiKey: S.apiKey, mainApiModel: S.model, apiType: S.apiType || 'openai', temperature: 0.2 },
+        meta: { charName: '祁砚', charId: 'kai' }
+      })
+    }).then(function(){
+      var n = 0;
+      var t = setInterval(function(){
+        n++;
+        if (n > 20){ clearInterval(t); cb('翻译超时了，再点一次。'); return; }
+        api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0').then(function(j){
+          var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
+          if (!f) return;
+          clearInterval(t);
+          api('/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] }) }).catch(function(){});
+          cb(f.error ? ('翻译失败：' + f.error) : (parseReply(f.content).text || '（空）'));
+        }).catch(function(){});
+      }, 2000);
+    }).catch(function(e){ cb('翻译失败：' + e.message); });
+  }
+
+  function place(i, text){
+    var row = document.querySelector('#msgs .acts[data-x="' + i + '"]');
+    var w = row ? row.previousElementSibling : document.querySelector('#msgs .wrap[data-i="' + i + '"]');
+    if (!w) return null;
+    var old = document.querySelector('#msgs .xlate[data-for="' + i + '"]');
+    if (old) old.remove();
+    var box = makeBox(i);
+    box.querySelector('.xtxt').textContent = text;
+    box.querySelector('.xsay').onclick = function(){ speak(box.querySelector('.xtxt').textContent); };
+    box.querySelector('.xdel').onclick = function(){ box.remove(); delete CACHE[i]; };
+    var host = row ? row.parentNode : w.parentNode;
+    host.insertBefore(box, row ? row.nextSibling : w.nextSibling);
+    return box;
+  }
+
+  function go(i){
+    var w = document.querySelector('#msgs .wrap[data-i="' + i + '"]');
+    if (!w) return;
+    var b = w.querySelector('.bub.kai');
+    var text = b ? b.textContent.trim() : '';
+    if (!text) return;
+    var box = place(i, '翻译中…');
+    ask(text, function(res){
+      CACHE[i] = res;
+      var cur = document.querySelector('#msgs .xlate[data-for="' + i + '"]') || box;
+      if (cur) cur.querySelector('.xtxt').textContent = res;
+    });
+  }
+
+  function hijack(){
+    var rows = document.querySelectorAll('#msgs .acts');
+    Array.prototype.forEach.call(rows, function(row){
+      var w = row.previousElementSibling;
+      if (!w || !w.classList || !w.classList.contains('wrap')) return;
+      var i = w.getAttribute('data-i');
+      if (row.getAttribute('data-x') !== i){
+        row.setAttribute('data-x', i);
+        var btns = row.querySelectorAll('button');
+        var tb = btns[3];
+        if (tb) tb.onclick = function(ev){ ev.stopPropagation(); go(i); };
+      }
+      if (CACHE[i] && !document.querySelector('#msgs .xlate[data-for="' + i + '"]')) place(i, CACHE[i]);
+    });
+  }
+
+  setInterval(hijack, 700);
+  hijack();
+})();
