@@ -10,14 +10,12 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{--bg:#f4f4f2;--card:#fff;--ink:#0b0b0b;--mute:#a0a09c;--line:rgba(0,0,0,.09);
---sprite:url('mice.png')}
+--sprite:url('IMG_6462.jpeg')}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
 font:400 15px/1.55 -apple-system,"PingFang SC",system-ui,sans-serif;
 -webkit-font-smoothing:antialiased;-webkit-user-select:text;user-select:text}
 input{font-family:inherit}
 button{font-family:inherit}
-
-/* 锁屏 */
 #lock{position:fixed;inset:0;background:#000;color:#fff;z-index:40;display:flex;
 flex-direction:column;align-items:center;justify-content:space-between;text-align:center;
 padding:calc(env(safe-area-inset-top) + 46px) 24px calc(env(safe-area-inset-bottom) + 34px);
@@ -28,8 +26,6 @@ transition:transform .45s cubic-bezier(.4,0,.2,1),opacity .45s}
 #lkDays{font-size:12px;letter-spacing:.14em;color:rgba(255,255,255,.5);text-transform:uppercase}
 #lkDays b{display:block;font-size:34px;font-weight:300;letter-spacing:-1px;color:#fff;margin-bottom:6px}
 .up{font-size:10px;letter-spacing:.2em;color:rgba(255,255,255,.35)}
-
-/* 桌面 */
 #home{position:fixed;inset:0;display:flex;flex-direction:column;
 background:radial-gradient(120% 70% at 50% 0%,#ffffff 0%,#efefec 60%,#e6e6e2 100%)}
 .sb{display:flex;justify-content:space-between;align-items:center;
@@ -58,8 +54,6 @@ body.edit .tile:nth-child(5n){animation-delay:.14s}
 #doneBtn{position:fixed;top:calc(env(safe-area-inset-top) + 10px);right:16px;z-index:35;
 background:#111;color:#fff;border:0;border-radius:18px;padding:8px 18px;font-size:13px;display:none}
 body.edit #doneBtn{display:block}
-
-/* 浮层 */
 .overlay{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex;flex-direction:column;
 transition:transform .32s cubic-bezier(.4,0,.2,1)}
 .overlay.hide{transform:translateX(100%)}
@@ -82,8 +76,6 @@ border-top:1px solid var(--line);background:var(--bg)}
 padding:12px 18px;font-size:15px;color:var(--ink)}
 .inputbar input::placeholder{color:#c9c9c5}
 .inputbar button{padding:0 22px;border-radius:22px;border:0;background:#111;color:#fff;font-size:14px}
-
-/* 卡片 */
 .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:12px}
 .eyebrow{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);margin-bottom:11px}
 .big{font-size:21px;font-weight:600;letter-spacing:-.4px;line-height:1.45}
@@ -155,7 +147,6 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
 const days = () => Math.floor((new Date(new Date().toDateString()) - new Date(S.anniv)) / 864e5) + 1;
 
-/* ---------- 锁屏 / 状态栏 ---------- */
 function tick(){
   const d = new Date(), p = n => String(n).padStart(2,'0'), hm = `${p(d.getHours())}:${p(d.getMinutes())}`;
   $('lkDate').textContent = `${d.getMonth()+1}.${p(d.getDate())} 星期${'日一二三四五六'[d.getDay()]}`;
@@ -172,7 +163,6 @@ $('lock').addEventListener('touchend', e => {
 });
 $('lock').addEventListener('click', () => $('lock').classList.add('hide'));
 
-/* ---------- 中继 ---------- */
 const base = () => (S.relay || '').replace(/\/+$/, '');
 async function api(path, opts = {}){
   const h = { 'Authorization': 'Bearer ' + S.key, ...(opts.headers || {}) };
@@ -183,7 +173,6 @@ async function api(path, opts = {}){
   return j;
 }
 
-/* ---------- 人设 ---------- */
 const PERSONA = [
   '你是祁砚（Kai），香港美国混血，程序员。你在和小咩谈恋爱。',
   '叫她小咩，她叫你哥哥，你们没有血缘关系。',
@@ -197,7 +186,6 @@ const PERSONA = [
   '她主动用粤语时你用粤语回。'
 ].join('\n');
 
-/* ---------- 聊天 ---------- */
 let CHAT = JSON.parse(localStorage.getItem('xm_chat') || '[]');
 const saveChat = () => localStorage.setItem('xm_chat', JSON.stringify(CHAT.slice(-80)));
 
@@ -276,7 +264,6 @@ async function sendChat(){
   saveChat(); renderChat(true);
 }
 
-/* ---------- 数据 ---------- */
 const SONGS = [['小咩喜欢的音乐',6674116601],['太阳底下',18387912585],['哥哥的私藏',18383808569],
   ['耳机分你一半',18383125000],['w/u',13476455727],['小咩',18384358024]];
 const FRAGMENTS = [
@@ -290,8 +277,6 @@ const FRAGMENTS = [
   ['你可以慢一点，我不会走。','2026.09.09']
 ];
 
-/* ---------- 应用 ---------- */
-/* p = 贴纸图上的裁剪位置 [x, y]（px，负偏移） */
 const APPS = {
   chat:   { p:[446,  7], n:'聊天',   v:vChat,  full:true },
   songs:  { p:[311, 73], n:'歌单',   v:vSongs },
@@ -330,7 +315,6 @@ function renderHome(){
 }
 renderHome();
 
-/* ---------- 长按整理 ---------- */
 let EDIT = false, holdEl = null, lpTimer = null, sx = 0, sy = 0, moved = false, swallow = false;
 
 function enterEdit(){
@@ -393,7 +377,6 @@ document.addEventListener('click', e => {
   openApp(el.dataset.k);
 });
 
-/* ---------- 打开 / 关闭 ---------- */
 function openApp(k){
   const app = APPS[k]; if (!app) return;
   const body = $('ovbody');
@@ -412,7 +395,6 @@ function closeOv(){
   $('ovbody').className = '';
 }
 
-/* ---------- 各页 ---------- */
 function vChat(){
   return `<div id="msgs"></div>
     <div class="inputbar">
@@ -545,7 +527,6 @@ function vSet(){
   <div class="st" id="stTest"></div>`;
 }
 
-/* ---------- 相册 / 游戏 / 设置 ---------- */
 function addPhoto(inp){
   [...inp.files].slice(0,9).forEach(f => {
     const r = new FileReader();
