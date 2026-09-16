@@ -1758,7 +1758,40 @@ script>
     paint();
   }, 1500);
 })();
-  
+
+(function(){
+  var st = document.createElement('style');
+  st.textContent = 'html{overflow:hidden;background-color:#eceae5;background-repeat:no-repeat;background-position:center top;background-size:cover}body{height:100%;overflow:hidden;background:transparent}';
+  document.head.appendChild(st);
+  var db = document.getElementById('dbg');
+  if (db) db.remove();
+  function tall(){ return Math.max(innerHeight, screen.height, document.documentElement.clientHeight); }
+  function paint(){
+    if (typeof S === 'undefined' || typeof WALL_DEFAULT === 'undefined') return;
+    var w = String(S.wall || '').trim() || WALL_DEFAULT;
+    w = w.replace(/'/g, '');
+    var dim = Math.max(0, Math.min(.6, +S.dim || 0));
+    var de = document.documentElement;
+    de.style.setProperty('height', tall() + 'px', 'important');
+    de.style.setProperty('background-image',
+      'linear-gradient(rgba(0,0,0,.34),rgba(0,0,0,0) 130px),' +
+      'linear-gradient(rgba(0,0,0,' + dim + '),rgba(0,0,0,' + dim + ')),' +
+      "url('" + w + "')", 'important');
+  }
+  window.applyWall = paint;
+  paint();
+  addEventListener('resize', paint);
+  addEventListener('orientationchange', paint);
+  setInterval(function(){
+    if (window.applyWall !== paint) window.applyWall = paint;
+    var x = document.getElementById('dbg');
+    if (x) x.remove();
+    var o = document.getElementById('wall');
+    if (o) o.style.display = 'none';
+    paint();
+  }, 1500);
+})();
+
 </script>
 </body>
 </html>
