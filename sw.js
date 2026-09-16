@@ -6,14 +6,24 @@ self.addEventListener('push', e => {
   try { d = e.data ? e.data.json() : {}; } catch (err) {
     try { d = { body: e.data.text() }; } catch (e2) {}
   }
-  e.waitUntil(self.registration.showNotification(d.title || '咩&砚', {
-    body: d.body || d.text || '有新消息',
-    tag: d.kind || 'kai',
-    renotify: true,
-    icon: 'IMG_6461.jpeg',
-    badge: 'IMG_6461.jpeg',
-    data: d
-  }));
+  e.waitUntil((async () => {
+    // 人还在「咩&砚」画面里 → 不弹通知，只叫页面自己去取新消息
+    const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const here = list.filter(c => c.visibilityState === 'visible');
+    if (here.length) {
+      here.forEach(c => { try { c.postMessage({ type: 'kai-new' }); } catch (e) {} });
+      return;
+    }
+    // 人离开画面了 → 正常弹通知
+    await self.registration.showNotification(d.title || '咩&砚', {
+      body: d.body || d.text || '有新消息',
+      tag: d.kind || 'kai',
+      renotify: true,
+      icon: 'IMG_6461.jpeg',
+      badge: 'IMG_6461.jpeg',
+      data: d
+    });
+  })());
 });
 
 self.addEventListener('notificationclick', e => {
