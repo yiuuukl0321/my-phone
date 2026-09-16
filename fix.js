@@ -834,3 +834,252 @@ self.addEventListener('notificationclick', e => {
 });
 
 
+
+/* ===== 11. 每条回复下面的操作栏：复制 / 重新生成 / 播放语音 / 翻译 ===== */
+(function(){
+  try {
+    var KEY = 'xm_tts';
+    var ICON = {
+      copy: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="9.2" y="9.2" width="11.3" height="11.3" rx="2.6"/><path d="M6.6 15.2H5.7A2.7 2.7 0 0 1 3 12.5v-7A2.7 2.7 0 0 1 5.7 2.8h7a2.7 2.7 0 0 1 2.7 2.7v.9"/></svg>',
+      regen: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.2 12a8.2 8.2 0 1 1-2.5-5.9"/><path d="M20.2 4.3v5.9h-5.9"/></svg>',
+      play: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.4h3.3L12.2 5v14l-4.9-4.4H4z"/><path d="M15.9 9.2a4.1 4.1 0 0 1 0 5.6"/><path d="M18.3 6.8a7.5 7.5 0 0 1 0 10.4"/></svg>',
+      trans: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.2h8.2M7.1 4v2.2c0 4.2-1.7 7.4-4.1 9.6"/><path d="M4.6 12.4c1.6 2.7 3.9 4.6 6.2 5.2"/><path d="M13.2 20.4l4-10.4 4 10.4"/><path d="M14.7 16.9h5"/></svg>'
+    };
+    var st = document.createElement('style');
+    st.textContent =
+      '#msgs .spk{display:none}' +
+      '#msgs .acts{display:flex;align-items:center;gap:15px;margin:2px 4px 12px;align-self:stretch;color:#b2b2ae}' +
+      '#msgs .acts button{border:0;background:none;padding:2px 0;color:inherit;line-height:0}' +
+      '#msgs .acts button:active{color:#0b0b0b}' +
+      '#msgs .acts .meta{margin-left:auto;align-self:center}';
+    document.head.appendChild(st);
+
+    function getCfg(){
+      try {
+        return Object.assign({ on: 1, auto: 0, provider: 'system', url: '', key: '', model: '', voice: '', speed: 1 },
+          JSON.parse(localStorage.getItem(KEY) || '{}'));
+      } catch(e){ return { on: 1, auto: 0, provider: 'system', speed: 1 }; }
+    }
+    function tip(t){
+      var d = document.createElement('div');
+      d.textContent = t;
+      d.style.cssText = 'position:fixed;left:50%;bottom:130px;transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:14px;z-index:99;max-width:82vw;text-align:center';
+      document.body.appendChild(d);
+      setTimeout(function(){ d.remove(); }, 2200);
+    }
+    function elId(v){
+      var s = String(v || '').trim().toLowerCase().replace(/[\s\-]+/g, '_');
+      if (/^eleven_[a-z0-9_]+$/.test(s)) return s;
+      if (s.indexOf('multilingual') >= 0) return 'eleven_multilingual_v2';
+      if (s.indexOf('turbo') >= 0) return 'eleven_turbo_v2_5';
+      if (s.indexOf('flash') >= 0) return 'eleven_flash_v2_5';
+      if (s.indexOf('v3') >= 0) return 'eleven_v3';
+      return 'eleven_multilingual_v2';
+    }
+
+    var audio = null;
+    function stopVoice(){
+      try { if (audio){ audio.pause(); audio.src = ''; audio = null; } } catch(e){}
+      try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){}
+    }
+    function sysVoices(){ try { return speechSynthesis.getVoices() || []; } catch(e){ return []; } }
+
+    function speak(raw){
+      var text = String(raw || '').replace(/\s+/g, ' ').trim();
+      if (!text) return;
+      stopVoice();
+      var c = getCfg();
+      if (!+c.on) return;
+      var sp = Math.max(.5, Math.min(2, +c.speed || 1));
+      if (!c.provider || c.provider === 'system'){
+        try {
+          var u = new SpeechSynthesisUtterance(text.slice(0, 900));
+          u.rate = sp;
+          u.lang = /[\u4e00-\u9fff]/.test(text) ? 'zh-CN' : 'en-US';
+          var list = sysVoices(), v = null;
+          if (c.voice) v = list.filter(function(x){ return x.name === c.voice; })[0];
+          if (!v) v = list.filter(function(x){ return /zh[-_]|Chinese|中文|粤|Yue/i.test(x.lang + ' ' + x.name); })[0];
+          if (v) u.voice = v;
+          speechSynthesis.speak(u);
+        } catch(e){ tip('这台设备的系统语音用不了'); }
+        return;
+      }
+      var url = String(c.url || '').replace(/\/+$/, '');
+      if (!url || !c.key){ tip('先去语音设置填地址和 Key'); return; }
+      var req;
+      if (c.provider === 'elevenlabs'){
+        req = fetch(url + '/v1/text-to-speech/' + encodeURIComponent(c.voice || '21m00Tcm4TlvDq8ikWAM'), {
+          method: 'POST',
+          headers: { 'xi-api-key': c.key, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: text.slice(0, 2500), model_id: elId(c.model) })
+        });
+      } else {
+        var ep = /\/v\d+$/.test(url) ? url : url + '/v1';
+        req = fetch(ep + '/audio/speech', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + c.key, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: c.model || 'gpt-4o-mini-tts', input: text.slice(0, 1500), voice: c.voice || 'alloy', response_format: 'mp3' })
+        });
+      }
+      tip('合成中…');
+      req.then(function(r){
+        if (!r.ok) return r.text().then(function(t){ throw new Error(r.status + ' ' + String(t).slice(0, 120)); });
+        return r.blob();
+      }).then(function(b){
+        var ou = URL.createObjectURL(b);
+        audio = new Audio(ou);
+        audio.playbackRate = sp;
+        audio.onended = function(){ try { URL.revokeObjectURL(ou); } catch(e){} audio = null; };
+        return audio.play();
+      }).catch(function(e){ tip('朗读失败：' + ((e && e.message) || e)); });
+    }
+
+    function doCopy(t){
+      t = String(t || '');
+      if (!t) return;
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(t).then(function(){ tip('复制好了'); }, function(){ fbCopy(t); });
+      } else fbCopy(t);
+    }
+    function fbCopy(t){
+      var a = document.createElement('textarea');
+      a.value = t;
+      a.style.cssText = 'position:fixed;top:-200px;opacity:0';
+      document.body.appendChild(a);
+      a.select();
+      try { document.execCommand('copy'); tip('复制好了'); } catch(e){ tip('复制失败'); }
+      a.remove();
+    }
+
+    function doRegen(i){
+      if (SENDING){ tip('还在生成中，等这条出来'); return; }
+      if (!(i >= 0) || i >= CHAT.length){ tip('这条找不到了'); return; }
+      var u = -1;
+      for (var k = i; k >= 0; k--){ if (CHAT[k].role === 'user'){ u = k; break; } }
+      if (u < 0){ tip('这条前面没有你说的话'); return; }
+      if (i < CHAT.length - 1 && !confirm('从这条重生成？它后面的都会一起去掉。')) return;
+      var text = CHAT[u].text;
+      CHAT.splice(u);
+      saveChat();
+      renderChat(true);
+      var inp = document.getElementById('mIn');
+      if (!inp){ tip('聊天没开着'); return; }
+      inp.value = text;
+      tip('重新生成中…');
+      sendChat();
+    }
+
+    function showCard(txt){
+      var d = document.getElementById('transCard');
+      if (!d){
+        d = document.createElement('div');
+        d.id = 'transCard';
+        d.style.cssText = 'position:fixed;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + 130px);z-index:70;background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:18px;padding:14px 16px;font-size:13.5px;line-height:1.75;box-shadow:0 10px 30px rgba(0,0,0,.16);max-height:46vh;overflow-y:auto';
+        d.onclick = function(){ d.remove(); };
+        document.body.appendChild(d);
+      }
+      d.textContent = txt;
+    }
+    function doTrans(text){
+      text = String(text || '').trim();
+      if (!text) return;
+      if (!S.key || !S.apiUrl || !S.apiKey){ tip('先去设置把参数填好'); return; }
+      showCard('翻译中…');
+      var rid = 'tr' + Date.now() + Math.random().toString(36).slice(2, 6);
+      api('/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: rid, inboxId: S.inbox,
+          messages: [
+            { role: 'system', content: '你是翻译。把用户发来的文本翻译成中文；如果本来就是中文，就翻译成英文。只输出译文，不要解释，不要加引号。' },
+            { role: 'user', content: text }
+          ],
+          settings: { mainApiUrl: S.apiUrl, mainApiKey: S.apiKey, mainApiModel: S.model, apiType: S.apiType || 'openai', temperature: 0.2 },
+          meta: { charName: '祁砚', charId: 'kai' }
+        })
+      }).then(function(){
+        var n = 0;
+        var t = setInterval(function(){
+          n++;
+          if (n > 20){ clearInterval(t); showCard('翻译超时了，再点一次。'); return; }
+          api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0').then(function(j){
+            var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
+            if (!f) return;
+            clearInterval(t);
+            api('/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] }) }).catch(function(){});
+            showCard(f.error ? ('翻译失败：' + f.error) : (parseReply(f.content).text || '（空）'));
+          }).catch(function(){});
+        }, 2000);
+      }).catch(function(e){ showCard('翻译失败：' + e.message); });
+    }
+
+    function act(kind, w){
+      var i = +w.getAttribute('data-i');
+      var b = w.querySelector('.bub.kai');
+      var text = b ? b.textContent : '';
+      if (kind === 'copy') doCopy(text);
+      else if (kind === 'play') speak(text);
+      else if (kind === 'regen') doRegen(i);
+      else if (kind === 'trans') doTrans(text);
+    }
+
+    var lastText = '';
+    function build(){
+      var box = document.getElementById('msgs');
+      if (!box) return;
+      var wraps = box.querySelectorAll('.wrap');
+      for (var i = 0; i < wraps.length; i++){
+        var w = wraps[i];
+        var nx = w.nextElementSibling;
+        if (nx && nx.classList && nx.classList.contains('acts')) continue;
+        var bub = w.querySelector('.bub.kai');
+        if (!bub || bub.classList.contains('typing')) continue;
+        var row = document.createElement('div');
+        row.className = 'acts';
+        ['copy', 'regen', 'play', 'trans'].forEach(function(k){
+          var b = document.createElement('button');
+          b.innerHTML = ICON[k];
+          b.onclick = function(ev){ ev.stopPropagation(); act(k, w); };
+          row.appendChild(b);
+        });
+        var meta = w.querySelector('.meta');
+        if (meta) row.appendChild(meta);
+        if (w.parentNode) w.parentNode.insertBefore(row, w.nextSibling);
+      }
+      var c = getCfg();
+      if (+c.on && +c.auto){
+        var els = box.querySelectorAll('.bub.kai:not(.typing)');
+        var last = els[els.length - 1];
+        if (last){
+          var t = last.textContent.trim();
+          if (t && t !== lastText){ lastText = t; speak(t); }
+        }
+      }
+    }
+
+    var pend = 0;
+    function hook(){
+      var body = document.getElementById('ovbody');
+      if (!body || body.getAttribute('data-actsw')) return;
+      body.setAttribute('data-actsw', '1');
+      new MutationObserver(function(){
+        if (pend) return;
+        pend = setTimeout(function(){ pend = 0; build(); }, 90);
+      }).observe(body, { childList: true, subtree: true });
+      build();
+    }
+    hook();
+    new MutationObserver(hook).observe(document.body, { childList: true, subtree: true });
+
+    if ('serviceWorker' in navigator){
+      navigator.serviceWorker.addEventListener('message', function(e){
+        if (e.data && e.data.type === 'kai-new'){ try { pullOutbox(); } catch(err){} }
+      });
+    }
+    setInterval(function(){ if (!document.hidden){ try { pullOutbox(); } catch(e){} } }, 20000);
+  } catch(e){ console.warn('acts block failed', e); }
+})();
+
+
