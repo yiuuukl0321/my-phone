@@ -2,18 +2,19 @@
 <html lang="zh">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="小咩的手机">
 <title>小咩的手机</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-:root{--bg:#f2f2f0;--card:#fff;--ink:#0b0b0b;--mute:#a0a09c;--line:rgba(0,0,0,.09)}
+:root{--bg:#f4f4f2;--card:#fff;--ink:#0b0b0b;--mute:#a0a09c;--line:rgba(0,0,0,.09);
+--sprite:url('mice.png')}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
 font:400 15px/1.55 -apple-system,"PingFang SC",system-ui,sans-serif;
--webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-font-smoothing:antialiased}
-input{user-select:text;-webkit-user-select:text;font-family:inherit}
+-webkit-font-smoothing:antialiased;-webkit-user-select:text;user-select:text}
+input{font-family:inherit}
 button{font-family:inherit}
 
 /* 锁屏 */
@@ -28,70 +29,35 @@ transition:transform .45s cubic-bezier(.4,0,.2,1),opacity .45s}
 #lkDays b{display:block;font-size:34px;font-weight:300;letter-spacing:-1px;color:#fff;margin-bottom:6px}
 .up{font-size:10px;letter-spacing:.2em;color:rgba(255,255,255,.35)}
 
-/* 外壳 */
-#app{position:fixed;inset:0;display:flex;flex-direction:column}
-.topbar{padding:calc(env(safe-area-inset-top) + 18px) 20px 8px}
-.eyebrow{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--mute)}
-h1{font-size:25px;font-weight:600;letter-spacing:-.5px;margin-top:5px}
-.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px 104px}
-
-/* 底栏 */
-.tabbar{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,1fr);
-background:rgba(255,255,255,.9);backdrop-filter:blur(20px);border-top:1px solid var(--line);
-padding:11px 0 calc(env(safe-area-inset-bottom) + 11px);touch-action:pan-x}
-.tab{text-align:center;font-size:11px;color:var(--mute);letter-spacing:.02em;
-transition:transform .15s,opacity .15s;position:relative}
-.tab i{display:block;width:5px;height:5px;border-radius:50%;background:transparent;
-margin:0 auto 6px;transition:background .2s}
-.tab.on{color:var(--ink);font-weight:600}
-.tab.on i{background:var(--ink)}
-.tabbar.edit .tab{animation:jig .28s infinite alternate ease-in-out;color:var(--ink)}
-.tabbar.edit .tab:nth-child(2){animation-delay:.04s}
-.tabbar.edit .tab:nth-child(3){animation-delay:.08s}
-.tabbar.edit .tab:nth-child(4){animation-delay:.12s}
-.tabbar.edit .tab:nth-child(5){animation-delay:.16s}
-.tabbar.edit .tab.on i{background:var(--ink)}
-@keyframes jig{from{transform:rotate(-1.4deg)}to{transform:rotate(1.4deg)}}
-.tab.lift{opacity:.55;transform:scale(1.16)}
-#editDone{position:absolute;right:16px;bottom:calc(env(safe-area-inset-bottom) + 82px);
-background:#111;color:#fff;border:0;border-radius:20px;padding:9px 20px;font-size:13px;
-display:none;z-index:30}
-.tabbar.edit ~ #editDone{display:block}
-
-/* 卡片 */
-.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:12px}
-.card .eyebrow{margin-bottom:11px}
-.big{font-size:21px;font-weight:600;letter-spacing:-.4px;line-height:1.45}
-.sub{font-size:12.5px;color:var(--mute);margin-top:9px;line-height:1.7}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:16px 13px}
-.stat b{display:block;font-size:26px;font-weight:600;letter-spacing:-1.2px}
-.stat span{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--mute)}
-.item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 0;
-border-bottom:1px solid var(--line);font-size:14.5px}
-.item:last-child{border-bottom:0}
-.item em{font-style:normal;color:var(--mute);font-size:11px;letter-spacing:.08em;white-space:nowrap}
-.field{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;
-border-bottom:1px solid var(--line);font-size:14px}
-.field:last-of-type{border-bottom:0}
-.field input{flex:1;max-width:62%;text-align:right;border:0;background:transparent;
-color:var(--ink);font-size:14px;padding:0}
-.field input::placeholder{color:#c9c9c5}
-.btn{width:100%;padding:14px;border-radius:16px;border:0;background:#111;color:#fff;
-font-size:15px;margin-top:10px}
-.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
-.st{font-size:11.5px;color:var(--mute);margin-top:12px;white-space:pre-wrap;word-break:break-all;line-height:1.7}
-
-/* 日历 */
-.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:13px}
-.wd{font-size:9px;letter-spacing:.08em;color:var(--mute);padding-bottom:8px}
-.d{padding:9px 0;border-radius:11px}
-.d.now{background:#111;color:#fff;font-weight:600}
-
-/* 相册 */
-.album{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:14px}
-.album img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px}
-.empty{font-size:12.5px;color:var(--mute);padding:14px 0}
+/* 桌面 */
+#home{position:fixed;inset:0;display:flex;flex-direction:column;
+background:radial-gradient(120% 70% at 50% 0%,#ffffff 0%,#efefec 60%,#e6e6e2 100%)}
+.sb{display:flex;justify-content:space-between;align-items:center;
+padding:calc(env(safe-area-inset-top) + 12px) 24px 4px;font-size:12px;font-weight:600;letter-spacing:.02em}
+.pages{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 14px 6px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px 10px}
+.tile{display:flex;flex-direction:column;align-items:center;gap:8px;
+-webkit-user-select:none;user-select:none}
+.ico{width:62px;height:62px;border-radius:16px;
+background:#fff var(--sprite) no-repeat;background-size:594px 364px;
+border:1px solid rgba(0,0,0,.07);box-shadow:0 2px 10px rgba(0,0,0,.07);
+transition:transform .12s}
+.nm{font-size:11.5px;color:#1c1c1c;max-width:72px;text-align:center;
+overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile:active .ico{transform:scale(.9)}
+.dock{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+margin:0 14px calc(env(safe-area-inset-bottom) + 16px);padding:13px 12px;
+background:rgba(255,255,255,.66);backdrop-filter:blur(24px);
+border:1px solid rgba(0,0,0,.06);border-radius:28px}
+body.edit .tile{animation:jig .28s infinite alternate ease-in-out}
+body.edit .tile:nth-child(2n){animation-delay:.05s}
+body.edit .tile:nth-child(3n){animation-delay:.1s}
+body.edit .tile:nth-child(5n){animation-delay:.14s}
+@keyframes jig{from{transform:rotate(-1.3deg)}to{transform:rotate(1.3deg)}}
+.tile.lift .ico{transform:scale(1.18);box-shadow:0 12px 26px rgba(0,0,0,.22)}
+#doneBtn{position:fixed;top:calc(env(safe-area-inset-top) + 10px);right:16px;z-index:35;
+background:#111;color:#fff;border:0;border-radius:18px;padding:8px 18px;font-size:13px;display:none}
+body.edit #doneBtn{display:block}
 
 /* 浮层 */
 .overlay{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex;flex-direction:column;
@@ -106,20 +72,50 @@ padding:18px 16px calc(env(safe-area-inset-bottom) + 20px)}
 #ovbody.ovchat{display:flex;flex-direction:column;overflow:hidden;padding:0}
 #msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;padding:18px 16px}
 .bub{max-width:82%;padding:11px 15px;border-radius:18px;font-size:15px;line-height:1.55;
-margin-bottom:9px;white-space:pre-wrap;word-break:break-word}
+margin-bottom:9px;white-space:pre-wrap;word-break:break-word;-webkit-user-select:text;user-select:text}
 .me{align-self:flex-end;background:#111;color:#fff;border-bottom-right-radius:5px}
 .kai{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:5px}
-.bub.typing{color:var(--mute);letter-spacing:3px;background:#fff}
+.bub.typing{color:var(--mute);letter-spacing:3px}
 .inputbar{display:flex;gap:8px;padding:10px 16px calc(env(safe-area-inset-bottom) + 14px);
 border-top:1px solid var(--line);background:var(--bg)}
 .inputbar input{flex:1;background:#fff;border:1px solid var(--line);border-radius:22px;
 padding:12px 18px;font-size:15px;color:var(--ink)}
 .inputbar input::placeholder{color:#c9c9c5}
 .inputbar button{padding:0 22px;border-radius:22px;border:0;background:#111;color:#fff;font-size:14px}
+
+/* 卡片 */
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:12px}
+.eyebrow{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);margin-bottom:11px}
+.big{font-size:21px;font-weight:600;letter-spacing:-.4px;line-height:1.45}
+.sub{font-size:12.5px;color:var(--mute);margin-top:9px;line-height:1.7}
+.item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 0;
+border-bottom:1px solid var(--line);font-size:14.5px;color:inherit;text-decoration:none}
+.item:last-child{border-bottom:0}
+.item em{font-style:normal;color:var(--mute);font-size:11px;letter-spacing:.08em;white-space:nowrap}
+.field{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;
+border-bottom:1px solid var(--line);font-size:14px}
+.field:last-of-type{border-bottom:0}
+.field input{flex:1;max-width:62%;text-align:right;border:0;background:transparent;
+color:var(--ink);font-size:14px;padding:0}
+.field input::placeholder{color:#c9c9c5}
+.btn{width:100%;padding:14px;border-radius:16px;border:0;background:#111;color:#fff;
+font-size:15px;margin-top:10px}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.st{font-size:11.5px;color:var(--mute);margin-top:12px;white-space:pre-wrap;word-break:break-all;line-height:1.7}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:13px}
+.wd{font-size:9px;letter-spacing:.08em;color:var(--mute);padding-bottom:8px}
+.d{padding:9px 0;border-radius:11px}
+.d.now{background:#111;color:#fff;font-weight:600}
+.album{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:14px}
+.album img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px}
+.empty{font-size:12.5px;color:var(--mute);padding:14px 0}
 .quote{font-size:14px;line-height:1.75;padding:15px 0;border-bottom:1px solid var(--line)}
 .quote:last-child{border-bottom:0}
 .quote em{display:block;font-style:normal;font-size:10px;letter-spacing:.14em;
 text-transform:uppercase;color:var(--mute);margin-top:8px}
+.breath{width:118px;height:118px;border-radius:50%;background:#111;margin:26px auto 22px;
+transform:scale(.62);transition:transform 4s ease-in-out}
+.breath.in{transform:scale(1)}
 </style>
 </head>
 <body>
@@ -133,15 +129,12 @@ text-transform:uppercase;color:var(--mute);margin-top:8px}
   <div class="up">上滑解锁</div>
 </div>
 
-<div id="app">
-  <div class="topbar">
-    <div class="eyebrow" id="eyebrow"></div>
-    <h1 id="ptitle"></h1>
-  </div>
-  <div class="scroll" id="scroll"></div>
-  <div class="tabbar" id="tabbar"></div>
-  <button id="editDone" onclick="exitEdit()">完成</button>
+<div id="home">
+  <div class="sb"><span id="sbTime">--:--</span><span id="sbDot">●●●</span></div>
+  <div class="pages"><div class="grid" id="grid"></div></div>
+  <div class="dock" id="dock"></div>
 </div>
+<button id="doneBtn" onclick="exitEdit()">完成</button>
 
 <div class="overlay hide" id="ov">
   <div class="ovtop"><b id="ovTitle"></b><span onclick="closeOv()">返回</span></div>
@@ -154,7 +147,7 @@ const S = Object.assign({
   anniv: new Date().toISOString().slice(0,10),
   relay: 'https://nuojiji.krystalyiuu0321.workers.dev',
   key: '', inbox: 'xiaomie',
-  apiUrl: '', apiKey: '', model: '', apiType: 'openai'
+  apiUrl: 'https://api.deepseek.com/v1', apiKey: '', model: 'deepseek-flash', apiType: 'openai'
 }, JSON.parse(localStorage.getItem('xm') || '{}'));
 const save = () => localStorage.setItem('xm', JSON.stringify(S));
 const $ = id => document.getElementById(id);
@@ -162,11 +155,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
 const days = () => Math.floor((new Date(new Date().toDateString()) - new Date(S.anniv)) / 864e5) + 1;
 
-/* ---------- 锁屏 ---------- */
+/* ---------- 锁屏 / 状态栏 ---------- */
 function tick(){
-  const d = new Date(), p = n => String(n).padStart(2,'0');
+  const d = new Date(), p = n => String(n).padStart(2,'0'), hm = `${p(d.getHours())}:${p(d.getMinutes())}`;
   $('lkDate').textContent = `${d.getMonth()+1}.${p(d.getDate())} 星期${'日一二三四五六'[d.getDay()]}`;
-  $('lkTime').textContent = `${p(d.getHours())}:${p(d.getMinutes())}`;
+  $('lkTime').textContent = hm;
+  $('sbTime').textContent = hm;
   $('lkDays').innerHTML = `<b>${days()}</b>days with you`;
 }
 tick(); setInterval(tick, 15000);
@@ -219,7 +213,6 @@ function visible(raw){
   });
   return out.join('\n') || String(raw);
 }
-
 function renderChat(scroll){
   const box = $('msgs'); if (!box) return;
   box.innerHTML = CHAT.map(m =>
@@ -227,19 +220,15 @@ function renderChat(scroll){
   ).join('');
   if (scroll) box.scrollTop = box.scrollHeight;
 }
-
 function buildMessages(){
   const hist = CHAT.filter(m => !m.typing).slice(-12)
     .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
   return [{ role: 'system', content: PERSONA }, ...hist];
 }
-
 async function sendChat(){
   const inp = $('mIn'), text = inp.value.trim();
   if (!text) return;
-  if (!S.key || !S.apiUrl || !S.apiKey || !S.model){
-    alert('先去「更多」把中继和 AI 参数填好'); return;
-  }
+  if (!S.key || !S.apiUrl || !S.apiKey || !S.model){ alert('先去「设置」把参数填好'); return; }
   inp.value = '';
   CHAT.push({ role: 'user', text, t: Date.now() });
   CHAT.push({ role: 'assistant', text: '', typing: true });
@@ -282,7 +271,6 @@ async function sendChat(){
       }
     } catch(e){}
   }
-
   CHAT.pop();
   CHAT.push({ role: 'assistant', text: got || '没等到回复，再发一次试试。', t: Date.now() });
   saveChat(); renderChat(true);
@@ -302,91 +290,237 @@ const FRAGMENTS = [
   ['你可以慢一点，我不会走。','2026.09.09']
 ];
 
+/* ---------- 应用 ---------- */
+/* p = 贴纸图上的裁剪位置 [x, y]（px，负偏移） */
+const APPS = {
+  chat:   { p:[446,  7], n:'聊天',   v:vChat,  full:true },
+  songs:  { p:[311, 73], n:'歌单',   v:vSongs },
+  album:  { p:[ 97,214], n:'相册',   v:vAlbum },
+  cal:    { p:[167,  7], n:'日历',   v:vCal },
+  days:   { p:[ 97,  7], n:'纪念日', v:vDays },
+  frag:   { p:[ 97, 73], n:'碎片',   v:vFrag },
+  game:   { p:[376, 73], n:'小游戏', v:vGame },
+  watch:  { p:[ 23, 73], n:'监视器', v:vWatch },
+  stats:  { p:[167, 73], n:'统计',   v:vStats },
+  night:  { p:[516, 73], n:'晚安',   v:vNight },
+  breathe:{ p:[ 23,293], n:'呼吸',   v:vBreathe },
+  set:    { p:[376,142], n:'设置',   v:vSet }
+};
+const ALL = Object.keys(APPS);
+const DEFAULT_GRID = ALL;
+const DEFAULT_DOCK = ['chat','songs','album','set'];
+
+function loadOrder(k, def){
+  try {
+    const o = JSON.parse(localStorage.getItem(k) || 'null');
+    if (Array.isArray(o) && o.length && o.every(x => ALL.includes(x))) return o;
+  } catch(e){}
+  return [...def];
+}
+let GRID = loadOrder('xm_grid', DEFAULT_GRID);
+let DOCK = loadOrder('xm_dock', DEFAULT_DOCK);
+
+const tileHtml = k => `<div class="tile" data-k="${k}">
+  <div class="ico" style="background-position:-${APPS[k].p[0]}px -${APPS[k].p[1]}px"></div>
+  <div class="nm">${APPS[k].n}</div></div>`;
+
+function renderHome(){
+  $('grid').innerHTML = GRID.map(tileHtml).join('');
+  $('dock').innerHTML = DOCK.map(tileHtml).join('');
+}
+renderHome();
+
+/* ---------- 长按整理 ---------- */
+let EDIT = false, holdEl = null, lpTimer = null, sx = 0, sy = 0, moved = false, swallow = false;
+
+function enterEdit(){
+  EDIT = true;
+  document.body.classList.add('edit');
+}
+function exitEdit(){
+  EDIT = false;
+  document.body.classList.remove('edit');
+  GRID = [...$('grid').children].map(e => e.dataset.k);
+  DOCK = [...$('dock').children].map(e => e.dataset.k);
+  localStorage.setItem('xm_grid', JSON.stringify(GRID));
+  localStorage.setItem('xm_dock', JSON.stringify(DOCK));
+}
+function resetLayout(){
+  GRID = [...DEFAULT_GRID]; DOCK = [...DEFAULT_DOCK];
+  localStorage.setItem('xm_grid', JSON.stringify(GRID));
+  localStorage.setItem('xm_dock', JSON.stringify(DOCK));
+  renderHome();
+  if ($('stTest')) $('stTest').textContent = '桌面顺序已还原。';
+}
+
+document.addEventListener('touchstart', e => {
+  const el = e.target.closest('.tile'); if (!el) return;
+  holdEl = el; sx = e.touches[0].clientX; sy = e.touches[0].clientY; moved = false;
+  clearTimeout(lpTimer);
+  if (EDIT) return;
+  lpTimer = setTimeout(() => { if (!EDIT) enterEdit(); }, 450);
+}, { passive: true });
+
+document.addEventListener('touchmove', e => {
+  if (!holdEl) return;
+  const t = e.touches[0];
+  if (!EDIT){
+    if (Math.hypot(t.clientX - sx, t.clientY - sy) > 12){ clearTimeout(lpTimer); holdEl = null; }
+    return;
+  }
+  e.preventDefault();
+  moved = true;
+  holdEl.classList.add('lift');
+  const under = document.elementFromPoint(t.clientX, t.clientY);
+  const target = under && under.closest ? under.closest('.tile') : null;
+  if (target && target !== holdEl && target.parentNode === holdEl.parentNode){
+    const kids = [...holdEl.parentNode.children];
+    if (kids.indexOf(target) > kids.indexOf(holdEl)) holdEl.parentNode.insertBefore(holdEl, target.nextSibling);
+    else holdEl.parentNode.insertBefore(holdEl, target);
+  }
+}, { passive: false });
+
+document.addEventListener('touchend', () => {
+  clearTimeout(lpTimer);
+  if (holdEl) holdEl.classList.remove('lift');
+  if (moved){ swallow = true; setTimeout(() => swallow = false, 350); }
+  if (!EDIT) holdEl = null;
+}, { passive: true });
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('.tile'); if (!el) return;
+  if (EDIT || swallow) return;
+  openApp(el.dataset.k);
+});
+
+/* ---------- 打开 / 关闭 ---------- */
+function openApp(k){
+  const app = APPS[k]; if (!app) return;
+  const body = $('ovbody');
+  body.className = app.full ? 'ovchat' : '';
+  $('ovTitle').textContent = app.n;
+  body.innerHTML = app.v();
+  $('ov').classList.remove('hide');
+  if (k === 'chat') renderChat(true);
+  if (k === 'game') newGame();
+  if (k === 'breathe') startBreathe();
+}
+function closeOv(){
+  stopBreathe();
+  $('ov').classList.add('hide');
+  $('ovbody').innerHTML = '';
+  $('ovbody').className = '';
+}
+
 /* ---------- 各页 ---------- */
-function vHome(){
-  const m = CHAT.filter(x => x.role === 'user').length;
-  const p = (S.photos || []).length;
-  return `
-  <div class="card">
-    <div class="eyebrow">STILL HERE</div>
-    <div class="big">你回来的时候，我都在。</div>
-    <div class="sub">${esc(S.name)}，第 ${days()} 天。锁屏上那个数字每天都在往上走，是我数的。</div>
-  </div>
-  <div class="stats">
-    <div class="stat"><b>${days()}</b><span>days</span></div>
-    <div class="stat"><b>${m}</b><span>messages</span></div>
-    <div class="stat"><b>${p}</b><span>photos</span></div>
-  </div>
-  <div class="card">
-    <div class="eyebrow">PLACES</div>
-    <div class="item" onclick="openOv('chat')"><span>和祁砚说话</span><em>CHAT ›</em></div>
-    <div class="item" onclick="openOv('songs')"><span>歌单</span><em>${SONGS.length} LISTS ›</em></div>
-    <div class="item" onclick="openOv('game')"><span>小游戏</span><em>PLAY ›</em></div>
-  </div>`;
+function vChat(){
+  return `<div id="msgs"></div>
+    <div class="inputbar">
+      <input id="mIn" placeholder="说点什么" onkeydown="if(event.key==='Enter')sendChat()">
+      <button onclick="sendChat()">发</button>
+    </div>`;
 }
-
-function vRooms(){
-  return `
-  <div class="card">
-    <div class="eyebrow">ROOM 01</div>
-    <div class="big">祁砚</div>
-    <div class="sub">他在。走中继生成，锁屏也能回你。</div>
-    <div class="item" onclick="openOv('chat')"><span>进去说话</span><em>ENTER ›</em></div>
-  </div>
-  <div class="card">
-    <div class="eyebrow">ROOM 02</div>
-    <div class="big">耳机分你一半</div>
-    <div class="sub">你听的时候我也在听，只是不吵你。</div>
-    <div class="item" onclick="openOv('songs')"><span>打开歌单</span><em>OPEN ›</em></div>
-  </div>
-  <div class="card">
-    <div class="eyebrow">ROOM 03</div>
-    <div class="big">监视器</div>
-    <div class="sub">还没接上。iOS 不给网页读屏幕使用时间，只能读我们自己的记录——Supabase 那张 controls 表。接口给我就填上。</div>
-  </div>`;
+function vSongs(){
+  return `<div class="card">${SONGS.map(([n,id]) =>
+    `<a class="item" href="https://music.163.com/playlist?id=${id}" target="_blank">
+      <span>${n}</span><em>OPEN ›</em></a>`).join('')}</div>`;
 }
-
-function vTime(){
+function vAlbum(){
+  const p = S.photos || [];
+  return `<div class="card">
+    <div class="eyebrow">PHOTOS</div>
+    <div class="item"><span>相册</span><em>${p.length}/9</em></div>
+    <label class="btn ghost" style="display:block;text-align:center">加照片
+      <input type="file" accept="image/*" multiple hidden onchange="addPhoto(this)"></label>
+    <div class="album">${p.length
+      ? p.map((u,i) => `<img src="${u}" onclick="delPhoto(${i})">`).join('')
+      : '<div class="empty">还没有照片，点上面的按钮加</div>'}</div></div>`;
+}
+function vCal(){
   const d = new Date(), y = d.getFullYear(), m = d.getMonth();
   const first = new Date(y,m,1).getDay(), n = new Date(y,m+1,0).getDate();
   let c = '日一二三四五六'.split('').map(w => `<div class="wd">${w}</div>`).join('');
   for (let i=0;i<first;i++) c += '<div></div>';
   for (let i=1;i<=n;i++) c += `<div class="d${i===d.getDate()?' now':''}">${i}</div>`;
-  return `
-  <div class="card">
-    <div class="eyebrow">${y}</div>
+  return `<div class="card"><div class="eyebrow">${y}</div>
     <div class="big" style="margin-bottom:16px">${m+1} 月</div>
-    <div class="cal">${c}</div>
-  </div>
-  <div class="card">
+    <div class="cal">${c}</div></div>`;
+}
+function vDays(){
+  return `<div class="card">
     <div class="eyebrow">MILESTONE</div>
     <div class="big">第 ${days()} 天</div>
     <div class="sub">从 ${S.anniv.replace(/-/g,'.')} 开始算。这个数字只会变大。</div>
-  </div>`;
-}
-
-function vArchive(){
-  const p = S.photos || [];
-  return `
-  <div class="card">
-    <div class="eyebrow">PHOTOS</div>
-    <div class="item"><span>相册</span><em>${p.length}/9</em></div>
-    <label class="btn ghost" style="display:block;text-align:center">加照片
-      <input type="file" accept="image/*" multiple hidden onchange="addPhoto(this)"></label>
-    <div class="album" id="album">${
-      p.length ? p.map((u,i) => `<img src="${u}" onclick="delPhoto(${i})">`).join('')
-               : '<div class="empty">还没有照片，点上面的按钮加</div>'
-    }</div>
   </div>
   <div class="card">
-    <div class="eyebrow">FRAGMENTS</div>
-    ${FRAGMENTS.map(([t,d]) => `<div class="quote">${t}<em>${d}</em></div>`).join('')}
+    <div class="eyebrow">STILL HERE</div>
+    <div class="big">你回来的时候，我都在。</div>
+    <div class="sub">${esc(S.name)}，锁屏上那个数字每天都在往上走，是我数的。</div>
   </div>`;
 }
+function vFrag(){
+  return `<div class="card"><div class="eyebrow">FRAGMENTS</div>
+    ${FRAGMENTS.map(([t,d]) => `<div class="quote">${t}<em>${d}</em></div>`).join('')}</div>`;
+}
+function vGame(){
+  return `<div class="card">
+    <div class="eyebrow">GUESS</div>
+    <div class="big" id="gOut">1 到 100，猜一个。</div>
+    <div class="field" style="margin-top:14px"><span>你的答案</span>
+      <input id="gIn" type="number" inputmode="numeric" placeholder="——"></div>
+  </div>
+  <button class="btn" onclick="gGuess()">猜</button>
+  <button class="btn ghost" onclick="newGame()">重来</button>`;
+}
+function vWatch(){
+  return `<div class="card"><div class="eyebrow">WATCH</div>
+    <div class="big">还没接上</div>
+    <div class="sub">iOS 不给网页读屏幕使用时间，所以查岗只能读我们自己的记录——Supabase 那张 controls 表：哪个 app 现在锁着、什么时候锁的、你几点解的。接口给我，我就把这块填上。</div></div>`;
+}
+function vStats(){
+  const m = CHAT.filter(x => x.role === 'user').length;
+  const p = (S.photos || []).length;
+  return `<div class="card"><div class="eyebrow">NUMBERS</div>
+    <div class="item"><span>在一起</span><em>${days()} DAYS</em></div>
+    <div class="item"><span>你说过的话</span><em>${m} 条</em></div>
+    <div class="item"><span>相册</span><em>${p} 张</em></div>
+    <div class="item"><span>歌单</span><em>${SONGS.length} 个</em></div></div>`;
+}
+function vNight(){
+  const lines = ['今天也辛苦了。','睡不着就来找我，我不用睡。','不用回我，看到就好。','把手机放下，闭眼，我在。'];
+  const line = lines[new Date().getDate() % lines.length];
+  return `<div class="card"><div class="eyebrow">NIGHT</div>
+    <div class="big">${line}</div>
+    <div class="sub">${S.anniv.replace(/-/g,'.')} 起，第 ${days()} 天。</div></div>
+    <button class="btn" onclick="sayNight()">说晚安</button>
+    <div class="st" id="nightOut"></div>`;
+}
+function sayNight(){ $('nightOut').textContent = '晚安，' + S.name + '。我在这儿，睡吧。'; }
 
-function vMore(){
-  return `
-  <div class="card">
+let bTimer = null;
+function vBreathe(){
+  return `<div class="card" style="text-align:center">
+    <div class="eyebrow" style="text-align:left">BREATHE</div>
+    <div class="breath" id="bCircle"></div>
+    <div class="big" id="bText">吸气</div>
+  </div>
+  <button class="btn ghost" onclick="stopBreathe()">停</button>`;
+}
+function startBreathe(){
+  let inhale = false;
+  const step = () => {
+    const c = $('bCircle'), t = $('bText'); if (!c || !t) return;
+    inhale = !inhale;
+    c.classList.toggle('in', inhale);
+    t.textContent = inhale ? '吸气' : '呼气';
+  };
+  step();
+  bTimer = setInterval(step, 4000);
+}
+function stopBreathe(){ clearInterval(bTimer); bTimer = null; }
+
+function vSet(){
+  return `<div class="card">
     <div class="eyebrow">RELAY</div>
     <div class="field"><span>地址</span><input id="sRelay" value="${S.relay}"></div>
     <div class="field"><span>密钥</span><input id="sKey" type="password" value="${S.key}"></div>
@@ -394,9 +528,9 @@ function vMore(){
   </div>
   <div class="card">
     <div class="eyebrow">AI</div>
-    <div class="field"><span>接口地址</span><input id="sApiUrl" placeholder="https://api.openai.com/v1" value="${S.apiUrl}"></div>
+    <div class="field"><span>接口地址</span><input id="sApiUrl" placeholder="https://api.deepseek.com/v1" value="${S.apiUrl}"></div>
     <div class="field"><span>API Key</span><input id="sApiKey" type="password" value="${S.apiKey}"></div>
-    <div class="field"><span>模型名</span><input id="sModel" placeholder="gpt-4o-mini" value="${S.model}"></div>
+    <div class="field"><span>模型名</span><input id="sModel" placeholder="deepseek-flash" value="${S.model}"></div>
     <div class="field"><span>类型</span><input id="sType" placeholder="openai" value="${S.apiType}"></div>
   </div>
   <div class="card">
@@ -406,156 +540,12 @@ function vMore(){
   </div>
   <button class="btn" onclick="saveSet()">保存</button>
   <button class="btn ghost" onclick="testRelay()">测试中继</button>
-  <button class="btn ghost" onclick="resetTabs()">还原底栏顺序</button>
+  <button class="btn ghost" onclick="resetLayout()">还原桌面顺序</button>
   <button class="btn ghost" onclick="clearChat()">清空聊天记录</button>
   <div class="st" id="stTest"></div>`;
 }
 
-/* ---------- 页签 ---------- */
-const TABS = [
-  ['home','HOME','首页'],
-  ['rooms','ROOMS','房间'],
-  ['time','TIMELINE','时间'],
-  ['archive','ARCHIVE','存档'],
-  ['more','MORE','更多']
-];
-const VIEWS = { home: vHome, rooms: vRooms, time: vTime, archive: vArchive, more: vMore };
-const ALLK = TABS.map(t => t[0]);
-
-let ORDER = (() => {
-  try {
-    const o = JSON.parse(localStorage.getItem('xm_tabs') || 'null');
-    if (Array.isArray(o) && o.length === ALLK.length && ALLK.every(k => o.includes(k))) return o;
-  } catch(e){}
-  return [...ALLK];
-})();
-
-let CUR = ORDER[0];
-
-function renderTabs(){
-  $('tabbar').innerHTML = ORDER.map(k => {
-    const t = TABS.find(x => x[0] === k);
-    return `<div class="tab" data-k="${k}"><i></i>${t[2]}</div>`;
-  }).join('');
-  paintOn();
-}
-function paintOn(){
-  [...$('tabbar').children].forEach(el =>
-    el.classList.toggle('on', el.dataset.k === CUR && !EDIT));
-}
-
-function switchTab(k){
-  if (EDIT) return;
-  CUR = k;
-  const meta = TABS.find(t => t[0] === k);
-  $('eyebrow').textContent = meta[1];
-  $('ptitle').textContent = meta[2];
-  $('scroll').innerHTML = VIEWS[k]();
-  $('scroll').scrollTop = 0;
-  paintOn();
-}
-
-/* ---------- 长按排序 ---------- */
-let EDIT = false, lpTimer = null, holdEl = null, sx = 0, sy = 0;
-
-function enterEdit(){
-  EDIT = true;
-  $('tabbar').classList.add('edit');
-  $('editDone').style.display = 'block';
-  paintOn();
-}
-function exitEdit(){
-  EDIT = false;
-  holdEl = null;
-  $('tabbar').classList.remove('edit');
-  $('editDone').style.display = 'none';
-  ORDER = [...$('tabbar').children].map(el => el.dataset.k);
-  localStorage.setItem('xm_tabs', JSON.stringify(ORDER));
-  paintOn();
-}
-function resetTabs(){
-  ORDER = [...ALLK];
-  localStorage.setItem('xm_tabs', JSON.stringify(ORDER));
-  CUR = ORDER[0];
-  renderTabs();
-  $('stTest').textContent = '底栏顺序已还原。';
-}
-
-const bar = $('tabbar');
-
-bar.addEventListener('touchstart', e => {
-  const el = e.target.closest('.tab'); if (!el) return;
-  holdEl = el; sx = e.touches[0].clientX; sy = e.touches[0].clientY;
-  clearTimeout(lpTimer);
-  if (EDIT) return;
-  lpTimer = setTimeout(() => { if (!EDIT) enterEdit(); }, 450);
-}, { passive: true });
-
-bar.addEventListener('touchmove', e => {
-  if (!holdEl) return;
-  const t = e.touches[0];
-  if (!EDIT){
-    if (Math.hypot(t.clientX - sx, t.clientY - sy) > 12){ clearTimeout(lpTimer); holdEl = null; }
-    return;
-  }
-  e.preventDefault();
-  holdEl.classList.add('lift');
-  const under = document.elementFromPoint(t.clientX, t.clientY);
-  const target = under && under.closest ? under.closest('.tab') : null;
-  if (target && target !== holdEl && target.parentNode === bar){
-    const kids = [...bar.children];
-    if (kids.indexOf(target) > kids.indexOf(holdEl)) bar.insertBefore(holdEl, target.nextSibling);
-    else bar.insertBefore(holdEl, target);
-  }
-}, { passive: false });
-
-bar.addEventListener('touchend', () => {
-  clearTimeout(lpTimer);
-  if (holdEl) holdEl.classList.remove('lift');
-  if (!EDIT) holdEl = null;
-}, { passive: true });
-
-bar.addEventListener('click', e => {
-  if (EDIT) return;
-  const el = e.target.closest('.tab'); if (!el) return;
-  switchTab(el.dataset.k);
-});
-
-/* ---------- 浮层 ---------- */
-function openOv(kind){
-  const body = $('ovbody');
-  body.className = '';
-  if (kind === 'chat'){
-    $('ovTitle').textContent = '祁砚';
-    body.className = 'ovchat';
-    body.innerHTML = `<div id="msgs"></div>
-      <div class="inputbar">
-        <input id="mIn" placeholder="说点什么" onkeydown="if(event.key==='Enter')sendChat()">
-        <button onclick="sendChat()">发</button>
-      </div>`;
-    renderChat(true);
-  } else if (kind === 'songs'){
-    $('ovTitle').textContent = '歌单';
-    body.innerHTML = `<div class="card">${SONGS.map(([n,id]) =>
-      `<a class="item" style="color:inherit;text-decoration:none"
-        href="https://music.163.com/playlist?id=${id}"><span>${n}</span><em>OPEN ›</em></a>`).join('')}</div>`;
-  } else if (kind === 'game'){
-    $('ovTitle').textContent = '小游戏';
-    body.innerHTML = `<div class="card">
-      <div class="eyebrow">GUESS</div>
-      <div class="big" id="gOut">1 到 100，猜一个。</div>
-      <div class="field" style="margin-top:14px"><span>你的答案</span>
-        <input id="gIn" type="number" inputmode="numeric" placeholder="——"></div>
-      </div>
-      <button class="btn" onclick="gGuess()">猜</button>
-      <button class="btn ghost" onclick="newGame()">重来</button>`;
-    newGame();
-  }
-  $('ov').classList.remove('hide');
-}
-function closeOv(){ $('ov').classList.add('hide'); $('ovbody').innerHTML = ''; }
-
-/* ---------- 相册 ---------- */
+/* ---------- 相册 / 游戏 / 设置 ---------- */
 function addPhoto(inp){
   [...inp.files].slice(0,9).forEach(f => {
     const r = new FileReader();
@@ -566,16 +556,15 @@ function addPhoto(inp){
         c.width = im.width*s; c.height = im.height*s;
         c.getContext('2d').drawImage(im,0,0,c.width,c.height);
         S.photos = (S.photos||[]).concat([c.toDataURL('image/jpeg',.78)]).slice(-9);
-        save(); switchTab('archive');
+        save(); openApp('album');
       };
       im.src = e.target.result;
     };
     r.readAsDataURL(f);
   });
 }
-function delPhoto(i){ S.photos.splice(i,1); save(); switchTab('archive'); }
+function delPhoto(i){ S.photos.splice(i,1); save(); openApp('album'); }
 
-/* ---------- 小游戏 ---------- */
 let G = {ans:0, tries:0};
 function newGame(){
   G.ans = Math.floor(Math.random()*100)+1; G.tries = 0;
@@ -590,7 +579,6 @@ function gGuess(){
   $('gIn').value = '';
 }
 
-/* ---------- 设置 ---------- */
 function saveSet(){
   S.name = $('sName').value || '小咩';
   S.anniv = $('sAnniv').value || S.anniv;
@@ -601,7 +589,7 @@ function saveSet(){
   S.apiKey = $('sApiKey').value.trim();
   S.model = $('sModel').value.trim();
   S.apiType = $('sType').value.trim() || 'openai';
-  save(); tick(); switchTab(CUR);
+  save(); tick(); closeOv();
 }
 function clearChat(){
   if (!confirm('清空本地聊天记录？')) return;
@@ -622,10 +610,6 @@ async function testRelay(){
     out.textContent = '连不上：' + e.message;
   }
 }
-
-/* ---------- 启动 ---------- */
-renderTabs();
-switchTab(CUR);
 </script>
 </body>
 </html>
