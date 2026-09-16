@@ -59,7 +59,8 @@ padding:15px 17px;display:flex;flex-direction:column;justify-content:space-betwe
 .dock{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
 margin:0 14px calc(env(safe-area-inset-bottom) + 16px);padding:13px 12px;
 background:rgba(255,255,255,.66);backdrop-filter:blur(24px);
-border:1px solid rgba(0,0,0,.06);border-radius:28px}
+border:1px solid rgba(0,0,0,.06);border-radius:28px;min-height:88px}
+.dock:empty{display:none}
 body.edit .tile{animation:jig .5s infinite alternate ease-in-out}
 body.edit .tile:nth-child(2n){animation-delay:.09s}
 body.edit .tile:nth-child(3n){animation-delay:.18s}
@@ -500,7 +501,7 @@ async function pullOutbox(){
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pullOutbox(); });
 
-/* ---------- 右滑返回（跟 iPhone 一样） ---------- */
+/* ---------- 右滑返回 ---------- */
 function attachSwipeBack(el, closeFn){
   let startX = 0, startY = 0, dx = 0, live = false;
   el.addEventListener('touchstart', e => {
@@ -681,7 +682,7 @@ const DEFAULT_DOCK = ['chat','netease','days','set'];
 function loadOrder(k, def){
   try {
     const o = JSON.parse(localStorage.getItem(k) || 'null');
-    if (Array.isArray(o) && o.length && o.every(x => ALL.includes(x))) return o;
+    if (Array.isArray(o) && o.every(x => ALL.includes(x))) return o;
   } catch(e){}
   return [...def];
 }
@@ -832,7 +833,7 @@ applyTouchIcon();
 if (S.blockUntil) startBlockWatch();
 pullOutbox();
 
-/* ---------- 长按整理 ---------- */
+/* ---------- 长按整理（上面那栏和下面那栏之间可以随便搬） ---------- */
 function flip(container, mutate){
   const before = new Map();
   [...container.children].forEach(el => before.set(el, el.getBoundingClientRect()));
@@ -893,21 +894,51 @@ function moveGhost(){
   ghost.style.transform = `translate3d(${t.clientX - dragStart.x}px,${t.clientY - dragStart.y}px,0)`;
 
   const now = Date.now();
-  if (now - lastSwap < 200) return;
+  if (now - lastSwap < 170) return;
 
   const under = document.elementFromPoint(t.clientX, t.clientY);
-  const target = under && under.closest ? under.closest('.tile') : null;
-  if (!target || target === holdEl || target.parentNode !== holdEl.parentNode) return;
+  if (!under || !under.closest) return;
 
-  const kids = [...holdEl.parentNode.children];
-  const a = kids.indexOf(holdEl), b = kids.indexOf(target);
-  if (a === -1 || b === -1 || a === b) return;
+  const cont = under.closest('#grid') || under.closest('#dock');
+  if (!cont) return;
+  const cur = holdEl.parentNode;
 
-  lastSwap = now;
-  flip(holdEl.parentNode, () => {
-    if (b > a) holdEl.parentNode.insertBefore(holdEl, target.nextSibling);
-    else holdEl.parentNode.insertBefore(holdEl, target);
-  });
+  const tile = under.closest('.tile');
+  const validTile = tile && tile !== holdEl && !tile.classList.contains('restore');
+
+  if (validTile){
+    lastSwap = now;
+    if (tile.parentNode === cur){
+      const kids = [...cur.children];
+      const a = kids.indexOf(holdEl), b = kids.indexOf(tile);
+      if (a === -1 || b === -1 || a === b) return;
+      flip(cur, () => {
+        if (b > a) cur.insertBefore(holdEl, tile.nextSibling);
+        else cur.insertBefore(holdEl, tile);
+      });
+    } else {
+      flip(tile.parentNode, () => {
+        const r = tile.getBoundingClientRect();
+        const after = t.clientX > r.left + r.width / 2;
+        tile.parentNode.insertBefore(holdEl, after ? tile.nextSibling : tile);
+      });
+    }
+    return;
+  }
+
+  if (cont !== cur){
+    lastSwap = now;
+    flip(cont, () => {
+      const kids = [...cont.children].filter(el => el !== holdEl);
+      let ref = null;
+      for (const el of kids){
+        const r = el.getBoundingClientRect();
+        if (t.clientX < r.left + r.width / 2){ ref = el; break; }
+      }
+      if (ref) cont.insertBefore(holdEl, ref);
+      else cont.appendChild(holdEl);
+    });
+  }
 }
 
 document.addEventListener('touchstart', e => {
