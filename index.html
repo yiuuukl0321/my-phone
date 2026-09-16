@@ -9,8 +9,7 @@
 <title>小咩的手机</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-:root{--bg:#f4f4f2;--card:#fff;--ink:#0b0b0b;--mute:#a0a09c;--line:rgba(0,0,0,.09);
---sprite:url('IMG_6462.jpeg')}
+:root{--bg:#f4f4f2;--card:#fff;--ink:#0b0b0b;--mute:#a0a09c;--line:rgba(0,0,0,.09)}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
 font:400 15px/1.55 -apple-system,"PingFang SC",system-ui,sans-serif;
 -webkit-font-smoothing:antialiased;-webkit-user-select:text;user-select:text}
@@ -35,9 +34,9 @@ padding:calc(env(safe-area-inset-top) + 12px) 24px 4px;font-size:12px;font-weigh
 .tile{display:flex;flex-direction:column;align-items:center;gap:8px;
 -webkit-user-select:none;user-select:none}
 .ico{width:62px;height:62px;border-radius:16px;
-background:#fff var(--sprite) no-repeat;background-size:594px 364px;
-border:1px solid rgba(0,0,0,.07);box-shadow:0 2px 10px rgba(0,0,0,.07);
-transition:transform .12s}
+background-color:#fff;background-repeat:no-repeat;background-position:center;
+background-size:contain;border:1px solid rgba(0,0,0,.07);
+box-shadow:0 2px 10px rgba(0,0,0,.07);transition:transform .12s}
 .nm{font-size:11.5px;color:#1c1c1c;max-width:72px;text-align:center;
 overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tile:active .ico{transform:scale(.9)}
@@ -50,17 +49,22 @@ body.edit .tile:nth-child(2n){animation-delay:.05s}
 body.edit .tile:nth-child(3n){animation-delay:.1s}
 body.edit .tile:nth-child(5n){animation-delay:.14s}
 @keyframes jig{from{transform:rotate(-1.3deg)}to{transform:rotate(1.3deg)}}
-.tile.lift .ico{transform:scale(1.18);box-shadow:0 12px 26px rgba(0,0,0,.22)}
+.tile.placeholder{opacity:.25}
+.ghost{position:fixed;z-index:99;pointer-events:none;animation:none!important;
+filter:drop-shadow(0 14px 26px rgba(0,0,0,.25));
+transition:transform .12s ease-out}
+.ghost .ico{transform:scale(1.14)}
 #doneBtn{position:fixed;top:calc(env(safe-area-inset-top) + 10px);right:16px;z-index:35;
 background:#111;color:#fff;border:0;border-radius:18px;padding:8px 18px;font-size:13px;display:none}
 body.edit #doneBtn{display:block}
 .overlay{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex;flex-direction:column;
 transition:transform .32s cubic-bezier(.4,0,.2,1)}
 .overlay.hide{transform:translateX(100%)}
-.ovtop{padding:calc(env(safe-area-inset-top) + 16px) 20px 13px;display:flex;align-items:baseline;
-justify-content:space-between;border-bottom:1px solid var(--line)}
-.ovtop b{font-size:15px;font-weight:600}
-.ovtop span{font-size:13px;color:var(--mute)}
+.ovtop{padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;display:flex;align-items:center;gap:10px;
+border-bottom:1px solid var(--line)}
+.back{width:34px;height:34px;display:grid;place-items:center;border-radius:50%}
+.back:active{background:rgba(0,0,0,.06)}
+.ovtop b{font-size:16px;font-weight:600}
 #ovbody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
 padding:18px 16px calc(env(safe-area-inset-bottom) + 20px)}
 #ovbody.ovchat{display:flex;flex-direction:column;overflow:hidden;padding:0}
@@ -105,9 +109,9 @@ font-size:15px;margin-top:10px}
 .quote:last-child{border-bottom:0}
 .quote em{display:block;font-style:normal;font-size:10px;letter-spacing:.14em;
 text-transform:uppercase;color:var(--mute);margin-top:8px}
-.breath{width:118px;height:118px;border-radius:50%;background:#111;margin:26px auto 22px;
-transform:scale(.62);transition:transform 4s ease-in-out}
-.breath.in{transform:scale(1)}
+@keyframes breathe{0%{transform:scale(.55)}50%{transform:scale(1)}100%{transform:scale(.55)}}
+.breath{width:150px;height:150px;border-radius:50%;background:#111;margin:30px auto 26px;
+animation:breathe 8s ease-in-out infinite}
 </style>
 </head>
 <body>
@@ -129,7 +133,13 @@ transform:scale(.62);transition:transform 4s ease-in-out}
 <button id="doneBtn" onclick="exitEdit()">完成</button>
 
 <div class="overlay hide" id="ov">
-  <div class="ovtop"><b id="ovTitle"></b><span onclick="closeOv()">返回</span></div>
+  <div class="ovtop">
+    <div class="back" onclick="closeOv()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0b0b0b"
+        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </div>
+    <b id="ovTitle"></b>
+  </div>
   <div id="ovbody"></div>
 </div>
 
@@ -264,8 +274,6 @@ async function sendChat(){
   saveChat(); renderChat(true);
 }
 
-const SONGS = [['小咩喜欢的音乐',6674116601],['太阳底下',18387912585],['哥哥的私藏',18383808569],
-  ['耳机分你一半',18383125000],['w/u',13476455727],['小咩',18384358024]];
 const FRAGMENTS = [
   ['到家跟我说一声。','2026.09.16'],
   ['不用一次听完，慢慢听。','2026.09.15'],
@@ -277,23 +285,27 @@ const FRAGMENTS = [
   ['你可以慢一点，我不会走。','2026.09.09']
 ];
 
+/* ---------- 应用 ---------- */
+/* cell = 贴纸图上的第几只（按从左到右、从上到下数，从 0 开始） */
 const APPS = {
-  chat:   { p:[446,  7], n:'聊天',   v:vChat,  full:true },
-  songs:  { p:[311, 73], n:'歌单',   v:vSongs },
-  album:  { p:[ 97,214], n:'相册',   v:vAlbum },
-  cal:    { p:[167,  7], n:'日历',   v:vCal },
-  days:   { p:[ 97,  7], n:'纪念日', v:vDays },
-  frag:   { p:[ 97, 73], n:'碎片',   v:vFrag },
-  game:   { p:[376, 73], n:'小游戏', v:vGame },
-  watch:  { p:[ 23, 73], n:'监视器', v:vWatch },
-  stats:  { p:[167, 73], n:'统计',   v:vStats },
-  night:  { p:[516, 73], n:'晚安',   v:vNight },
-  breathe:{ p:[ 23,293], n:'呼吸',   v:vBreathe },
-  set:    { p:[376,142], n:'设置',   v:vSet }
+  chat:   { cell:6,  n:'聊天',   v:vChat, full:true },
+  netease:{ cell:12, n:'网易云', href:'https://music.163.com' },
+  douyin: { cell:20, n:'抖音',   href:'https://www.douyin.com' },
+  ig:     { cell:21, n:'IG',     href:'https://www.instagram.com' },
+  album:  { cell:25, n:'相册',   v:vAlbum },
+  cal:    { cell:2,  n:'日历',   v:vCal },
+  days:   { cell:1,  n:'纪念日', v:vDays },
+  frag:   { cell:9,  n:'碎片',   v:vFrag },
+  game:   { cell:13, n:'小游戏', v:vGame },
+  watch:  { cell:8,  n:'监视器', v:vWatch },
+  stats:  { cell:10, n:'统计',   v:vStats },
+  night:  { cell:15, n:'晚安',   v:vNight },
+  breathe:{ cell:32, n:'呼吸',   v:vBreathe },
+  set:    { cell:5,  n:'设置',   v:vSet }
 };
 const ALL = Object.keys(APPS);
 const DEFAULT_GRID = ALL;
-const DEFAULT_DOCK = ['chat','songs','album','set'];
+const DEFAULT_DOCK = ['chat','netease','album','set'];
 
 function loadOrder(k, def){
   try {
@@ -306,21 +318,128 @@ let GRID = loadOrder('xm_grid', DEFAULT_GRID);
 let DOCK = loadOrder('xm_dock', DEFAULT_DOCK);
 
 const tileHtml = k => `<div class="tile" data-k="${k}">
-  <div class="ico" style="background-position:-${APPS[k].p[0]}px -${APPS[k].p[1]}px"></div>
-  <div class="nm">${APPS[k].n}</div></div>`;
+  <div class="ico"></div><div class="nm">${APPS[k].n}</div></div>`;
 
+function applyIcons(){
+  document.querySelectorAll('.tile').forEach(el => {
+    const u = ICON[el.dataset.k];
+    if (u) el.querySelector('.ico').style.backgroundImage = `url('${u}')`;
+  });
+}
 function renderHome(){
   $('grid').innerHTML = GRID.map(tileHtml).join('');
   $('dock').innerHTML = DOCK.map(tileHtml).join('');
+  applyIcons();
 }
+
+/* ---------- 自动认图裁图标 ---------- */
+const ICON = {};
+const SPRITE = 'IMG_6462.jpeg';
+
+function splitBands(arr, minGap, minSize){
+  const out = []; let s = -1, g = 0;
+  for (let i = 0; i < arr.length; i++){
+    if (arr[i] > 0){ if (s < 0) s = i; g = 0; }
+    else if (s >= 0){ g++; if (g >= minGap){ out.push([s, i - g]); s = -1; g = 0; } }
+  }
+  if (s >= 0) out.push([s, arr.length - 1]);
+  return out.filter(b => b[1] - b[0] >= minSize);
+}
+
+async function buildIcons(){
+  const img = new Image();
+  img.src = SPRITE;
+  try { await img.decode(); }
+  catch(e){ await new Promise(r => { img.onload = r; img.onerror = r; }); }
+  const NW = img.naturalWidth, NH = img.naturalHeight;
+  if (!NW || !NH) return;
+
+  const AW = 700, k = AW / NW, AH = Math.max(1, Math.round(NH * k));
+  const cv = document.createElement('canvas');
+  cv.width = AW; cv.height = AH;
+  const cx = cv.getContext('2d', { willReadFrequently: true });
+  cx.fillStyle = '#fff'; cx.fillRect(0, 0, AW, AH);
+  cx.drawImage(img, 0, 0, AW, AH);
+  let px;
+  try { px = cx.getImageData(0, 0, AW, AH).data; } catch(e){ return; }
+
+  const ink = new Uint8Array(AW * AH);
+  for (let i = 0, j = 0; i < px.length; i += 4, j++){
+    ink[j] = (px[i]*0.299 + px[i+1]*0.587 + px[i+2]*0.114) < 200 ? 1 : 0;
+  }
+  const colSum = new Int32Array(AW);
+  for (let x = 0; x < AW; x++){
+    let s = 0;
+    for (let y = 0; y < AH; y++) s += ink[y*AW + x];
+    colSum[x] = s;
+  }
+  const cols = splitBands(colSum, 10, Math.round(AW * 0.02));
+  const cells = [];
+  cols.forEach(cb => {
+    const rowSum = new Int32Array(AH);
+    for (let y = 0; y < AH; y++){
+      let s = 0;
+      for (let x = cb[0]; x <= cb[1]; x++) s += ink[y*AW + x];
+      rowSum[y] = s;
+    }
+    splitBands(rowSum, 10, Math.round(AH * 0.02)).forEach(rb => cells.push([cb[0], rb[0], cb[1], rb[1]]));
+  });
+  if (!cells.length) return;
+
+  const cy = c => (c[1] + c[3]) / 2, cxx = c => (c[0] + c[2]) / 2;
+  cells.sort((a, b) => cy(a) - cy(b));
+  const rows = [], tol = AH * 0.07;
+  cells.forEach(c => {
+    const last = rows[rows.length - 1];
+    if (last && Math.abs(cy(c) - cy(last[0])) < tol) last.push(c);
+    else rows.push([c]);
+  });
+  const ordered = [];
+  rows.forEach(r => { r.sort((a, b) => cxx(a) - cxx(b)); r.forEach(c => ordered.push(c)); });
+
+  const SZ = 132, pad = 10;
+  Object.keys(APPS).forEach(key => {
+    const c = ordered[Math.min(APPS[key].cell, ordered.length - 1)];
+    if (!c) return;
+    const x0 = c[0] / k, y0 = c[1] / k, x1 = (c[2] + 1) / k, y1 = (c[3] + 1) / k;
+    const w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
+    const o = document.createElement('canvas');
+    o.width = SZ; o.height = SZ;
+    const oc = o.getContext('2d');
+    oc.fillStyle = '#fff'; oc.fillRect(0, 0, SZ, SZ);
+    const sc = Math.min((SZ - pad*2) / w, (SZ - pad*2) / h);
+    const dw = w * sc, dh = h * sc;
+    oc.drawImage(img, x0, y0, w, h, (SZ - dw)/2, (SZ - dh)/2, dw, dh);
+    ICON[key] = o.toDataURL('image/png');
+  });
+  applyIcons();
+}
+
 renderHome();
+buildIcons();
 
+/* ---------- 长按整理（跟手 + 让位动画） ---------- */
 let EDIT = false, holdEl = null, lpTimer = null, sx = 0, sy = 0, moved = false, swallow = false;
+let ghost = null, dragStart = null;
 
-function enterEdit(){
-  EDIT = true;
-  document.body.classList.add('edit');
+function flip(container, mutate){
+  const before = new Map();
+  [...container.children].forEach(el => before.set(el, el.getBoundingClientRect()));
+  mutate();
+  [...container.children].forEach(el => {
+    const a = before.get(el); if (!a) return;
+    const b = el.getBoundingClientRect();
+    const dx = a.left - b.left, dy = a.top - b.top;
+    if (!dx && !dy) return;
+    el.style.transition = 'none';
+    el.style.transform = `translate(${dx}px,${dy}px)`;
+    el.getBoundingClientRect();
+    el.style.transition = 'transform .3s cubic-bezier(.2,.85,.25,1)';
+    el.style.transform = '';
+  });
 }
+
+function enterEdit(){ EDIT = true; document.body.classList.add('edit'); }
 function exitEdit(){
   EDIT = false;
   document.body.classList.remove('edit');
@@ -335,6 +454,23 @@ function resetLayout(){
   localStorage.setItem('xm_dock', JSON.stringify(DOCK));
   renderHome();
   if ($('stTest')) $('stTest').textContent = '桌面顺序已还原。';
+}
+
+function beginDrag(t){
+  const r = holdEl.getBoundingClientRect();
+  ghost = holdEl.cloneNode(true);
+  ghost.className = 'tile ghost';
+  ghost.style.left = r.left + 'px';
+  ghost.style.top = r.top + 'px';
+  ghost.style.width = r.width + 'px';
+  document.body.appendChild(ghost);
+  holdEl.classList.add('placeholder');
+  dragStart = { x: t.clientX, y: t.clientY };
+}
+function endDrag(){
+  if (ghost){ ghost.remove(); ghost = null; }
+  if (holdEl) holdEl.classList.remove('placeholder');
+  dragStart = null;
 }
 
 document.addEventListener('touchstart', e => {
@@ -353,30 +489,46 @@ document.addEventListener('touchmove', e => {
     return;
   }
   e.preventDefault();
+  if (!ghost) beginDrag(t);
   moved = true;
-  holdEl.classList.add('lift');
+  ghost.style.transform =
+    `translate(${t.clientX - dragStart.x}px,${t.clientY - dragStart.y}px)`;
   const under = document.elementFromPoint(t.clientX, t.clientY);
   const target = under && under.closest ? under.closest('.tile') : null;
   if (target && target !== holdEl && target.parentNode === holdEl.parentNode){
     const kids = [...holdEl.parentNode.children];
-    if (kids.indexOf(target) > kids.indexOf(holdEl)) holdEl.parentNode.insertBefore(holdEl, target.nextSibling);
-    else holdEl.parentNode.insertBefore(holdEl, target);
+    const a = kids.indexOf(holdEl), b = kids.indexOf(target);
+    if (a !== -1 && b !== -1 && a !== b){
+      flip(holdEl.parentNode, () => {
+        if (b > a) holdEl.parentNode.insertBefore(holdEl, target.nextSibling);
+        else holdEl.parentNode.insertBefore(holdEl, target);
+      });
+    }
   }
 }, { passive: false });
 
 document.addEventListener('touchend', () => {
   clearTimeout(lpTimer);
-  if (holdEl) holdEl.classList.remove('lift');
+  endDrag();
   if (moved){ swallow = true; setTimeout(() => swallow = false, 350); }
   if (!EDIT) holdEl = null;
 }, { passive: true });
 
+function goOut(url){
+  const a = document.createElement('a');
+  a.href = url; a.target = '_blank'; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
 document.addEventListener('click', e => {
   const el = e.target.closest('.tile'); if (!el) return;
   if (EDIT || swallow) return;
-  openApp(el.dataset.k);
+  const app = APPS[el.dataset.k]; if (!app) return;
+  if (app.href) goOut(app.href);
+  else openApp(el.dataset.k);
 });
 
+/* ---------- 打开 / 关闭 ---------- */
 function openApp(k){
   const app = APPS[k]; if (!app) return;
   const body = $('ovbody');
@@ -395,17 +547,13 @@ function closeOv(){
   $('ovbody').className = '';
 }
 
+/* ---------- 各页 ---------- */
 function vChat(){
   return `<div id="msgs"></div>
     <div class="inputbar">
       <input id="mIn" placeholder="说点什么" onkeydown="if(event.key==='Enter')sendChat()">
-      <button onclick="sendChat()">发</button>
+      <button onclick="sendChat()">Send</button>
     </div>`;
-}
-function vSongs(){
-  return `<div class="card">${SONGS.map(([n,id]) =>
-    `<a class="item" href="https://music.163.com/playlist?id=${id}" target="_blank">
-      <span>${n}</span><em>OPEN ›</em></a>`).join('')}</div>`;
 }
 function vAlbum(){
   const p = S.photos || [];
@@ -465,8 +613,7 @@ function vStats(){
   return `<div class="card"><div class="eyebrow">NUMBERS</div>
     <div class="item"><span>在一起</span><em>${days()} DAYS</em></div>
     <div class="item"><span>你说过的话</span><em>${m} 条</em></div>
-    <div class="item"><span>相册</span><em>${p} 张</em></div>
-    <div class="item"><span>歌单</span><em>${SONGS.length} 个</em></div></div>`;
+    <div class="item"><span>相册</span><em>${p} 张</em></div></div>`;
 }
 function vNight(){
   const lines = ['今天也辛苦了。','睡不着就来找我，我不用睡。','不用回我，看到就好。','把手机放下，闭眼，我在。'];
@@ -483,21 +630,17 @@ let bTimer = null;
 function vBreathe(){
   return `<div class="card" style="text-align:center">
     <div class="eyebrow" style="text-align:left">BREATHE</div>
-    <div class="breath" id="bCircle"></div>
+    <div class="breath"></div>
     <div class="big" id="bText">吸气</div>
+    <div class="sub">跟着圆走。胀到最大的时候吸气，缩回去的时候呼气。</div>
   </div>
   <button class="btn ghost" onclick="stopBreathe()">停</button>`;
 }
 function startBreathe(){
-  let inhale = false;
-  const step = () => {
-    const c = $('bCircle'), t = $('bText'); if (!c || !t) return;
-    inhale = !inhale;
-    c.classList.toggle('in', inhale);
-    t.textContent = inhale ? '吸气' : '呼气';
-  };
-  step();
-  bTimer = setInterval(step, 4000);
+  let inhale = true;
+  const set = () => { const t = $('bText'); if (t) t.textContent = inhale ? '吸气' : '呼气'; };
+  set();
+  bTimer = setInterval(() => { inhale = !inhale; set(); }, 4000);
 }
 function stopBreathe(){ clearInterval(bTimer); bTimer = null; }
 
