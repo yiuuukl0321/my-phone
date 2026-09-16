@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f2f2ef">
 <meta name="apple-mobile-web-app-title" content="咩&amp;砚">
 <link rel="apple-touch-icon" href="IMG_6461.jpeg">
 <title>咩&amp;砚</title>
@@ -41,6 +42,14 @@ box-shadow:0 2px 10px rgba(0,0,0,.07);transition:transform .12s}
 .nm{font-size:11.5px;color:#1c1c1c;max-width:72px;text-align:center;
 overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tile:active .ico{transform:scale(.9)}
+.wid{grid-column:span 2;grid-row:span 2;border-radius:22px;
+background:rgba(255,255,255,.74);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+border:1px solid rgba(0,0,0,.06);box-shadow:0 2px 12px rgba(0,0,0,.07);
+padding:15px 17px;display:flex;flex-direction:column;justify-content:space-between;
+-webkit-user-select:none;user-select:none}
+.wdt{font-size:12px;letter-spacing:.1em;color:#ff3b30;font-weight:500}
+.wdn{font-size:56px;font-weight:300;letter-spacing:-2.5px;line-height:.95;color:#0b0b0b}
+.wds{font-size:11px;letter-spacing:.06em;color:var(--mute)}
 .dock{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
 margin:0 14px calc(env(safe-area-inset-bottom) + 16px);padding:13px 12px;
 background:rgba(255,255,255,.66);backdrop-filter:blur(24px);
@@ -172,6 +181,7 @@ function applyWall(){
   const w = S.wall || WALL_DEFAULT;
   const dim = Math.max(0, Math.min(.6, +S.dim || 0));
   $('home').style.backgroundImage =
+    `linear-gradient(rgba(0,0,0,.34),rgba(0,0,0,0) 130px),` +
     `linear-gradient(rgba(0,0,0,${dim}),rgba(0,0,0,${dim})),url('${w}')`;
 }
 function applyTouchIcon(){
@@ -340,6 +350,17 @@ let DOCK = loadOrder('xm_dock', DEFAULT_DOCK);
 const tileHtml = k => `<div class="tile" data-k="${k}">
   <div class="ico"></div><div class="nm">${APPS[k].n}</div></div>`;
 
+/* 左上角那个 2×2 的今日日历 */
+function widgetHtml(){
+  const d = new Date();
+  const wd = '日一二三四五六'[d.getDay()];
+  return `<div class="wid">
+    <div class="wdt">星期${wd}</div>
+    <div class="wdn">${d.getDate()}</div>
+    <div class="wds">${d.getFullYear()} 年 ${d.getMonth()+1} 月</div>
+  </div>`;
+}
+
 function applyIcons(){
   document.querySelectorAll('.tile').forEach(el => {
     const u = ICON[el.dataset.k];
@@ -347,7 +368,7 @@ function applyIcons(){
   });
 }
 function renderHome(){
-  $('grid').innerHTML = GRID.map(tileHtml).join('');
+  $('grid').innerHTML = widgetHtml() + GRID.map(tileHtml).join('');
   $('dock').innerHTML = DOCK.map(tileHtml).join('');
   applyIcons();
 }
@@ -465,8 +486,8 @@ function enterEdit(){ EDIT = true; document.body.classList.add('edit'); }
 function exitEdit(){
   EDIT = false;
   document.body.classList.remove('edit','dragging');
-  GRID = [...$('grid').children].map(e => e.dataset.k);
-  DOCK = [...$('dock').children].map(e => e.dataset.k);
+  GRID = [...$('grid').children].map(e => e.dataset.k).filter(Boolean);
+  DOCK = [...$('dock').children].map(e => e.dataset.k).filter(Boolean);
   localStorage.setItem('xm_grid', JSON.stringify(GRID));
   localStorage.setItem('xm_dock', JSON.stringify(DOCK));
 }
@@ -506,7 +527,6 @@ function moveGhost(){
   const t = lastPt;
   ghost.style.transform = `translate3d(${t.clientX - dragStart.x}px,${t.clientY - dragStart.y}px,0)`;
 
-  /* 换位要有间隔，不然会在两个格子之间来回跳 */
   const now = Date.now();
   if (now - lastSwap < 200) return;
 
