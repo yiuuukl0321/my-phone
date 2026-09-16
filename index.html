@@ -1791,6 +1791,77 @@ font:11px/1.3 monospace;padding:3px 5px"></div>
   }, 1500);
 })();
 
+(function(){
+  function mem(){ try { return MEM; } catch(e){ return null; } }
+  function save(){ try { if (typeof saveMem === 'function') saveMem(); } catch(e){} }
+  function say(t){
+    window.__ioMsg = t;
+    var s = document.getElementById('ioMsg');
+    if (s) s.textContent = t;
+  }
+  window.memExport = function(){
+    var m = mem() || [];
+    var box = document.getElementById('ioBox'); if (!box) return;
+    box.value = JSON.stringify({ v: 1, at: new Date().toISOString(), mem: m }, null, 1);
+    say('已导出 ' + m.length + ' 条。');
+  };
+  window.memCopy = function(){
+    var box = document.getElementById('ioBox'); if (!box || !box.value) return;
+    try { navigator.clipboard.writeText(box.value); say('复制好了。'); } catch(e){}
+  };
+  window.memPaste = function(){
+    var box = document.getElementById('ioBox'); if (!box) return;
+    try {
+      navigator.clipboard.readText().then(function(t){
+        if (t) box.value = t;
+        say('粘进来了，点导入。');
+      }).catch(function(){ say('读不到剪贴板，长按框里自己粘。'); });
+    } catch(e){}
+  };
+  window.memImport = function(){
+    var box = document.getElementById('ioBox');
+    var t = ((box && box.value) || '').trim();
+    if (!t){ say('先把档案粘进框里。'); return; }
+    var list = [];
+    try {
+      var d = JSON.parse(t);
+      list = (d && (d.mem || d.memory)) || (Array.isArray(d) ? d : []);
+    } catch(e){
+      list = t.split('\n').map(function(x){ return x.replace(/^[\s\-·•\d.、]+/, '').trim(); })
+              .filter(function(x){ return x.length > 1; });
+    }
+    var cur = mem() || [], n = 0;
+    list.forEach(function(x){
+      x = String(x).replace(/\s+/g, ' ').trim();
+      if (!x || cur.indexOf(x) > -1) return;
+      cur.push(x); n++;
+    });
+    save();
+    say('加了 ' + n + ' 条，现在共 ' + cur.length + ' 条。');
+    if (typeof openApp === 'function') setTimeout(function(){ openApp('set'); }, 60);
+  };
+  function inject(){
+    var body = document.getElementById('ovbody');
+    if (!body || !document.getElementById('sWall')) return;
+    if (document.getElementById('memIO')) return;
+    var d = document.createElement('div');
+    d.id = 'memIO';
+    d.className = 'card';
+    d.innerHTML = '<div class="eyebrow">MEMORY FILE</div>' +
+      '<div class="sub" style="margin:0 0 10px">导出＝把记住的全部打包成一段文字；导入＝把档案粘进框里，重复的不会加两次。</div>' +
+      '<textarea id="ioBox" placeholder="导出的档案会出现在这里；要导入就把档案粘在这里"></textarea>' +
+      '<div class="item" onclick="memExport()"><span>导出档案</span><em>›</em></div>' +
+      '<div class="item" onclick="memCopy()"><span>复制档案</span><em>›</em></div>' +
+      '<div class="item" onclick="memPaste()"><span>从剪贴板粘贴</span><em>›</em></div>' +
+      '<div class="item" onclick="memImport()"><span>导入档案</span><em>›</em></div>' +
+      '<div class="st" id="ioMsg"></div>';
+    body.appendChild(d);
+    if (window.__ioMsg) document.getElementById('ioMsg').textContent = window.__ioMsg;
+  }
+  setInterval(inject, 900);
+  inject();
+})();
+
 </script>
 </body>
 </html>
