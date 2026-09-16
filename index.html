@@ -2072,20 +2072,10 @@ export async function runGeneration(settings, messages, maxTokens) {
         }
     }
 
-    // 主 API 失败 → 副 API fallback
-    if (secondaryFallbackEnabled && secondaryApiUrl && secondaryApiKey) {
-        try {
-            return await callOnce({
-                apiUrl: secondaryApiUrl, apiKey: secondaryApiKey, model: secondaryApiModel || mainApiModel, apiType,
-                messages, temperature, reasoningEffort, maxTokens,
-            });
-        } catch (e) {
-            lastErr = e;
-        }
-    }
+m;
+  };
+})();
 
-    throw lastErr || new Error('AI generation failed');
-}
 
   
 </script>
