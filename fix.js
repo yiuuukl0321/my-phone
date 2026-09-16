@@ -627,3 +627,47 @@
     .observe(box, { childList: true, subtree: true });
 })();
 
+
+
+/* ===== 8. 深度思考：浅军蓝圆角折叠框（收起时显示三行预览） ===== */
+(function(){
+  var st = document.createElement('style');
+  st.textContent =
+    '.think{margin:0 0 9px;padding:11px 14px;border:0;border-radius:16px;' +
+      'background:rgba(146,163,214,.32);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}' +
+    '.think summary{display:flex;align-items:center;gap:7px;list-style:none;' +
+      'font-size:13px;font-weight:400;color:#5c6b9b;letter-spacing:.02em}' +
+    '.think summary::-webkit-details-marker{display:none}' +
+    '.think summary::before{content:"✦";font-size:12px;color:#6b7aae;margin:0}' +
+    '.think summary::after{content:"›";margin-left:auto;font-size:17px;line-height:1;' +
+      'color:#6b7aae;transform:rotate(90deg);transition:transform .2s}' +
+    '.think[open] summary::after{transform:rotate(-90deg)}' +
+    '.thprev{margin-top:8px;padding-left:2px;font-size:12.5px;line-height:1.65;color:#6f7da3;' +
+      'white-space:pre-wrap;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}' +
+    '.think[open] .thprev{display:none}' +
+    '.think .tb{margin-top:9px;padding-left:2px;font-size:12.5px;line-height:1.7;color:#6f7da3;' +
+      'max-height:280px;overflow-y:auto;-webkit-overflow-scrolling:touch}';
+  document.head.appendChild(st);
+
+  function decorate(){
+    var list = document.querySelectorAll('.think');
+    for (var i = 0; i < list.length; i++){
+      var d = list[i];
+      if (d.querySelector('.thprev')) continue;
+      var tb = d.querySelector('.tb');
+      var sum = d.querySelector('summary');
+      if (!tb || !sum) continue;
+      var t = (tb.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!t) continue;
+      var p = document.createElement('div');
+      p.className = 'thprev';
+      p.textContent = t.length > 150 ? t.slice(0, 150) + '…' : t;
+      sum.insertAdjacentElement('afterend', p);
+    }
+  }
+  decorate();
+  var box = document.getElementById('msgs');
+  if (box) new MutationObserver(function(){ setTimeout(decorate, 80); })
+    .observe(box, { childList: true, subtree: true });
+})();
+
