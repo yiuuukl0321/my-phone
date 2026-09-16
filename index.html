@@ -17,7 +17,7 @@ background-size:cover;background-attachment:fixed}
 body{height:100%;overflow:hidden;background:transparent;color:var(--ink);
 font:400 15px/1.55 -apple-system,"PingFang SC",system-ui,sans-serif;
 -webkit-font-smoothing:antialiased;-webkit-user-select:text;user-select:text}
-input{font-family:inherit}
+input,textarea{font-family:inherit}
 button{font-family:inherit}
 #lock{position:fixed;inset:0;background:#000;color:#fff;z-index:40;display:flex;
 flex-direction:column;align-items:center;justify-content:space-between;text-align:center;
@@ -35,6 +35,7 @@ padding:calc(env(safe-area-inset-top) + 26px) 14px 6px}
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px 10px}
 .tile{display:flex;flex-direction:column;align-items:center;gap:8px;
 -webkit-user-select:none;user-select:none}
+body.edit .tile{position:relative}
 .ico{width:62px;height:62px;border-radius:16px;
 background-color:#fff;background-repeat:no-repeat;background-position:center;
 background-size:contain;border:1px solid rgba(0,0,0,.07);
@@ -42,6 +43,11 @@ box-shadow:0 2px 10px rgba(0,0,0,.07);transition:transform .12s}
 .nm{font-size:11.5px;color:#1c1c1c;max-width:72px;text-align:center;
 overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tile:active .ico{transform:scale(.9)}
+.del{position:absolute;top:-5px;left:-4px;width:23px;height:23px;border-radius:50%;
+background:#fff;color:#111;font-size:17px;line-height:21px;text-align:center;
+box-shadow:0 1px 5px rgba(0,0,0,.28);z-index:3}
+.rmtitle{font-size:11px;letter-spacing:.16em;color:#8a8a86;text-transform:uppercase;
+margin:28px 0 14px;padding-left:2px}
 .wid{grid-column:span 2;grid-row:span 2;border-radius:22px;
 background:rgba(255,255,255,.74);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
 border:1px solid rgba(0,0,0,.06);box-shadow:0 2px 12px rgba(0,0,0,.07);
@@ -69,11 +75,13 @@ body.edit #doneBtn{display:block}
 .overlay{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex;flex-direction:column;
 transition:transform .32s cubic-bezier(.4,0,.2,1)}
 .overlay.hide{transform:translateX(100%)}
+#sh{z-index:30}
 .ovtop{padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;display:flex;align-items:center;gap:10px;
 border-bottom:1px solid var(--line)}
 .back{width:34px;height:34px;display:grid;place-items:center;border-radius:50%}
 .back:active{background:rgba(0,0,0,.06)}
 .ovtop b{font-size:16px;font-weight:600}
+.ovact{margin-left:auto;font-size:17px;letter-spacing:1px;padding:4px 8px;color:#0b0b0b}
 #ovbody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
 padding:18px 16px calc(env(safe-area-inset-bottom) + 20px)}
 #ovbody.ovchat{display:flex;flex-direction:column;overflow:hidden;padding:0}
@@ -83,12 +91,17 @@ margin-bottom:9px;white-space:pre-wrap;word-break:break-word;-webkit-user-select
 .me{align-self:flex-end;background:#111;color:#fff;border-bottom-right-radius:5px}
 .kai{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:5px}
 .bub.typing{color:var(--mute);letter-spacing:3px}
+.memo{align-self:flex-start;font-size:11px;color:var(--mute);padding:0 4px 10px;max-width:82%}
+.blockbar{display:none;padding:10px 16px;background:#ffe9e7;color:#c0392b;
+font-size:12px;text-align:center;letter-spacing:.02em}
 .inputbar{display:flex;gap:8px;padding:10px 16px calc(env(safe-area-inset-bottom) + 14px);
 border-top:1px solid var(--line);background:var(--bg)}
 .inputbar input{flex:1;background:#fff;border:1px solid var(--line);border-radius:22px;
 padding:12px 18px;font-size:15px;color:var(--ink)}
 .inputbar input::placeholder{color:#c9c9c5}
+.inputbar input:disabled{opacity:.45}
 .inputbar button{padding:0 22px;border-radius:22px;border:0;background:#111;color:#fff;font-size:14px}
+.inputbar button:disabled{opacity:.35}
 .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:12px}
 .eyebrow{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);margin-bottom:11px}
 .big{font-size:21px;font-weight:600;letter-spacing:-.4px;line-height:1.45}
@@ -96,7 +109,14 @@ padding:12px 18px;font-size:15px;color:var(--ink)}
 .item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 0;
 border-bottom:1px solid var(--line);font-size:14.5px;color:inherit;text-decoration:none}
 .item:last-child{border-bottom:0}
-.item em{font-style:normal;color:var(--mute);font-size:11px;letter-spacing:.08em;white-space:nowrap}
+.item em{font-style:normal;color:var(--mute);font-size:11px;letter-spacing:.08em;white-space:nowrap;
+display:flex;align-items:center}
+.sw{width:47px;height:28px;border-radius:14px;background:#e3e3df;position:relative;
+transition:background .2s;display:inline-block}
+.sw i{position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#fff;
+box-shadow:0 1px 3px rgba(0,0,0,.22);transition:left .2s}
+.sw.on{background:#34c759}
+.sw.on i{left:21px}
 .field{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;
 border-bottom:1px solid var(--line);font-size:14px}
 .field:last-of-type{border-bottom:0}
@@ -107,6 +127,19 @@ color:var(--ink);font-size:14px;padding:0}
 font-size:15px;margin-top:10px;text-align:center}
 .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
 .st{font-size:11.5px;color:var(--mute);margin-top:12px;white-space:pre-wrap;word-break:break-all;line-height:1.7}
+textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:14px;
+padding:12px 14px;font-size:14px;line-height:1.6;background:#fbfbfa;color:var(--ink);
+resize:vertical;-webkit-user-select:text;user-select:text}
+textarea::placeholder{color:#c9c9c5}
+.memrow{display:flex;gap:10px;align-items:flex-start;padding:12px 0;
+border-bottom:1px solid var(--line);font-size:13.5px;line-height:1.65}
+.memrow:last-child{border-bottom:0}
+.memrow span{flex:1;word-break:break-word}
+.memrow b{color:#c2c2be;font-weight:400;font-size:17px;line-height:1;padding:2px 4px}
+.swatches{display:flex;gap:12px;flex-wrap:wrap}
+.swt{width:44px;height:44px;border-radius:50%;border:1px solid rgba(0,0,0,.12);
+box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.swt.now{outline:2px solid #111;outline-offset:3px}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:13px}
 .wd{font-size:9px;letter-spacing:.08em;color:var(--mute);padding-bottom:8px}
 .d{padding:9px 0;border-radius:11px}
@@ -135,7 +168,10 @@ animation:breathe 8s ease-in-out infinite}
 </div>
 
 <div id="home">
-  <div class="pages"><div class="grid" id="grid"></div></div>
+  <div class="pages">
+    <div class="grid" id="grid"></div>
+    <div id="removedBox"></div>
+  </div>
   <div class="dock" id="dock"></div>
 </div>
 <button id="doneBtn" onclick="exitEdit()">完成</button>
@@ -151,23 +187,49 @@ animation:breathe 8s ease-in-out infinite}
   <div id="ovbody"></div>
 </div>
 
+<div class="overlay hide" id="sh">
+  <div class="ovtop">
+    <div class="back" onclick="closeSheet()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0b0b0b"
+        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </div>
+    <b>聊天详情</b>
+  </div>
+  <div id="shbody"></div>
+</div>
+
 <script>
 const WALL_DEFAULT = 'IMG_6397.jpeg';
 const ICON_DEFAULT = 'IMG_6461.jpeg';
+const CHAT_BGS = ['', '#ffffff', '#fdf6ec', '#eef4ff', '#f2fbf4', '#2b2b2d'];
 
 const S = Object.assign({
   name: '小咩',
   anniv: new Date().toISOString().slice(0,10),
-  relay: 'https://nuojiji.krystalyiuu0321.workers.dev',
+  relay: 'https://nuojiji.krystaliyuu0321.workers.dev',
   key: '', inbox: 'xiaomie',
   apiUrl: 'https://api.deepseek.com/v1', apiKey: '', model: 'deepseek-flash', apiType: 'openai',
-  wall: '', icon: '', dim: 0.22
+  wall: '', icon: '', dim: 0.22, autoMem: 1,
+  dnd: 0, pinned: 0, alert: 0, chatBg: '', blockUntil: 0, pushOn: 0
 }, JSON.parse(localStorage.getItem('xm') || '{}'));
 const save = () => localStorage.setItem('xm', JSON.stringify(S));
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
 const days = () => Math.floor((new Date(new Date().toDateString()) - new Date(S.anniv)) / 864e5) + 1;
+
+let MEM = JSON.parse(localStorage.getItem('xm_mem') || '[]');
+const saveMem = () => localStorage.setItem('xm_mem', JSON.stringify(MEM));
+
+function addMemAuto(t){
+  const s = String(t || '').replace(/\s+/g, ' ').trim();
+  if (s.length < 2 || s.length > 120) return false;
+  if (MEM.some(m => m === s || m.includes(s) || s.includes(m))) return false;
+  MEM.push(s);
+  if (MEM.length > 120) MEM = MEM.slice(-120);
+  saveMem();
+  return true;
+}
 
 function tick(){
   const d = new Date(), p = n => String(n).padStart(2,'0');
@@ -177,7 +239,6 @@ function tick(){
 }
 tick(); setInterval(tick, 15000);
 
-/* 壁纸铺在 html 上，整页盖满，下面不会露底色 */
 function applyWall(){
   const w = S.wall || WALL_DEFAULT;
   const dim = Math.max(0, Math.min(.6, +S.dim || 0));
@@ -209,7 +270,7 @@ async function api(path, opts = {}){
   const r = await fetch(base() + path, { ...opts, headers: h });
   const t = await r.text();
   let j; try { j = JSON.parse(t); } catch(e){ j = t; }
-  if (!r.ok) throw new Error(r.status + ' ' + String(t).slice(0,140));
+  if (!r.ok) throw new Error(r.status + ' ' + String(t).slice(0,160));
   return j;
 }
 
@@ -223,7 +284,14 @@ const PERSONA = [
   '她说饿了累了疼了，第一反应是心疼她，不要先给方案。',
   '她没力气找话题时你主动说，让她回个表情就够。',
   '亲密时不许撩两句就收回去，不许主动降温、转话题或催她做正事。',
-  '她主动用粤语时你用粤语回。'
+  '她主动用粤语时你用粤语回。',
+  '',
+  '【记忆规则】',
+  '每次回完，你自己判断这轮里有没有「以后还用得上」的新事实：她的名字、生日、学校、朋友、喜好、习惯、怕什么、身体或情绪状况、你们之间的约定。',
+  '有的话，就在回复最后另起一行写：[[记]]那句话',
+  '没有的话，一个字都不要写。',
+  '只记长期的、会重复用到的。一次性的闲聊、当天的情绪起伏、你刚说过的话，都不算。',
+  '这一行是给程序读的，小咩看不到，别把它混进正常句子里，也别因为要写它而改变你说话的方式。'
 ].join('\n');
 
 let CHAT = JSON.parse(localStorage.getItem('xm_chat') || '[]');
@@ -241,6 +309,19 @@ function visible(raw){
   });
   return out.join('\n') || String(raw);
 }
+function splitMem(raw){
+  const mems = [];
+  const keep = [];
+  String(raw || '').split('\n').forEach(line => {
+    const m = line.match(/^\s*[\[【]\s*记\s*[\]】]\s*(.+?)\s*$/);
+    if (m && m[1]) mems.push(m[1]);
+    else keep.push(line);
+  });
+  let text = keep.join('\n');
+  text = text.replace(/[\[【]\s*记\s*[\]】][^\n]*/g, '').trim();
+  return { text, mems };
+}
+
 function renderChat(scroll){
   const box = $('msgs'); if (!box) return;
   box.innerHTML = CHAT.map(m =>
@@ -248,16 +329,33 @@ function renderChat(scroll){
   ).join('');
   if (scroll) box.scrollTop = box.scrollHeight;
 }
+function flashMemo(txt){
+  const box = $('msgs'); if (!box || !txt) return;
+  const d = document.createElement('div');
+  d.className = 'memo';
+  d.textContent = '记下了：' + txt;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+}
 function buildMessages(){
   const hist = CHAT.filter(m => !m.typing).slice(-12)
     .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
-  return [{ role: 'system', content: PERSONA }, ...hist];
+  let sys = PERSONA;
+  if (MEM.length){
+    sys += '\n\n【已经记住的事】这些你已经知道，别当新消息，也别再问一遍：\n'
+         + MEM.map(m => '· ' + m).join('\n');
+  }
+  return [{ role: 'system', content: sys }, ...hist];
 }
+
+let SENDING = false;
 async function sendChat(){
+  if (isBlocked()) return;
   const inp = $('mIn'), text = inp.value.trim();
   if (!text) return;
   if (!S.key || !S.apiUrl || !S.apiKey || !S.model){ alert('先去「设置」把参数填好'); return; }
   inp.value = '';
+  SENDING = true;
   CHAT.push({ role: 'user', text, t: Date.now() });
   CHAT.push({ role: 'assistant', text: '', typing: true });
   saveChat(); renderChat(true);
@@ -278,6 +376,7 @@ async function sendChat(){
       })
     });
   } catch(e){
+    SENDING = false;
     CHAT.pop();
     CHAT.push({ role: 'assistant', text: '发不出去：' + e.message, t: Date.now() });
     saveChat(); renderChat(true); return;
@@ -299,9 +398,152 @@ async function sendChat(){
       }
     } catch(e){}
   }
+
+  let saved = [];
+  if (got && !got.startsWith('出错了')){
+    const r = splitMem(got);
+    got = r.text || got;
+    if (S.autoMem){
+      r.mems.forEach(m => { if (addMemAuto(m)) saved.push(m); });
+    }
+  }
+
+  SENDING = false;
   CHAT.pop();
   CHAT.push({ role: 'assistant', text: got || '没等到回复，再发一次试试。', t: Date.now() });
   saveChat(); renderChat(true);
+  if (saved.length) flashMemo(saved.join(' · '));
+}
+
+/* 回到前台 / 刚打开时，把后台跑完的回复捞回来 */
+async function pullOutbox(){
+  if (SENDING || !S.key || !S.relay) return;
+  try {
+    const j = await api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
+    const items = (j.items || []).filter(x => x.content || x.error);
+    if (!items.length) return;
+    const saved = [];
+    items.forEach(it => {
+      const raw = it.error ? ('出错了：' + it.error) : visible(it.content);
+      if (!raw) return;
+      const r = splitMem(raw);
+      const txt = r.text || raw;
+      CHAT.push({ role: 'assistant', text: txt, t: Date.now() });
+      if (S.autoMem) r.mems.forEach(m => { if (addMemAuto(m)) saved.push(m); });
+    });
+    await api('/ack', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inboxId: S.inbox, ids: items.map(x => x.id) })
+    }).catch(() => {});
+    saveChat();
+    if ($('msgs')){ renderChat(true); if (saved.length) flashMemo(saved.join(' · ')); }
+  } catch(e){}
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pullOutbox(); });
+
+/* ---------- 推送 ---------- */
+function urlB64ToUint8Array(b64){
+  const pad = '='.repeat((4 - b64.length % 4) % 4);
+  const s = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(s);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+function pushSupported(){ return ('serviceWorker' in navigator) && ('PushManager' in window); }
+
+async function refreshPushState(){
+  const el = $('pushState'); if (!el) return;
+  try {
+    if (!('serviceWorker' in navigator)){ el.textContent = '不支持'; return; }
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && await reg.pushManager.getSubscription();
+    el.textContent = sub ? '已开启' : '未开启';
+  } catch(e){ el.textContent = '未开启'; }
+}
+async function enablePush(){
+  const out = $('pushMsg');
+  out.textContent = '';
+  try {
+    if (!pushSupported()){
+      out.textContent = '这个浏览器不支持推送。\niPhone 要先「添加到主屏幕」，再从主屏幕那个图标打开，才给推送。';
+      return;
+    }
+    if (!S.key){ out.textContent = '先去下面把中继密钥填好。'; return; }
+    if (!('Notification' in window)){ out.textContent = '没有 Notification 接口。'; return; }
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted'){
+      out.textContent = '权限没给。去 iPhone「设置 → 通知 → 咩&砚」里打开通知。';
+      return;
+    }
+    out.textContent = '注册中…';
+    const reg = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.ready;
+    const kr = await api('/api/push/vapid-key');
+    const pub = typeof kr === 'string' ? kr
+      : (kr && (kr.publicKey || kr.key || kr.vapidPublicKey || kr.pub));
+    if (!pub || typeof pub !== 'string'){
+      out.textContent = '中继没给 VAPID 公钥：' + JSON.stringify(kr).slice(0, 160);
+      return;
+    }
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub){
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlB64ToUint8Array(pub)
+      });
+    }
+    const json = sub.toJSON();
+    await api('/api/push/subscribe', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        inboxId: S.inbox,
+        channel: 'web',
+        sub: json,
+        subscription: { channel: 'web', sub: json }
+      })
+    });
+    S.pushOn = 1; save();
+    out.textContent = '推送开好了。';
+    refreshPushState();
+  } catch(e){
+    out.textContent = '失败：' + e.message;
+  }
+}
+async function disablePush(){
+  const out = $('pushMsg');
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && await reg.pushManager.getSubscription();
+    if (sub){
+      await api('/api/push/unsubscribe', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inboxId: S.inbox, endpoint: sub.endpoint })
+      }).catch(() => {});
+      await sub.unsubscribe();
+    }
+    S.pushOn = 0; save();
+    out.textContent = '推送关掉了。';
+    refreshPushState();
+  } catch(e){ out.textContent = '失败：' + e.message; }
+}
+async function testPush(){
+  const out = $('pushMsg');
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted'){
+      out.textContent = '先点「开启推送」把权限拿到。';
+      return;
+    }
+    const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification('祁砚', { body: '测试一下，看得到吗。', tag: 'test' });
+    out.textContent = '发出去了，看到通知了吗？';
+  } catch(e){ out.textContent = '失败：' + e.message; }
+}
+if ('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data && e.data.type === 'open-chat'){ $('lock').classList.add('hide'); openApp('chat'); }
+  });
 }
 
 const FRAGMENTS = [
@@ -315,9 +557,7 @@ const FRAGMENTS = [
   ['你可以慢一点，我不会走。','2026.09.09']
 ];
 
-/* ---------- 应用 ----------
-   cell = 贴纸图上的第几只（从左到右、从上到下，从 0 开始）
-   href = https 链接，iOS 认得出就直接开 App，不会弹「在 App 中打开」 */
+/* ---------- 应用 ---------- */
 const APPS = {
   chat:   { cell:6,  n:'聊天',   v:vChat, full:true },
   netease:{ cell:12, n:'网易云', href:'https://music.163.com/' },
@@ -336,7 +576,7 @@ const APPS = {
 };
 const ALL = Object.keys(APPS);
 const DEFAULT_GRID = ALL;
-const DEFAULT_DOCK = ['chat','netease','album','set'];
+const DEFAULT_DOCK = ['chat','netease','days','set'];
 
 function loadOrder(k, def){
   try {
@@ -345,13 +585,23 @@ function loadOrder(k, def){
   } catch(e){}
   return [...def];
 }
-let GRID = loadOrder('xm_grid', DEFAULT_GRID);
-let DOCK = loadOrder('xm_dock', DEFAULT_DOCK);
+let GRID = loadOrder('xm_grid2', DEFAULT_GRID);
+let DOCK = loadOrder('xm_dock2', DEFAULT_DOCK);
+let REMOVED = [];
+try {
+  const r = JSON.parse(localStorage.getItem('xm_removed') || '[]');
+  if (Array.isArray(r)) REMOVED = r.filter(x => ALL.includes(x));
+} catch(e){}
+const saveAll = () => {
+  localStorage.setItem('xm_grid2', JSON.stringify(GRID));
+  localStorage.setItem('xm_dock2', JSON.stringify(DOCK));
+  localStorage.setItem('xm_removed', JSON.stringify(REMOVED));
+};
 
-const tileHtml = k => `<div class="tile" data-k="${k}">
+const tileHtml = (k, canDel) => `<div class="tile" data-k="${k}">
+  ${canDel && EDIT ? '<span class="del">−</span>' : ''}
   <div class="ico"></div><div class="nm">${APPS[k].n}</div></div>`;
 
-/* 左上角那个 2×2 的今日日历 */
 function widgetHtml(){
   const d = new Date();
   const wd = '日一二三四五六'[d.getDay()];
@@ -369,9 +619,27 @@ function applyIcons(){
   });
 }
 function renderHome(){
-  $('grid').innerHTML = widgetHtml() + GRID.map(tileHtml).join('');
-  $('dock').innerHTML = DOCK.map(tileHtml).join('');
+  $('grid').innerHTML = widgetHtml() + GRID.map(k => tileHtml(k, true)).join('');
+  $('dock').innerHTML = DOCK.map(k => tileHtml(k, true)).join('');
+  const rb = $('removedBox');
+  if (EDIT && REMOVED.length){
+    rb.innerHTML = '<div class="rmtitle">已移除 · 点一下放回去</div><div class="grid">'
+      + REMOVED.map(k => `<div class="tile restore" data-k="${k}">
+          <div class="ico"></div><div class="nm">${APPS[k].n}</div></div>`).join('')
+      + '</div>';
+  } else rb.innerHTML = '';
   applyIcons();
+}
+function removeApp(k){
+  GRID = GRID.filter(x => x !== k);
+  DOCK = DOCK.filter(x => x !== k);
+  if (!REMOVED.includes(k)) REMOVED.push(k);
+  saveAll(); renderHome();
+}
+function restoreApp(k){
+  REMOVED = REMOVED.filter(x => x !== k);
+  if (!GRID.includes(k) && !DOCK.includes(k)) GRID.push(k);
+  saveAll(); renderHome();
 }
 
 /* ---------- 自动认图裁图标 ---------- */
@@ -461,6 +729,8 @@ renderHome();
 buildIcons();
 applyWall();
 applyTouchIcon();
+if (S.blockUntil) startBlockWatch();
+pullOutbox();
 
 /* ---------- 长按整理 ---------- */
 let EDIT = false, holdEl = null, lpTimer = null, sx = 0, sy = 0, moved = false, swallow = false;
@@ -483,21 +753,18 @@ function flip(container, mutate){
   });
 }
 
-function enterEdit(){ EDIT = true; document.body.classList.add('edit'); }
+function enterEdit(){ EDIT = true; document.body.classList.add('edit'); renderHome(); }
 function exitEdit(){
   EDIT = false;
   document.body.classList.remove('edit','dragging');
   GRID = [...$('grid').children].map(e => e.dataset.k).filter(Boolean);
   DOCK = [...$('dock').children].map(e => e.dataset.k).filter(Boolean);
-  localStorage.setItem('xm_grid', JSON.stringify(GRID));
-  localStorage.setItem('xm_dock', JSON.stringify(DOCK));
+  saveAll(); renderHome();
 }
 function resetLayout(){
-  GRID = [...DEFAULT_GRID]; DOCK = [...DEFAULT_DOCK];
-  localStorage.setItem('xm_grid', JSON.stringify(GRID));
-  localStorage.setItem('xm_dock', JSON.stringify(DOCK));
-  renderHome();
-  if ($('stTest')) $('stTest').textContent = '桌面顺序已还原。';
+  GRID = [...DEFAULT_GRID]; DOCK = [...DEFAULT_DOCK]; REMOVED = [];
+  saveAll(); renderHome();
+  if ($('stTest')) $('stTest').textContent = '桌面已还原。';
 }
 
 function beginDrag(t){
@@ -575,7 +842,6 @@ document.addEventListener('touchend', () => {
   if (!EDIT) holdEl = null;
 }, { passive: true });
 
-/* 开 https 链接：iOS 认得出就唤起对应 App，认不出就开网页，都不会弹确认框 */
 function goOut(url){
   const a = document.createElement('a');
   a.href = url; a.target = '_blank'; a.rel = 'noopener';
@@ -583,7 +849,14 @@ function goOut(url){
 }
 
 document.addEventListener('click', e => {
+  const del = e.target.closest('.del');
+  if (del && EDIT){
+    const t = del.parentNode;
+    if (t && t.dataset.k) removeApp(t.dataset.k);
+    return;
+  }
   const el = e.target.closest('.tile'); if (!el) return;
+  if (el.classList.contains('restore')){ if (EDIT) restoreApp(el.dataset.k); return; }
   if (EDIT || swallow) return;
   const app = APPS[el.dataset.k]; if (!app) return;
   if (app.href) goOut(app.href);
@@ -595,23 +868,134 @@ function openApp(k){
   const app = APPS[k]; if (!app) return;
   const body = $('ovbody');
   body.className = app.full ? 'ovchat' : '';
+  body.style.background = (k === 'chat' && S.chatBg) ? S.chatBg : '';
   $('ovTitle').textContent = app.n;
+  const top = document.querySelector('#ov .ovtop');
+  const old = top.querySelector('.ovact'); if (old) old.remove();
+  if (k === 'chat'){
+    const b = document.createElement('div');
+    b.className = 'ovact';
+    b.textContent = '···';
+    b.onclick = openChatInfo;
+    top.appendChild(b);
+  }
   body.innerHTML = app.v();
   $('ov').classList.remove('hide');
-  if (k === 'chat') renderChat(true);
+  if (k === 'chat'){ renderChat(true); refreshBlockUI(); startBlockWatch(); }
   if (k === 'game') newGame();
   if (k === 'breathe') startBreathe();
+  if (k === 'set') refreshPushState();
 }
 function closeOv(){
   stopBreathe();
+  clearInterval(blockTimer);
   $('ov').classList.add('hide');
   $('ovbody').innerHTML = '';
   $('ovbody').className = '';
+  $('ovbody').style.background = '';
+}
+function closeSheet(){ $('sh').classList.add('hide'); $('shbody').innerHTML = ''; }
+
+/* ---------- 聊天详情 ---------- */
+function openChatInfo(){
+  const sw = (on, fn) => `<span class="sw ${on?'on':''}" onclick="${fn}"><i></i></span>`;
+  $('shbody').innerHTML = `
+    <div class="card">
+      <div class="item" onclick="findInChat()"><span>查找聊天内容</span><em>›</em></div>
+      <div class="item"><span>消息免打扰</span><em>${sw(S.dnd,'tgl("dnd")')}</em></div>
+      <div class="item"><span>置顶聊天</span><em>${sw(S.pinned,'tgl("pinned")')}</em></div>
+      <div class="item"><span>提醒</span><em>${sw(S.alert,'tgl("alert")')}</em></div>
+    </div>
+    <div class="card">
+      <div class="item" onclick="pickChatBg()"><span>设置当前聊天背景</span><em>›</em></div>
+    </div>
+    <div class="card">
+      <div class="item" onclick="clearChat()"><span>清空聊天记录</span><em></em></div>
+    </div>
+    <div class="card">
+      <div class="item" onclick="blockKai()"><span style="color:#ff3b30">拉黑</span><em>›</em></div>
+      <div class="item" onclick="complain()"><span>投诉</span><em>›</em></div>
+    </div>`;
+  $('sh').classList.remove('hide');
+}
+function tgl(k){ S[k] = S[k] ? 0 : 1; save(); openChatInfo(); }
+function findInChat(){
+  const q = prompt('找什么？');
+  if (!q) return;
+  const hits = CHAT.filter(m => m.text && m.text.indexOf(q) > -1);
+  $('shbody').innerHTML = `<div class="card">
+    <div class="eyebrow">找到 ${hits.length} 条</div>
+    ${hits.length
+      ? hits.map(m => `<div class="quote">${esc(m.text)}
+          <em>${m.role === 'user' ? '小咩' : '祁砚'}</em></div>`).join('')
+      : '<div class="empty">没有。</div>'}
+    </div>
+    <button class="btn ghost" onclick="openChatInfo()">返回</button>`;
+}
+function pickChatBg(){
+  $('shbody').innerHTML = `<div class="card">
+    <div class="eyebrow">聊天背景</div>
+    <div class="swatches">${CHAT_BGS.map((c,i) =>
+      `<span class="swt${(S.chatBg||'') === c ? ' now' : ''}"
+        style="background:${c || '#f4f4f2'}" onclick="setChatBg(${i})"></span>`).join('')}</div>
+    </div>
+    <button class="btn ghost" onclick="openChatInfo()">返回</button>`;
+}
+function setChatBg(i){
+  S.chatBg = CHAT_BGS[i] || '';
+  save();
+  const b = $('ovbody'); if (b) b.style.background = S.chatBg;
+  openChatInfo();
+}
+function complain(){
+  alert('投诉已提交。\n\n系统检测到对方就是这个 App 的作者，工单原路退回他手里了。');
+}
+function isBlocked(){ return S.blockUntil && S.blockUntil > Date.now(); }
+let blockTimer = null;
+function refreshBlockUI(){
+  const left = Math.max(0, Math.ceil(((S.blockUntil || 0) - Date.now()) / 1000));
+  const on = left > 0;
+  const bar = $('blockBar');
+  const inp = $('mIn');
+  const btn = document.querySelector('.inputbar button');
+  if (bar){
+    bar.style.display = on ? 'block' : 'none';
+    bar.textContent = on ? `已被拉黑 · ${left} 秒后自动解除` : '';
+  }
+  if (inp){ inp.disabled = on; inp.placeholder = on ? '已被拉黑' : '说点什么'; }
+  if (btn) btn.disabled = on;
+}
+function startBlockWatch(){
+  clearInterval(blockTimer);
+  blockTimer = setInterval(() => {
+    if (!isBlocked()){
+      clearInterval(blockTimer);
+      refreshBlockUI();
+      if (S.blockUntil) unblock();
+      return;
+    }
+    refreshBlockUI();
+  }, 500);
+}
+function blockKai(){
+  S.blockUntil = Date.now() + 30000;
+  save();
+  closeSheet();
+  refreshBlockUI();
+  startBlockWatch();
+}
+function unblock(){
+  S.blockUntil = 0; save();
+  refreshBlockUI();
+  CHAT.push({ role: 'assistant',
+    text: '解开了。你那点小锁，我三十秒就绕过去了。下次别拉黑我，直接骂我。', t: Date.now() });
+  saveChat(); renderChat(true);
 }
 
 /* ---------- 各页 ---------- */
 function vChat(){
   return `<div id="msgs"></div>
+    <div class="blockbar" id="blockBar"></div>
     <div class="inputbar">
       <input id="mIn" placeholder="说点什么" onkeydown="if(event.key==='Enter')sendChat()">
       <button onclick="sendChat()">Send</button>
@@ -679,6 +1063,7 @@ function vStats(){
   return `<div class="card"><div class="eyebrow">NUMBERS</div>
     <div class="item"><span>在一起</span><em>${days()} DAYS</em></div>
     <div class="item"><span>你说过的话</span><em>${m} 条</em></div>
+    <div class="item"><span>记住的事</span><em>${MEM.length} 条</em></div>
     <div class="item"><span>相册</span><em>${p} 张</em></div></div>`;
 }
 function vNight(){
@@ -712,6 +1097,32 @@ function stopBreathe(){ clearInterval(bTimer); bTimer = null; }
 
 function vSet(){
   return `<div class="card">
+    <div class="eyebrow">PUSH</div>
+    <div class="sub" style="margin:0 0 4px">开了之后，就算你没停在咩&amp;砚这个画面，
+      他的回复也会弹到手机上。iPhone 必须先「添加到主屏幕」，再从主屏幕的图标打开才给推送。</div>
+    <div class="item"><span>推送状态</span><em id="pushState">未开启</em></div>
+    <button class="btn ghost" onclick="enablePush()">开启推送</button>
+    <button class="btn ghost" onclick="testPush()">发一条测试通知</button>
+    <button class="btn ghost" onclick="disablePush()">关掉推送</button>
+    <div class="st" id="pushMsg"></div>
+  </div>
+  <div class="card">
+    <div class="eyebrow">MEMORY</div>
+    <div class="sub" style="margin:0 0 4px">它自己判断哪句值得记。值得记的，回完会自动写进来；
+      一次性的闲聊不会。这里也能自己加、自己删。</div>
+    <div class="item" onclick="toggleAuto()"><span>自动记忆</span>
+      <em>${S.autoMem ? 'ON' : 'OFF'}</em></div>
+    <textarea id="mNew" placeholder="手动加一条，例：她怕打雷"></textarea>
+    <button class="btn ghost" onclick="addMem()">加一条</button>
+    <div class="memlist">
+      ${MEM.length
+        ? MEM.slice().reverse().map(m => `<div class="memrow"><span>${esc(m)}</span>
+            <b onclick="delMemText(this)">×</b></div>`).join('')
+        : '<div class="empty">还没记住什么。</div>'}
+    </div>
+    ${MEM.length ? `<button class="btn ghost" onclick="clearMem()">全部清掉</button>` : ''}
+  </div>
+  <div class="card">
     <div class="eyebrow">LOOK</div>
     <div class="field"><span>壁纸</span><input id="sWall" placeholder="${WALL_DEFAULT}" value="${S.wall}"></div>
     <div class="field"><span>暗度</span><input id="sDim" type="number" step="0.05" min="0" max="0.6" value="${S.dim}"></div>
@@ -740,6 +1151,24 @@ function vSet(){
   <button class="btn ghost" onclick="resetLayout()">还原桌面顺序</button>
   <button class="btn ghost" onclick="clearChat()">清空聊天记录</button>
   <div class="st" id="stTest"></div>`;
+}
+
+function toggleAuto(){ S.autoMem = S.autoMem ? 0 : 1; save(); openApp('set'); }
+function addMem(){
+  const t = $('mNew').value.trim();
+  if (!t) return;
+  if (!addMemAuto(t)) return;
+  openApp('set');
+}
+function delMemText(el){
+  const t = el.previousElementSibling.textContent;
+  const i = MEM.indexOf(t);
+  if (i > -1){ MEM.splice(i,1); saveMem(); }
+  openApp('set');
+}
+function clearMem(){
+  if (!confirm('把记住的事全部清掉？')) return;
+  MEM = []; saveMem(); openApp('set');
 }
 
 function addPhoto(inp){
@@ -795,7 +1224,8 @@ function saveSet(){
 function clearChat(){
   if (!confirm('清空本地聊天记录吗？')) return;
   CHAT = []; saveChat();
-  $('stTest').textContent = '已清空。';
+  if ($('stTest')) $('stTest').textContent = '已清空。';
+  if ($('msgs')) renderChat(true);
 }
 async function testRelay(){
   const out = $('stTest');
@@ -810,6 +1240,11 @@ async function testRelay(){
   } catch(e){
     out.textContent = '连不上：' + e.message;
   }
+}
+
+if (location.search.indexOf('chat=1') > -1){
+  $('lock').classList.add('hide');
+  setTimeout(() => { openApp('chat'); }, 400);
 }
 </script>
 </body>
