@@ -1083,3 +1083,59 @@ self.addEventListener('notificationclick', e => {
 })();
 
 
+/* ===== 12. 操作栏补丁：每次重绘后直接插 + 加载自检 ===== */
+(function(){
+  function tip(t){
+    var d = document.createElement('div');
+    d.textContent = t;
+    d.style.cssText = 'position:fixed;left:50%;bottom:150px;transform:translateX(-50%);background:rgba(0,0,0,.85);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:14px;z-index:99;max-width:82vw;text-align:center';
+    document.body.appendChild(d);
+    setTimeout(function(){ d.remove(); }, 2600);
+  }
+
+  // 轻轻动一下 #ovbody，把第 11 块的观察器叫醒
+  function poke(){
+    var body = document.getElementById('ovbody');
+    if (!body) return;
+    var d = document.createElement('i');
+    d.style.cssText = 'display:none';
+    body.appendChild(d);
+    setTimeout(function(){ d.remove(); }, 40);
+  }
+
+  // 每次重绘聊天后立刻 poke 一次
+  function patchRender(){
+    if (typeof window.renderChat !== 'function') return false;
+    if (window.renderChat.__acts) return true;
+    var old = window.renderChat;
+    var fn = function(){
+      var r = old.apply(this, arguments);
+      poke();
+      return r;
+    };
+    fn.__acts = 1;
+    window.renderChat = fn;
+    return true;
+  }
+  var tries = 0;
+  var t = setInterval(function(){
+    tries++;
+    if (patchRender() || tries > 40) clearInterval(t);
+  }, 250);
+
+  // 点开聊天时也 poke 一次
+  document.addEventListener('click', function(e){
+    var el = e.target && e.target.closest ? e.target.closest('.tile') : null;
+    if (el && el.dataset && el.dataset.k === 'chat') setTimeout(poke, 400);
+  }, true);
+
+  tip('操作栏 v12 已加载');
+
+  setTimeout(function(){
+    var box = document.getElementById('msgs');
+    if (!box) return;
+    var n = box.querySelectorAll('.wrap').length;
+    if (n && !box.querySelectorAll('.acts').length) tip('找到 ' + n + ' 条回复，但操作栏没插进去');
+  }, 5000);
+})();
+
