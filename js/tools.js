@@ -702,8 +702,7 @@
 
   function parseList(raw){
     var t = String(raw || '').trim();
-    t = t.replace(/^
-[a-z]*\s*/i, '').replace(/\s*$/, '').trim();
+    t = t.trim();
     var out = [];
     var m = t.match(/\[[\s\S]*\]/);
     if (m){
