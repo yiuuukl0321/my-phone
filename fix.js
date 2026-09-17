@@ -1533,46 +1533,20 @@ self.addEventListener('notificationclick', e => {
   document.addEventListener('focusin',function(){setTimeout(go,350);});
 })();
 
-
-/* ===== 桌面图标换成月牙星星 ===== */
+/* ===== 桌面图标：极简几何 v2 ===== */
 (function(){
-  var ONLY = [];   // 只想换某几个就写 ['chat','set']，全换就留空
-  var SVG = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'>"
-    + "<rect width='1024' height='1024' fill='#eceae5'/>"
-    + "<circle cx='512' cy='470' r='215' fill='#d9d3c4'/>"
-    + "<circle cx='585' cy='415' r='195' fill='#eceae5'/>"
-    + "<g fill='#dcd6c9'>"
-    + "<path d='M760 256Q766.6 293.4 804 300Q766.6 306.6 760 344Q753.4 306.6 716 300Q753.4 293.4 760 256Z'/>"
-    + "<path d='M290 660Q294.5 685.5 320 690Q294.5 694.5 290 720Q285.5 694.5 260 690Q285.5 685.5 290 660Z'/>"
-    + "<path d='M700 758Q703.3 776.7 722 780Q703.3 783.3 700 802Q696.7 783.3 678 780Q696.7 776.7 700 758Z'/>"
-    + "</g></svg>";
-  var U = 'url("data:image/svg+xml,' + encodeURIComponent(SVG) + '")';
-  var sel = ONLY.length
-    ? ONLY.map(function(k){ return '.tile[data-k="' + k + '"] .ico'; }).join(',')
-    : '.tile .ico';
-  function go(){
-    document.querySelectorAll(sel).forEach(function(e){
-      e.style.backgroundImage = U;
-      e.style.backgroundSize = 'cover';
-    });
-  }
-  setInterval(go, 900);
-})();
-
-/* ===== 桌面图标：极简几何 ===== */
-(function(){
-  var BG='#ECE7DF', D='#3B3833', T='#C0B09A', S='#B3A695', C='#C29C88';
+  var BG='#F0EBE2', IN='#35322E', CL='#BE7F60', MA='#A9839A', BL='#7E93A6', OL='#8E9A72', YE='#C3A05C';
   var I = {
-    chat:    "<rect x='126' y='131' width='260' height='196' rx='58' fill='"+T+"'/><path d='M190 321L190 381L250 321Z' fill='"+T+"'/><circle cx='206' cy='229' r='14' fill='"+BG+"'/><circle cx='256' cy='229' r='14' fill='"+BG+"'/><circle cx='306' cy='229' r='14' fill='"+BG+"'/>",
-    netease: "<circle cx='256' cy='256' r='124' fill='"+D+"'/><circle cx='256' cy='256' r='46' fill='"+BG+"'/><circle cx='256' cy='256' r='13' fill='"+D+"'/>",
-    douyin:  "<circle cx='200' cy='327' r='58' fill='"+C+"'/><rect x='246' y='127' width='18' height='208' rx='9' fill='"+C+"'/><path d='M246 127C306 135 344 173 344 221L326 221C326 185 296 157 246 151Z' fill='"+C+"'/>",
-    ig:      "<rect x='126' y='126' width='260' height='260' rx='76' fill='none' stroke='"+D+"' stroke-width='20'/><circle cx='256' cy='256' r='66' fill='none' stroke='"+D+"' stroke-width='20'/><circle cx='336' cy='176' r='16' fill='"+D+"'/>",
-    album:   "<circle cx='332' cy='172' r='42' fill='"+T+"'/><path d='M116 372L206 244L276 336L332 276L396 372Z' fill='"+D+"'/>",
-    cal:     "<rect x='126' y='138' width='260' height='236' rx='46' fill='none' stroke='"+D+"' stroke-width='20'/><path d='M126 214L386 214' stroke='"+D+"' stroke-width='20'/><rect x='176' y='108' width='18' height='56' rx='9' fill='"+D+"'/><rect x='318' y='108' width='18' height='56' rx='9' fill='"+D+"'/>",
-    days:    "<path d='M256 382C180 326 116 278 116 206C116 162 148 130 188 130C216 130 240 146 256 170C272 146 296 130 324 130C364 130 396 162 396 206C396 278 332 326 256 382Z' fill='"+C+"'/>",
-    drawer:  "<rect x='126' y='126' width='260' height='260' rx='46' fill='"+S+"'/><rect x='186' y='196' width='140' height='18' rx='9' fill='"+BG+"'/><rect x='186' y='247' width='140' height='18' rx='9' fill='"+BG+"'/><rect x='186' y='298' width='140' height='18' rx='9' fill='"+BG+"'/>",
-    watch:   "<path d='M116 256C170 160 342 160 396 256C342 352 170 352 116 256Z' fill='none' stroke='"+D+"' stroke-width='20'/><circle cx='256' cy='256' r='52' fill='"+D+"'/>",
-    set:     "<path d='M126 186L386 186' stroke='"+D+"' stroke-width='18' stroke-linecap='round'/><path d='M126 256L386 256' stroke='"+D+"' stroke-width='18' stroke-linecap='round'/><path d='M126 326L386 326' stroke='"+D+"' stroke-width='18' stroke-linecap='round'/><circle cx='300' cy='186' r='30' fill='"+BG+"' stroke='"+D+"' stroke-width='18'/><circle cx='196' cy='256' r='30' fill='"+BG+"' stroke='"+D+"' stroke-width='18'/><circle cx='330' cy='326' r='30' fill='"+BG+"' stroke='"+D+"' stroke-width='18'/>"
+    chat:    "<rect x='126' y='131' width='260' height='196' rx='58' fill='"+CL+"'/><path d='M190 321L190 381L250 321Z' fill='"+CL+"'/><circle cx='206' cy='229' r='14' fill='"+BG+"'/><circle cx='256' cy='229' r='14' fill='"+BG+"'/><circle cx='306' cy='229' r='14' fill='"+BG+"'/>",
+    netease: "<circle cx='256' cy='256' r='124' fill='"+IN+"'/><circle cx='256' cy='256' r='46' fill='"+BG+"'/><circle cx='256' cy='256' r='13' fill='"+IN+"'/>",
+    douyin:  "<rect x='218' y='133' width='20' height='200' rx='10' fill='"+MA+"'/><rect x='358' y='133' width='20' height='200' rx='10' fill='"+MA+"'/><rect x='218' y='133' width='160' height='38' rx='12' fill='"+MA+"'/><ellipse cx='186' cy='333' rx='58' ry='44' fill='"+MA+"'/><ellipse cx='326' cy='333' rx='58' ry='44' fill='"+MA+"'/>",
+    ig:      "<rect x='126' y='126' width='260' height='260' rx='76' fill='"+BL+"'/><circle cx='256' cy='256' r='88' fill='none' stroke='"+BG+"' stroke-width='18'/><circle cx='256' cy='256' r='34' fill='"+BG+"'/><circle cx='336' cy='176' r='15' fill='"+BG+"'/>",
+    album:   "<circle cx='332' cy='172' r='42' fill='"+YE+"'/><path d='M116 372L206 244L276 336L332 276L396 372Z' fill='"+OL+"'/>",
+    cal:     "<rect x='126' y='126' width='260' height='260' rx='60' fill='"+YE+"'/><rect x='154' y='192' width='204' height='20' rx='10' fill='"+BG+"'/><circle cx='196' cy='262' r='16' fill='"+BG+"'/><circle cx='256' cy='262' r='16' fill='"+BG+"'/><circle cx='316' cy='262' r='16' fill='"+BG+"'/><circle cx='196' cy='320' r='16' fill='"+BG+"'/><circle cx='256' cy='320' r='16' fill='"+BG+"'/><circle cx='316' cy='320' r='16' fill='"+BG+"'/>",
+    days:    "<path d='M256 382C180 326 116 278 116 206C116 162 148 130 188 130C216 130 240 146 256 170C272 146 296 130 324 130C364 130 396 162 396 206C396 278 332 326 256 382Z' fill='"+CL+"'/>",
+    drawer:  "<rect x='116' y='168' width='280' height='44' rx='22' fill='"+BL+"'/><rect x='146' y='234' width='220' height='44' rx='22' fill='"+BL+"'/><rect x='176' y='300' width='160' height='44' rx='22' fill='"+BL+"'/>",
+    watch:   "<path d='M116 256C170 160 342 160 396 256C342 352 170 352 116 256Z' fill='"+IN+"'/><circle cx='256' cy='256' r='56' fill='"+BG+"'/><circle cx='256' cy='256' r='24' fill='"+IN+"'/>",
+    set:     "<path d='M126 186L386 186' stroke='"+MA+"' stroke-width='18' stroke-linecap='round'/><path d='M126 256L386 256' stroke='"+MA+"' stroke-width='18' stroke-linecap='round'/><path d='M126 326L386 326' stroke='"+MA+"' stroke-width='18' stroke-linecap='round'/><circle cx='300' cy='186' r='26' fill='"+BG+"' stroke='"+MA+"' stroke-width='16'/><circle cx='196' cy='256' r='26' fill='"+BG+"' stroke='"+MA+"' stroke-width='16'/><circle cx='330' cy='326' r='26' fill='"+BG+"' stroke='"+MA+"' stroke-width='16'/>"
   };
   var U = {};
   Object.keys(I).forEach(function(k){
