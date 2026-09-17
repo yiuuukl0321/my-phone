@@ -1567,3 +1567,193 @@ self.addEventListener('notificationclick', e => {
   setInterval(go, 900);
 })();
 
+
+/* ===== 9 桌面日历（点大日期块打开） ===== */
+(function(){
+  var CREAM='#F0EBE2', INK='#35322E', CLAY='#BE7F60', MUTE='#A79E90', LINE='#E4DCCE';
+  var KEY='xm_evts', EV={};
+  try { EV = JSON.parse(localStorage.getItem(KEY)||'{}') || {}; } catch(e){ EV={}; }
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify(EV)); } catch(e){} }
+  function txt(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function key(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  var TODAY=key(new Date()), SEL=TODAY;
+
+  var st=document.createElement('style');
+  st.textContent =
+    '.wid{background:'+CREAM+' !important;border:1px solid rgba(0,0,0,.05) !important}'+
+    '.wdt{color:'+CLAY+' !important}'+
+    '.wdn{color:'+INK+' !important;font-weight:400 !important}'+
+    '.wds{color:'+MUTE+' !important}'+
+    '#calBody .mo{margin-bottom:22px}'+
+    '#calBody .moT{font-size:14px;font-weight:600;color:'+INK+';margin:0 0 8px 2px}'+
+    '#calBody .moG{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}'+
+    '#calBody .wk{text-align:center;font-size:10px;color:'+MUTE+';padding:4px 0 6px}'+
+    '#calBody .dy{position:relative;width:40px;height:40px;line-height:40px;margin:1px auto;'+
+      'text-align:center;font-size:14px;color:'+INK+';border-radius:50%}'+
+    '#calBody .dy.dim{color:#D4CBBC}'+
+    '#calBody .dy.tod{background:'+CLAY+';color:#fff}'+
+    '#calBody .dy.sel{box-shadow:inset 0 0 0 2px '+INK+'}'+
+    '#calBody .dy.has::after{content:"";position:absolute;left:50%;bottom:3px;width:5px;height:5px;'+
+      'margin-left:-2.5px;border-radius:50%;background:'+CLAY+'}'+
+    '#calBody .dy.tod.has::after{background:#fff}'+
+    '#calAdd{position:sticky;bottom:0;z-index:2;margin-top:6px;background:'+CREAM+';'+
+      'border-radius:18px;padding:14px;box-shadow:0 -10px 22px rgba(0,0,0,.05)}'+
+    '#calAdd h4{margin:0 0 6px;font-size:13px;font-weight:600;color:'+INK+'}'+
+    '#calAdd .ev{display:flex;justify-content:space-between;align-items:center;font-size:14.5px;'+
+      'color:'+INK+';padding:8px 0;border-bottom:1px solid '+LINE+'}'+
+    '#calAdd .ev b{color:'+MUTE+';font-weight:400;font-size:17px;line-height:1;padding:2px 4px}'+
+    '#calAdd .rw{display:flex;gap:8px;margin-top:12px}'+
+    '#calAdd input{flex:1;min-width:0;font-size:16px;padding:10px 13px;border-radius:12px;'+
+      'border:1px solid '+LINE+';background:#fff;color:'+INK+'}'+
+    '#calAdd button{font-size:14px;padding:0 18px;border:0;border-radius:12px;background:'+CLAY+';color:#fff}';
+  document.head.appendChild(st);
+
+  function monthHtml(y,m){
+    var first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate(),
+        prev=new Date(y,m,0).getDate(), c='', i;
+    for(i=0;i<first;i++) c+='<div class="dy dim">'+(prev-first+1+i)+'</div>';
+    for(i=1;i<=days;i++){
+      var kk=y+'-'+String(m+1).padStart(2,'0')+'-'+String(i).padStart(2,'0');
+      c+='<div class="dy'+(kk===TODAY?' tod':'')+((EV[kk]&&EV[kk].length)?' has':'')+
+         '" data-k="'+kk+'">'+i+'</div>';
+    }
+    var tail=(7-(first+days)%7)%7;
+    for(i=1;i<=tail;i++) c+='<div class="dy dim">'+i+'</div>';
+    return '<div class="mo"><div class="moT">'+y+' 年 '+(m+1)+' 月</div><div class="moG">'+
+      '<div class="wk">日</div><div class="wk">一</div><div class="wk">二</div>'+
+      '<div class="wk">三</div><div class="wk">四</div><div class="wk">五</div><div class="wk">六</div>'+
+      c+'</div></div>';
+  }
+
+  function paintAdd(){
+    var box=document.getElementById('calAdd'); if(!box) return;
+    var arr=EV[SEL]||[], s='<h4>'+SEL.replace(/-/g,' / ')+'</h4>';
+    arr.forEach(function(t,i){
+      s+='<div class="ev"><span>'+txt(t)+'</span><b data-i="'+i+'">×</b></div>';
+    });
+    s+='<div class="rw"><input id="calIn" placeholder="加一件事…" maxlength="40"><button id="calBtn">加</button></div>';
+    box.innerHTML=s;
+    var btn=document.getElementById('calBtn');
+    if(btn) btn.onclick=doAdd;
+    var inp=document.getElementById('calIn');
+    if(inp) inp.addEventListener('keydown',function(ev){ if(ev.key==='Enter') doAdd(); });
+  }
+  function doAdd(){
+    var el=document.getElementById('calIn'); if(!el||!SEL) return;
+    var t=el.value.trim(); if(!t) return;
+    if(!EV[SEL]) EV[SEL]=[];
+    EV[SEL].push(t); save(); refresh();
+    var box=document.getElementById('calAdd'), rw=box.querySelector('.rw');
+    var d=document.createElement('div');
+    d.className='ev';
+    d.innerHTML='<span>'+txt(t)+'</span><b data-i="'+(EV[SEL].length-1)+'">×</b>';
+    box.insertBefore(d,rw);
+    el.value=''; el.focus();
+  }
+  function refresh(){
+    document.querySelectorAll('#calBody .dy').forEach(function(el){
+      var kk=el.dataset.k; if(!kk) return;
+      el.classList.toggle('has', !!(EV[kk]&&EV[kk].length));
+    });
+  }
+
+  window.calDel=function(i){
+    if(!SEL||!EV[SEL]) return;
+    EV[SEL].splice(i,1);
+    if(!EV[SEL].length) delete EV[SEL];
+    save(); refresh(); paintAdd();
+  };
+  window.openCal=function(){
+    var ov=document.getElementById('ov'), body=document.getElementById('ovbody'),
+        title=document.getElementById('ovTitle');
+    if(!ov||!body||!title) return;
+    title.textContent='日历';
+    body.className='';
+    var now=new Date(), y=now.getFullYear(), m=now.getMonth(), list='';
+    for(var i=-12;i<=11;i++){
+      var d0=new Date(y,m+i,1);
+      list+='<div'+(i===0?' id="calCur"':'')+'>'+monthHtml(d0.getFullYear(),d0.getMonth())+'</div>';
+    }
+    body.innerHTML='<div id="calBody">'+list+'</div><div id="calAdd"></div>';
+    SEL=TODAY; paintAdd();
+    var t0=document.querySelector('#calBody .dy[data-k="'+TODAY+'"]');
+    if(t0) t0.classList.add('sel');
+    ov.classList.remove('hide');
+    setTimeout(function(){
+      var cur=document.getElementById('calCur');
+      if(!cur) return;
+      var r=cur.getBoundingClientRect(), br=body.getBoundingClientRect();
+      body.scrollTop += (r.top-br.top)-8;
+    },40);
+  };
+
+  document.addEventListener('click',function(e){
+    var t=e.target; if(!t||!t.closest) return;
+    if(t.closest('.wid')){
+      try { if(EDIT) return; } catch(err){}
+      window.openCal(); return;
+    }
+    var b=t.closest('#calAdd .ev b');
+    if(b&&b.dataset.i!=null){ window.calDel(+b.dataset.i); return; }
+    var d=t.closest('#calBody .dy');
+    if(d&&d.dataset.k){
+      var old=document.querySelector('#calBody .dy.sel');
+      if(old) old.classList.remove('sel');
+      d.classList.add('sel');
+      SEL=d.dataset.k; paintAdd();
+    }
+  },true);
+})();
+
+/* ===== 10 让聊天能看到日历里的事项 ===== */
+(function(){
+  function data(){
+    try { return JSON.parse(localStorage.getItem('xm_evts') || '{}') || {}; } catch(e){ return {}; }
+  }
+  function rel(n){
+    if (n === 0) return '今天';
+    if (n === 1) return '明天';
+    if (n === -1) return '昨天';
+    return n > 0 ? (n + ' 天后') : (Math.abs(n) + ' 天前');
+  }
+  function block(){
+    var EV = data(), keys = Object.keys(EV).sort();
+    if (!keys.length) return '';
+    var t = new Date(); t.setHours(0, 0, 0, 0), out = [];
+    for (var i = 0; i < keys.length && out.length < 20; i++){
+      var p = keys[i].split('-');
+      if (p.length !== 3) continue;
+      var d = new Date(+p[0], +p[1] - 1, +p[2]);
+      var n = Math.round((d - t) / 864e5);
+      if (n < -3 || n > 60) continue;
+      var arr = EV[keys[i]] || [];
+      if (!arr.length) continue;
+      out.push(keys[i] + '（' + rel(n) + '）：' + arr.join('、'));
+    }
+    if (!out.length) return '';
+    return '\n\n【小咩日历里自己记的事】她自己在这个 app 的日历里加的。你心里有数，可以偶尔主动提一句，但别当新消息复述，也别每条都问：\n· '
+      + out.join('\n· ');
+  }
+  var MARK = '【小咩日历里自己记的事】';
+  function wrap(){
+    var f = window.buildMessages;
+    if (typeof f !== 'function' || f.__ev) return typeof f === 'function';
+    var orig = f;
+    var fn = function(){
+      var msgs = orig.apply(this, arguments);
+      try {
+        var b = block();
+        if (b && msgs && msgs[0] && msgs[0].role === 'system'
+            && msgs[0].content.indexOf(MARK) < 0){
+          msgs[0].content += b;
+        }
+      } catch(e){}
+      return msgs;
+    };
+    fn.__ev = true;
+    window.buildMessages = fn;
+    return true;
+  }
+  if (!wrap()){ var n = 0, t = setInterval(function(){ if (wrap() || ++n > 40) clearInterval(t); }, 300); }
+  setInterval(wrap, 2000);
+})();
