@@ -735,9 +735,14 @@ async function sendChat(){
     CHAT.push({ role: 'assistant', text: '发不出去：' + e.message, t: Date.now() });
     saveChat(); renderChat(true); return;
   }
-  const think = (fT && fT.content)
-    ? String(fT.content).replace(/<\/?think(?:ing)?>/gi, '').trim()
-    : '';
+  const rt = (fT && fT.content) ? parseReply(fT.content) : null;
+  let think = rt ? String(rt.think || rt.text || '').trim() : '';
+  if (think.length > 100){
+    const hd = think.slice(0, 100);
+    const p = Math.max(hd.lastIndexOf('。'), hd.lastIndexOf('！'), hd.lastIndexOf('？'));
+    think = p >= 40 ? hd.slice(0, p + 1) : hd + '…';
+  }
+
   const ms = Date.now() - t0;
 
 
