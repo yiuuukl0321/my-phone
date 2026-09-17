@@ -2093,29 +2093,22 @@ setTimeout(function(){
   var l = document.querySelectorAll('.ico');
   for (var i=0;i<l.length;i++) l[i].style.opacity = '1';
 }, 2000);
-<script>
-setTimeout(function(){
-  var l = document.querySelectorAll('.ico');
-  for (var i=0;i<l.length;i++) l[i].style.opacity = '1';
-}, 2000);
+
+
+
+
+var V = '14';
 
 
 
   
-var V = '13';
-
-
-
-
 ['js/core.js','js/chat.js','js/voice.js','js/calendar.js','js/wechat.js','js/tools.js']
 .forEach(function(p){
   var s = document.createElement('script');
   s.src = p + '?v=' + V;
-  s.async = false;          /* 关键：不加这句，执行顺序是乱的 */
+  s.async = false;
   document.body.appendChild(s);
 });
-</script>
-document.body.appendChild(_fx);
 </script>
 </body>
 </html>
