@@ -190,6 +190,15 @@ background:rgba(0,0,0,.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blu
   </div>
   <div class="up">上滑解锁</div>
 </div>
+<div class="up">上滑解锁</div>
+</div>
+<script>
+(function(){
+  var d=new Date(),p=function(n){return String(n).padStart(2,'0')};
+  document.getElementById('lkDate').textContent=(d.getMonth()+1)+'.'+p(d.getDate())+' 星期'+'日一二三四五六'[d.getDay()];
+  document.getElementById('lkTime').textContent=p(d.getHours())+':'+p(d.getMinutes());
+})();
+</script>
 
 <div id="home">
   <div class="pages">
