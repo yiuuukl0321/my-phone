@@ -1015,7 +1015,7 @@
     if (inp) inp.addEventListener('focus', closePanel);
   }
   build();
-  setInterval(build, 900);
+  setInterval(build, 50);
 
   /* ---- 渲染缩略图 ---- */
   var _rc = window.renderChat;
@@ -1305,7 +1305,7 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
   document.addEventListener('scroll', function(e){
     if (e.target && e.target.id === 'msgs') sync();
   }, true);
-  setInterval(sync, 900);
+  setInterval(sync, 50);
 })();
 
 
