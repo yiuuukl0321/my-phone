@@ -1584,7 +1584,7 @@ self.addEventListener('notificationclick', e => {
       return navigator.clipboard.readText().then(function(t){
         t = String(t || '').trim();
         if (!t) throw new Error('剪贴板是空的');
-        return t.length > 600 ? t.slice(0, 600) + '…' : t;
+        return t;
       });
     }
     function readLoc(){
