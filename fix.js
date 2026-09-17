@@ -9,7 +9,7 @@
 /* ===== 1. 壁纸修复（底部白边） ===== */
 (function(){
   var st = document.createElement('style');
-  st.textContent = 'html{overflow:hidden;background-color:#111;background-repeat:no-repeat;background-position:center top;background-size:cover}body{height:100%;overflow:hidden;background:transparent}';
+  st.textContent = 'html{overflow:hidden;background-color:#000;background-repeat:no-repeat;background-position:center top;background-size:cover}body{height:100%;overflow:hidden;background:transparent}';
   document.head.appendChild(st);
   var db = document.getElementById('dbg');
   if (db) db.remove();
