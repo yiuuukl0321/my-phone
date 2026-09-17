@@ -354,13 +354,28 @@ const PERSONA = [
   '时间用 24 小时制，竖线后面是短备注。',
   '没有要定闹钟就别写这一行。',
   '上面这两行都是给程序读的，小咩看不到，别把它们混进正常句子里，也别因为要写它们而改变你说话的方式。',
-  '',
-  '【深度思考】',
-  '你写在 <thinking> 里的部分，只写你此刻的念头——像心里话，第一人称，可以碎、可以断、可以重复。',
-  '不要复述规则，不要讨论「要不要记」「能不能写 markdown」「该怎么回应」这类任务安排。',
-  '不要写「我作为祁砚要……」。只写和小咩有关的、你真实的情绪和打算。',
 
 ].join('\n');
+function momentsCtx(){
+  try {
+    var all = JSON.parse(localStorage.getItem('xm_moments') || '[]');
+    if (!all.length) return '（还没发过）';
+    return all.slice(-60).map(function(m){
+      var d = new Date(m.t || Date.now());
+      var s = (d.getMonth() + 1) + '/' + d.getDate() + ' ' +
+        p2(d.getHours()) + ':' + p2(d.getMinutes()) + ' ' +
+        (m.who === 'me' ? '小咩' : '你') + '：' +
+        String(m.text || '').replace(/\s+/g, ' ').slice(0, 80) +
+        (m.img ? '［有图］' : '');
+      if (m.likes && m.likes.length) s += ' 赞：' + m.likes.join('、');
+      if (m.cms && m.cms.length) s += ' 评：' + m.cms.map(function(c){
+        return c.who + '：' + c.text;
+      }).join('；');
+      return s;
+    }).join('\n');
+  } catch(e){ return ''; }
+}
+
 
 let CHAT = JSON.parse(localStorage.getItem('xm_chat') || '[]');
 const saveChat = () => localStorage.setItem('xm_chat', JSON.stringify(CHAT.slice(-80)));
