@@ -2094,10 +2094,25 @@ setTimeout(function(){
   for (var i=0;i<l.length;i++) l[i].style.opacity = '1';
 }, 2000);
 
+/* 降频：/outbox 轮询放慢到 5 秒，省 KV 读取 */
+(function(){
+  function wrap(n){
+    var RAW = window[n]; if (!RAW) return;
+    window[n] = function(fn, ms){
+      var a = Array.prototype.slice.call(arguments);
+      try {
+        if (typeof fn === 'function' && /\/outbox/.test(String(fn)) && (+a[1] || 0) < 5000) a[1] = 5000;
+      } catch(e){}
+      return RAW.apply(window, a);
+    };
+  }
+  wrap('setInterval');
+  wrap('setTimeout');
+})();
 
 
 
-var V = '16';
+var V = '17';
 
 
 
