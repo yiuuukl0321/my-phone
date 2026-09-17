@@ -794,8 +794,8 @@ self.addEventListener('push', e => {
       body: d.body || d.text || '有新消息',
       tag: d.kind || 'kai',
       renotify: true,
-      icon: 'IMG_6461.jpeg',
-      badge: 'IMG_6461.jpeg',
+      icon: 'icon.jpeg',
+      badge: 'icon.jpeg',
       data: d
     });
   })());
