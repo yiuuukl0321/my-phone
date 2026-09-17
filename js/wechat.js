@@ -1583,17 +1583,7 @@
     if (q('meSetBtn')) q('meSetBtn').onclick = function(){
       if (typeof window.openSet === 'function') window.openSet();
     };
-      var m = document.getElementById('meSet');
-      if (!m || !m.innerHTML){ 
-        // 设置页由第 5 块负责，触发它的入口
-        var el = box.querySelector('.meBtn[data-me="set"]');
-        if (el) el.click();
-        return;
-      }
-      m.classList.add('on');
-      var bk = m.querySelector('#meBack');
-      if (bk) bk.onclick = function(){ m.classList.remove('on'); };
-    };
+
     b.querySelectorAll('[data-like]').forEach(function(el){
       el.onclick = function(){
         var all = MOM(), i = +el.dataset.like, m = all[i];
