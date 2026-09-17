@@ -2184,3 +2184,101 @@ var st=document.createElement('style');
     window.sendChat = fs;
   }
 })();
+
+/* ===== 20. 暂停思考 ===== */
+(function(){
+  var ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
+    'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+
+    '<path d="M9.4 5.5v13"/><path d="M14.6 5.5v13"/></svg>';
+
+  var st = document.createElement('style');
+  st.textContent =
+    '.bub.kai.typing{display:inline-flex;align-items:center;gap:11px}'+
+    '.pauseBtn{border:0;background:transparent;padding:0;margin:0;display:flex;align-items:center;'+
+      'justify-content:center;color:inherit;opacity:.42;transition:opacity .15s;'+
+      '-webkit-tap-highlight-color:transparent}'+
+    '.pauseBtn:active{opacity:.85}';
+  document.head.appendChild(st);
+
+  /* 暂停后把还在等的长延时压掉，让那条链子两秒内收尾 */
+  var _st = window.setTimeout, fastOn = false;
+  function fast(on){
+    if (on && !fastOn){
+      fastOn = true;
+      window.setTimeout = function(fn, ms){
+        return _st(fn, (window.__pauseHit && ms >= 300) ? 0 : ms);
+      };
+    } else if (!on && fastOn){
+      fastOn = false;
+      window.setTimeout = _st;
+    }
+  }
+
+  function pauseThink(){
+    window.__pauseHit = true;
+    fast(true);
+    try {
+      if (Array.isArray(CHAT)){
+        var last = CHAT[CHAT.length - 1];
+        if (last && last.typing) last.hidden = true;
+      }
+      if (document.getElementById('msgs')) renderChat(true);
+    } catch(e){}
+    _st(function(){ fast(false); }, 20000);
+  }
+  window.pauseThink = pauseThink;
+
+  function decorate(){
+    var box = document.getElementById('msgs');
+    if (!box) return;
+    var ty = box.querySelector('.bub.kai.typing');
+    if (!ty) return;
+    var last = Array.isArray(CHAT) ? CHAT[CHAT.length - 1] : null;
+    if (last && last.typing && last.hidden){ ty.remove(); return; }
+    if (ty.querySelector('.pauseBtn')) return;
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pauseBtn';
+    b.setAttribute('aria-label', '暂停思考');
+    b.innerHTML = ICON;
+    b.onclick = function(e){ e.preventDefault(); e.stopPropagation(); pauseThink(); };
+    ty.appendChild(b);
+  }
+
+  var _rc = window.renderChat;
+  if (typeof _rc === 'function' && !_rc.__pause){
+    var fr = function(){
+      var r = _rc.apply(this, arguments);
+      try { decorate(); } catch(e){}
+      return r;
+    };
+    fr.__pause = true;
+    window.renderChat = fr;
+  }
+
+  var _send = window.sendChat;
+  if (typeof _send === 'function' && !_send.__pause){
+    var fs = async function(){
+      window.__pauseHit = false;
+      var r = await _send.apply(this, arguments);
+      if (window.__pauseHit){
+        try {
+          var last = CHAT[CHAT.length - 1];
+          if (last && last.role === 'assistant' && !last.typing) CHAT.pop();
+          for (var i = CHAT.length - 1; i >= 0; i--){
+            if (CHAT[i] && CHAT[i].hidden){ CHAT.splice(i, 1); break; }
+          }
+          saveChat();
+          if (document.getElementById('msgs')) renderChat(true);
+        } catch(e){}
+      }
+      window.__pauseHit = false;
+      fast(false);
+      return r;
+    };
+    fs.__pause = true;
+    window.sendChat = fs;
+  }
+
+  try { if (document.getElementById('msgs')) decorate(); } catch(e){}
+})();
