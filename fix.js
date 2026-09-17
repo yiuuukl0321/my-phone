@@ -373,35 +373,7 @@
 
 
 
-/* ===== 6. 键盘顶起：聊天页跟随可视视口，键盘弹出不再把页面往上顶 ===== */
-(function(){
-  var vv = window.visualViewport;
-  var root = document.documentElement;
-  var st = document.createElement('style');
-  st.textContent =
-    '#ov,#sh{top:var(--vvt,0px);height:var(--vvh,100%);bottom:auto}' +
-    'html[data-kb="1"] .inputbar{padding-bottom:12px}';
-  document.head.appendChild(st);
 
-  var lastH = 0;
-  function sync(){
-    var h = vv ? vv.height : window.innerHeight;
-    var t = vv ? vv.offsetTop : 0;
-    root.style.setProperty('--vvh', h + 'px');
-    root.style.setProperty('--vvt', t + 'px');
-    var open = h < window.innerHeight - 60;
-    root.dataset.kb = open ? '1' : '0';
-    if (open && h < lastH - 20){
-      var m = document.getElementById('msgs');
-      if (m) m.scrollTop = m.scrollHeight;
-    }
-    lastH = h;
-  }
-  if (vv){ vv.addEventListener('resize', sync); vv.addEventListener('scroll', sync); }
-  window.addEventListener('resize', sync);
-  window.addEventListener('orientationchange', function(){ setTimeout(sync, 250); });
-  sync();
-})();
 
 /* ===== 7. 语音朗读：系统内置 / OpenAI 兼容 / ElevenLabs ===== */
 (function(){
@@ -1801,4 +1773,26 @@ document.addEventListener('keydown',function(e){
   },true);
 })();
 
+(function(){
+  function send(){var n=document.querySelectorAll('button,div,span,a');
+    for(var i=0;i<n.length;i++)if((n[i].textContent||'').trim()==='Send')return n[i];return null;}
+  function bar(){var s=send();if(!s)return null;var p=s;
+    for(var i=0;i<3&&p.parentElement;i++)p=p.parentElement;return p;}
+  function fit(){var b=bar();if(!b)return;
+    var vv=window.visualViewport||{height:innerHeight,offsetTop:0};
+    var kb=Math.max(0,innerHeight-vv.height-vv.offsetTop);
+    b.style.cssText+=';position:fixed;left:0;right:0;bottom:'+kb+'px;z-index:9999;background:transparent';}
+  function bottom(){var best=null,bh=0,all=document.querySelectorAll('div,main,section,ul');
+    for(var i=0;i<all.length;i++){var e=all[i];
+      if(e.scrollHeight>e.clientHeight+30&&e.clientHeight>100&&e.scrollHeight>bh){bh=e.scrollHeight;best=e;}}
+    if(best)best.scrollTop=best.scrollHeight;
+    var sc=document.scrollingElement||document.documentElement;sc.scrollTop=sc.scrollHeight;}
+  function all(){fit();bottom();}
+  addEventListener('resize',fit);
+  if(window.visualViewport){visualViewport.addEventListener('resize',fit);
+    visualViewport.addEventListener('scroll',fit);}
+  document.addEventListener('click',function(e){
+    if((e.target.textContent||'').trim()==='Send'){setTimeout(all,300);setTimeout(all,1000);}},true);
+  setInterval(all,600);
+})();
 
