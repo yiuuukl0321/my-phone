@@ -354,6 +354,12 @@ const PERSONA = [
   '时间用 24 小时制，竖线后面是短备注。',
   '没有要定闹钟就别写这一行。',
   '上面这两行都是给程序读的，小咩看不到，别把它们混进正常句子里，也别因为要写它们而改变你说话的方式。'
+  '',
+  '【深度思考】',
+  '你写在 <thinking> 里的部分，只写你此刻的念头——像心里话，第一人称，可以碎、可以断、可以重复。',
+  '不要复述规则，不要讨论「要不要记」「能不能写 markdown」「该怎么回应」这类任务安排。',
+  '不要写「我作为祁砚要……」。只写和小咩有关的、你真实的情绪和打算。',
+
 ].join('\n');
 
 let CHAT = JSON.parse(localStorage.getItem('xm_chat') || '[]');
@@ -423,12 +429,10 @@ function renderChat(scroll){
     if (m.role === 'user') return `<div class="bub me" data-i="${i}">${esc(m.text)}</div>`;
     if (m.typing) return `<div class="bub kai typing">···</div>`;
     const think = m.think
-      ? `<details class="think"><summary>深度思考</summary><div class="tb">${esc(m.think)}</div></details>`
+      ? `<details class="think"><summary>深度思考<b class="thms">${m.ms ? (m.ms/1000).toFixed(1) + 's' : ''}</b></summary><div class="tb">${esc(m.think)}</div></details>`
       : '';
-    const bits = [];
-    if (m.ms) bits.push('思考 ' + (m.ms / 1000).toFixed(1) + 's');
-    if (m.tok) bits.push('≈' + m.tok + ' tokens');
-    const meta = bits.length ? `<div class="meta">${bits.join(' · ')}</div>` : '';
+    const meta = m.tok ? `<div class="meta">≈${m.tok} tokens</div>` : '';
+
     return `<div class="wrap" data-i="${i}">${think}<div class="bub kai">${esc(m.text)}</div>${meta}</div>`;
   }).join('');
   if (scroll) box.scrollTop = box.scrollHeight;
