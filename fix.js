@@ -1886,3 +1886,51 @@ var st=document.createElement('style');
   window.vCal = nv;
   try { if (typeof APPS !== 'undefined' && APPS.cal) APPS.cal.v = nv; } catch(e){}
 })();
+
+/* ===== 13. 去描边 · 星期栏半透明 · 顶栏喇叭图标 · 日历 app 同步大日历 ===== */
+(function(){
+  var SAY = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
+    'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+
+    '<path d="M4 9.4h3.3L12.2 5v14l-4.9-4.4H4z"/>'+
+    '<path d="M15.9 9.2a4.1 4.1 0 0 1 0 5.6"/>'+
+    '<path d="M18.3 6.8a7.5 7.5 0 0 1 0 10.4"/></svg>';
+
+  var st = document.createElement('style');
+  st.textContent =
+    // 图标去掉深色描边
+    '.ico{border:0 !important;box-shadow:0 1px 5px rgba(0,0,0,.04) !important}'+
+    // 星期栏半透明 + 毛玻璃
+    '#calWrap .wkHead{background:rgba(240,235,226,.68) !important;'+
+      'backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}'+
+    // 只有聊天页顶栏有 ··· ，用这个当开关
+    '#ov .ovtop .ttsTop{display:none}'+
+    '#ov .ovtop:has(.ovact) .ttsTop{display:flex;align-items:center;color:#0b0b0b}';
+  document.head.appendChild(st);
+
+  // 把顶栏那个 🔊 换成喇叭图标
+  function skin(){
+    var b = document.querySelector('#ov .ovtop .ttsTop');
+    if (!b || b.dataset.svg) return;
+    b.dataset.svg = '1';
+    b.textContent = '';
+    b.innerHTML = SAY;
+    b.style.fontSize = '0';
+    b.style.lineHeight = '0';
+    b.style.opacity = '.55';
+    b.style.padding = '2px 8px';
+  }
+  skin();
+  setInterval(skin, 500);
+
+  // 点「日历」这个 app，直接走大日历那套渲染
+  var _oa = window.openApp;
+  if (typeof _oa === 'function' && !_oa.__cal){
+    var fn = function(k){
+      var r = _oa.apply(this, arguments);
+      if (k === 'cal' && typeof window.openCal === 'function') window.openCal();
+      return r;
+    };
+    fn.__cal = true;
+    window.openApp = fn;
+  }
+})();
