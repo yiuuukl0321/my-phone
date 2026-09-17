@@ -386,7 +386,12 @@
   /* ---- 交互 ---- */
   function bind(){
     wx.querySelectorAll('[data-tab]').forEach(function(el){
-      el.onclick = function(){ TAB = el.dataset.tab; SUB = ''; render(); };
+    el.onclick = function(){
+  if (el.dataset.tab === 'find'){ TAB = 'wx'; SUB = 'moments'; }
+  else { TAB = el.dataset.tab; SUB = ''; }
+  render();
+};
+
     });
     wx.querySelectorAll('[data-go]').forEach(function(el){
       el.onclick = function(){
