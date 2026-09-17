@@ -6,7 +6,7 @@
       'background:rgba(146,163,214,.32);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}' +
     '.think summary{display:flex;align-items:center;gap:7px;list-style:none;' +
       'font-size:13px;font-weight:400;color:#5c6b9b;letter-spacing:.02em}' +
-    '.think summary::-webkit-details-marker{display:none}' 
+    '.think summary::-webkit-details-marker{display:none}' +
     '.think summary .thms{font-style:normal;font-weight:400;font-size:11.5px;color:#8b97bd;margin-left:5px}' +
     '.think summary::before{content:"✦";font-size:12px;color:#6b7aae;margin:0}' +
     '.think summary::after{content:"›";margin-left:auto;font-size:17px;line-height:1;' +
