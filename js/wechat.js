@@ -304,7 +304,7 @@
         return '<div class="mom">' + avaBox(m.who === 'me' ? MYAVA() : KAI_AVA, 'av') +
           '<div class="bd"><div class="nm">' + (m.who === 'me' ? esc(S.name || '小咩') : '祁砚') + '</div>' +
           (m.text ? '<div class="tx">' + esc(m.text) + '</div>' : '') +
-          (m.img ? '<img class="im" src="' + m.img + '">' : '') +
+          (m.img && m.who !== 'kai' ? '<img class="im" src="' + m.img + '">' : '') +
           '<div class="tm">' + ago(m.t) +
             '<span class="op"><span data-like="' + idx + '">' + IC.heart + '</span>' +
             '<span data-cm="' + idx + '">' + IC.cmt + '</span></span></div>' +
