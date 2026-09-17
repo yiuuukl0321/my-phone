@@ -92,6 +92,14 @@
   function ss(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
   var MOM = ls('xm_moments', []);
   function saveMom(){ ss('xm_moments', MOM.slice(-60)); }
+    /* 清掉祁砚旧帖里的配图 */
+  (function(){
+    var hit = 0;
+    MOM.forEach(function(m){ if (m.who === 'kai' && m.img){ m.img = ''; hit++; } });
+    if (hit) saveMom();
+  })();
+
+
   var COVER = function(){ return localStorage.getItem('xm_cover') || ''; };
   var MYAVA = function(){ return localStorage.getItem('xm_ava') || ''; };
 
