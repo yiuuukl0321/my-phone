@@ -1766,3 +1766,14 @@ self.addEventListener('notificationclick', e => {
   up(); setTimeout(up,800); setInterval(up,2000);
 })();
 
+(function(){
+  var s=document.createElement('style');
+  s.textContent=
+    '*:not(input):not(textarea){'+
+    '-webkit-user-select:none!important;user-select:none!important;'+
+    '-webkit-touch-callout:none!important;-webkit-tap-highlight-color:transparent;}'+
+    'input,textarea{-webkit-user-select:text!important;user-select:text!important;}';
+  document.head.appendChild(s);
+  document.addEventListener('contextmenu',function(e){e.preventDefault();},true);
+  document.addEventListener('copy',function(e){e.preventDefault();});
+})();
