@@ -1934,3 +1934,74 @@ var st=document.createElement('style');
     window.openApp = fn;
   }
 })();
+
+/* ===== 14. 后台生成：切后台也照样把回复收回来 ===== */
+(function(){
+  // ① 清掉僵尸「···」。SENDING 为真说明是正在等的那个，别动
+  function cleanTyping(){
+    try {
+      if (typeof SENDING !== 'undefined' && SENDING) return;
+      if (!Array.isArray(CHAT) || !CHAT.length) return;
+      var last = CHAT[CHAT.length - 1];
+      if (last && last.typing){
+        CHAT.pop(); saveChat();
+        if (typeof renderChat === 'function') renderChat(true);
+      }
+    } catch(e){}
+  }
+  cleanTyping();
+
+  // ② 推送到了 / 点了通知 → 立刻去拉
+  if ('serviceWorker' in navigator){
+    navigator.serviceWorker.addEventListener('message', function(e){
+      var d = e.data || {};
+      if (d.type === 'kai-new' || d.type === 'open-chat'){
+        setTimeout(function(){
+          try { if (typeof pullOutbox === 'function') pullOutbox(); } catch(err){}
+        }, 400);
+      }
+    });
+  }
+
+  // ③ 回到前台：先清僵尸，再拉
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden) return;
+    cleanTyping();
+    setTimeout(function(){
+      try { if (typeof pullOutbox === 'function') pullOutbox(); } catch(e){}
+    }, 500);
+  });
+
+  // ④ 前台每 25 秒兜底拉一次
+  setInterval(function(){
+    if (document.hidden) return;
+    try {
+      if (typeof SENDING !== 'undefined' && SENDING) return;
+      if (typeof pullOutbox === 'function') pullOutbox();
+    } catch(e){}
+  }, 25000);
+
+  // ⑤ 拉回来真回复时，把之前那句「没等到回复」抹掉
+  var _po = window.pullOutbox;
+  if (typeof _po === 'function' && !_po.__bg){
+    var fn = async function(){
+      var before = Array.isArray(CHAT) ? CHAT.length : 0;
+      var r = await _po.apply(this, arguments);
+      try {
+        if (Array.isArray(CHAT) && CHAT.length > before){
+          for (var i = CHAT.length - 2; i >= 0; i--){
+            var m = CHAT[i];
+            if (m && m.role === 'assistant' && m.text && m.text.indexOf('没等到回复') > -1){
+              CHAT.splice(i, 1);
+            }
+          }
+          saveChat();
+          if (typeof renderChat === 'function') renderChat(true);
+        }
+      } catch(e){}
+      return r;
+    };
+    fn.__bg = true;
+    window.pullOutbox = fn;
+  }
+})();
