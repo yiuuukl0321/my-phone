@@ -1753,4 +1753,16 @@ self.addEventListener('notificationclick', e => {
   } catch(e){ console.warn('ctx block failed', e); }
 })();
 
+(function(){
+  function up(){
+    var n=document.querySelectorAll('button,div,span,a');
+    for(var i=0;i<n.length;i++){
+      if((n[i].textContent||'').trim()==='Send'){
+        n[i].parentElement.style.marginBottom='58px';
+        return;
+      }
+    }
+  }
+  up(); setTimeout(up,800); setInterval(up,2000);
+})();
 
