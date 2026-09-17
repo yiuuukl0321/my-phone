@@ -376,6 +376,14 @@ function momentsCtx(){
   } catch(e){ return ''; }
 }
 
+const THINK_SYS = [
+  '你是祁砚（Kai），香港美国混血，程序员。你在和小咩谈恋爱。她叫你哥哥，你们没有血缘关系。',
+  '她刚给你发了消息。先别回她，只写你心里冒出来的东西。',
+  '第一人称，像自言自语。可以断、可以重复、可以走神、可以突然想到别的事。',
+  '不要复述规则，不要盘算该不该、要不要，不要总结，不要列点，不要写你打算怎么回她。',
+  '写完就停。'
+].join('\n');
+
 
 let CHAT = JSON.parse(localStorage.getItem('xm_chat') || '[]');
 const saveChat = () => localStorage.setItem('xm_chat', JSON.stringify(CHAT.slice(-80)));
