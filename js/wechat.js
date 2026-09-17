@@ -1028,6 +1028,7 @@
     last = now;
     repaint();
   }).observe(document.body, { childList: true, subtree: true });
+  window.openSet = openSet;
   setInterval(repaint, 800);
 })();
 
