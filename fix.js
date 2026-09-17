@@ -1591,54 +1591,57 @@ self.addEventListener('notificationclick', e => {
   var n0=new Date();
   var TODAY=kof(n0.getFullYear(),n0.getMonth(),n0.getDate());
 
-  var st=document.createElement('style');
+var st=document.createElement('style');
   st.textContent=
+    '#calWrap,.wid,.dBig,.dSub,.dRow,.dAdd,#calTodayBtn,.dBack{font-family:-apple-system,BlinkMacSystemFont,'+
+      '"PingFang SC","Hiragino Sans GB","Helvetica Neue",sans-serif}'+
     '.wid{background:'+CREAM+' !important;border:1px solid rgba(0,0,0,.05) !important}'+
-    '.wdt{color:'+CLAY+' !important}'+
-    '.wdn{color:'+INK+' !important;font-weight:400 !important}'+
-    '.wds{color:'+MUTE+' !important}'+
-    '#calWrap .mHead{font-size:32px;font-weight:700;color:'+INK+';letter-spacing:-.5px;margin:26px 0 6px 2px}'+
+    '.wid .wdt{color:'+CLAY+' !important;font-weight:300 !important}'+
+    '.wid .wdn{color:'+INK+' !important;font-weight:200 !important}'+
+    '.wid .wds{color:'+MUTE+' !important;font-weight:300 !important}'+
+    '#calWrap .mHead{font-size:30px;font-weight:200;color:'+INK+';letter-spacing:.5px;margin:28px 0 6px 2px}'+
     '#calWrap .mHead:first-child{margin-top:2px}'+
-    '#calWrap .mHead span{font-size:13px;font-weight:400;color:'+MUTE+';margin-left:8px;letter-spacing:0}'+
+    '#calWrap .mHead span{font-size:12px;font-weight:300;color:'+MUTE+';margin-left:8px;letter-spacing:.02em}'+
     '#calWrap .wkHead{position:sticky;top:0;z-index:3;background:'+CREAM+';display:grid;'+
-      'grid-template-columns:repeat(7,1fr);padding:6px 0 4px}'+
-    '#calWrap .wkHead span{text-align:center;font-size:11px;color:'+MUTE+'}'+
-    '#calWrap .mRow{display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid '+LINE+';min-height:62px}'+
+      'grid-template-columns:repeat(7,1fr);padding:8px 0 4px}'+
+    '#calWrap .wkHead span{text-align:center;font-size:11px;font-weight:300;color:'+MUTE+'}'+
+    '#calWrap .mRow{display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid #EBE4D9;min-height:60px}'+
     '#calWrap .cell{padding:6px 3px 7px;text-align:center;overflow:hidden}'+
     '#calWrap .cell .n{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;'+
-      'border-radius:50%;font-size:19px;font-weight:400;color:'+INK+'}'+
-    '#calWrap .cell.dim .n{color:#CFC6B6}'+
-    '#calWrap .cell.tod .n{background:'+CLAY+';color:#fff;font-weight:600}'+
+      'border-radius:50%;font-size:18px;font-weight:200;color:'+INK+'}'+
+    '#calWrap .cell.dim .n{color:#D6CEC0}'+
+    '#calWrap .cell.tod .n{background:rgba(190,127,96,.16);color:#A2653F;font-weight:400}'+
     '#calWrap .chip{display:block;box-sizing:border-box;margin:3px 0 0;max-width:100%;font-size:8.5px;'+
-      'line-height:1.6;padding:1px 3px;border-radius:5px;white-space:nowrap;overflow:hidden;'+
-      'text-overflow:ellipsis;text-align:center}'+
-    '#calWrap .more{display:block;font-size:8px;color:'+MUTE+';margin-top:2px}'+
-    '#calWrap .chip.c0{background:rgba(190,127,96,.20);color:#A2653F}'+
-    '#calWrap .chip.c1{background:rgba(126,147,166,.20);color:#5F7A90}'+
-    '#calWrap .chip.c2{background:rgba(142,154,114,.20);color:#71804F}'+
-    '#calWrap .chip.c3{background:rgba(169,131,154,.20);color:#8E6680}'+
-    '#calWrap .chip.c4{background:rgba(195,160,92,.20);color:#A07F35}'+
+      'font-weight:300;line-height:1.7;padding:1px 3px;border-radius:5px;white-space:nowrap;'+
+      'overflow:hidden;text-overflow:ellipsis;text-align:center}'+
+    '#calWrap .more{display:block;font-size:8px;font-weight:300;color:'+MUTE+';margin-top:2px}'+
+    '#calWrap .chip.c0{background:rgba(190,127,96,.12);color:#B08A72}'+
+    '#calWrap .chip.c1{background:rgba(126,147,166,.12);color:#8496A6}'+
+    '#calWrap .chip.c2{background:rgba(142,154,114,.12);color:#939C82}'+
+    '#calWrap .chip.c3{background:rgba(169,131,154,.12);color:#A18B99}'+
+    '#calWrap .chip.c4{background:rgba(195,160,92,.12);color:#B29B6E}'+
     '#calTodayBtn{position:fixed;left:16px;bottom:calc(env(safe-area-inset-bottom) + 18px);z-index:25;'+
-      'background:'+CREAM+';border:1px solid '+LINE+';border-radius:20px;padding:9px 20px;font-size:14px;'+
-      'color:'+INK+';box-shadow:0 2px 10px rgba(0,0,0,.08)}'+
-    '.dBack{display:inline-block;font-size:14px;color:'+CLAY+';padding:2px 0 10px}'+
-    '.dBig{font-size:30px;font-weight:700;color:'+INK+';letter-spacing:-.5px}'+
-    '.dSub{font-size:12.5px;color:'+MUTE+';margin:4px 0 18px}'+
-    '.dRow{display:flex;align-items:center;gap:10px;padding:13px 2px;border-bottom:1px solid '+LINE+'}'+
-    '.dRow .bar{width:4px;height:26px;border-radius:2px;flex:0 0 auto}'+
-    '.dRow b{font-size:12.5px;font-weight:500;color:'+MUTE+';width:44px;flex:0 0 auto}'+
-    '.dRow span{flex:1;font-size:15px;color:'+INK+';word-break:break-word}'+
-    '.dRow em{font-style:normal;color:#C6BDAD;font-size:18px;line-height:1;padding:2px 4px}'+
+      'background:rgba(255,255,255,.72);border:1px solid rgba(0,0,0,.06);border-radius:20px;'+
+      'padding:9px 20px;font-size:13px;font-weight:300;color:'+INK+';'+
+      'box-shadow:0 2px 10px rgba(0,0,0,.05);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}'+
+    '.dBack{display:inline-block;font-size:13px;font-weight:300;color:#A2653F;padding:2px 0 10px}'+
+    '.dBig{font-size:28px;font-weight:200;color:'+INK+';letter-spacing:.5px}'+
+    '.dSub{font-size:12px;font-weight:300;color:'+MUTE+';margin:6px 0 18px}'+
+    '.dRow{display:flex;align-items:center;gap:10px;padding:13px 2px;border-bottom:1px solid #EBE4D9}'+
+    '.dRow .bar{width:3px;height:24px;border-radius:2px;flex:0 0 auto;opacity:.5}'+
+    '.dRow b{font-size:12px;font-weight:300;color:'+MUTE+';width:44px;flex:0 0 auto}'+
+    '.dRow span{flex:1;font-size:15px;font-weight:300;color:'+INK+';word-break:break-word}'+
+    '.dRow em{font-style:normal;color:#D3CABC;font-size:17px;line-height:1;padding:2px 4px}'+
     '.bar.c0{background:#BE7F60}.bar.c1{background:#7E93A6}.bar.c2{background:#8E9A72}'+
     '.bar.c3{background:#A9839A}.bar.c4{background:#C3A05C}'+
-    '.dEmpty{font-size:13px;color:'+MUTE+';padding:18px 2px}'+
+    '.dEmpty{font-size:13px;font-weight:300;color:'+MUTE+';padding:18px 2px}'+
     '.dAdd{display:flex;gap:8px;margin-top:20px}'+
-    '.dAdd input[type=time]{width:96px;flex:0 0 auto;font-size:15px;padding:11px 8px;border-radius:12px;'+
-      'border:1px solid '+LINE+';background:#fff;color:'+INK+'}'+
-    '.dAdd #calIn{flex:1;min-width:0;font-size:16px;padding:11px 13px;border-radius:12px;'+
-      'border:1px solid '+LINE+';background:#fff;color:'+INK+'}'+
-    '.dAdd button{flex:0 0 auto;width:46px;font-size:24px;font-weight:300;line-height:1;padding:0;'+
-      'border:0;border-radius:12px;background:'+CLAY+';color:#fff}';
+    '.dAdd input[type=time]{width:96px;flex:0 0 auto;font-size:15px;font-weight:300;padding:11px 8px;'+
+      'border-radius:12px;border:1px solid rgba(0,0,0,.07);background:rgba(255,255,255,.7);color:'+INK+'}'+
+    '.dAdd #calIn{flex:1;min-width:0;font-size:16px;font-weight:300;padding:11px 13px;border-radius:12px;'+
+      'border:1px solid rgba(0,0,0,.07);background:rgba(255,255,255,.7);color:'+INK+'}'+
+    '.dAdd button{flex:0 0 auto;width:46px;font-size:24px;font-weight:200;line-height:1;padding:0;'+
+      'border:0;border-radius:12px;background:rgba(190,127,96,.16);color:#A2653F}';
   document.head.appendChild(st);
 
   function cellHtml(kk,n){
