@@ -765,8 +765,19 @@
   }
 
   build();
-  setInterval(build, 900);
+  var _oa = window.openApp;
+  if (typeof _oa === 'function' && !_oa.__ib){
+    var fo = function(){
+      var r = _oa.apply(this, arguments);
+      try { build(); } catch(e){}
+      return r;
+    };
+    fo.__ib = true;
+    window.openApp = fo;
+  }
+  setInterval(build, 50);
 })();
+
 
 
 
