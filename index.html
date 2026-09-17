@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh" style="background:#000">
+<html lang="zh" style="background:#eceae5">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -8,9 +8,10 @@
 <meta name="theme-color" content="#000000">
 <meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-title" content="咩&amp;砚">
+<style>.ico{opacity:0;transition:opacity .15s}</style>
 <link rel="manifest" href="mainfest.json">
 <link rel="apple-touch-startup-image" href="IMG_6518.png" media="(device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3)">
-<link rel="preload" as="image" href="IMG_6397.jpeg">
+<link rel="preload" as="image" href="pattern.svg" fetchpriority="high">
   <title>咩&amp;砚</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -2095,6 +2096,14 @@ m;
 
 
 </script>
-<script>var _fx=document.createElement('script');_fx.src='fix.js?v='+Date.now();document.body.appendChild(_fx);</script>
+<script>
+setTimeout(function(){
+  var l = document.querySelectorAll('.ico');
+  for (var i=0;i<l.length;i++) l[i].style.opacity = '1';
+}, 2000);
+var _fx = document.createElement('script');
+_fx.src = 'fix.js?v=12';
+document.body.appendChild(_fx);
+</script>
 </body>
 </html>
