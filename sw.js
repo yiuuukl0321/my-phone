@@ -36,3 +36,16 @@ self.addEventListener('notificationclick', e => {
     if (self.clients.openWindow) await self.clients.openWindow('./?chat=1');
   })());
 });
+const MJC = 'mj-v1';
+self.addEventListener('fetch', e => {
+  if (e.request.mode !== 'navigate') return;
+  e.respondWith(caches.open(MJC).then(async c => {
+    const hit = await c.match(e.request);
+    const net = fetch(e.request)
+      .then(r => { c.put(e.request, r.clone()); return r; })
+      .catch(() => hit);
+    return hit || net;
+  }));
+});
+
+
