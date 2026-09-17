@@ -1564,7 +1564,7 @@ self.addEventListener('notificationclick', e => {
   setInterval(go, 900);
 })();
 
-/* ===== 13 桌面日历：iOS 列表式，点日期进当天详情 ===== */
+/* ===== 14. 桌面日历：iOS 列表式，点日期进当天详情 ===== */
 (function(){
   var CREAM='#F0EBE2', INK='#35322E', CLAY='#BE7F60', MUTE='#A79E90', LINE='#E4DCCE';
   var MNAME=['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
@@ -1770,7 +1770,7 @@ var st=document.createElement('style');
 })();
 
 
-/* ===== 14 让聊天能看到日历里的事项 ===== */
+/* ===== 15. 让聊天能看到日历里的事项 ===== */
 (function(){
   function data(){
     try { return JSON.parse(localStorage.getItem('xm_evts') || '{}') || {}; } catch(e){ return {}; }
@@ -1823,7 +1823,7 @@ var st=document.createElement('style');
   setInterval(wrap, 2000);
 })();
 
-/* ===== 15. 周六日淡枣红（大日历 + 桌面日期块） ===== */
+/* ===== 16. 周六日淡枣红（大日历 + 桌面日期块） ===== */
 (function(){
   var WK = '#B87C7C';
 
@@ -1851,7 +1851,7 @@ var st=document.createElement('style');
   setInterval(sync, 800);
 })();
 
-/* ===== 16. 周六日淡枣红：日历 app ===== */
+/* ===== 17. 周六日淡枣红：日历 app ===== */
 (function(){
   var WK = '#B87C7C';
 
@@ -1883,7 +1883,7 @@ var st=document.createElement('style');
   try { if (typeof APPS !== 'undefined' && APPS.cal) APPS.cal.v = nv; } catch(e){}
 })();
 
-/* ===== 17. 去描边 · 星期栏半透明 · 顶栏喇叭图标 · 日历 app 同步大日历 ===== */
+/* ===== 18. 去描边 · 星期栏半透明 · 顶栏喇叭图标 · 日历 app 同步大日历 ===== */
 (function(){
   var SAY = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
     'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+
@@ -1931,7 +1931,7 @@ var st=document.createElement('style');
   }
 })();
 
-/* ===== 18. 后台生成：切后台也照样把回复收回来 ===== */
+/* ===== 19. 后台生成：切后台也照样把回复收回来 ===== */
 (function(){
   // ① 清掉僵尸「···」。SENDING 为真说明是正在等的那个，别动
   function cleanTyping(){
@@ -2002,7 +2002,7 @@ var st=document.createElement('style');
   }
 })();
 
-/* ===== 19. 计算器：不用算就一趟，要算才两趟 ===== */
+/* ===== 20. 计算器：不用算就一趟，要算才两趟 ===== */
 (function(){
   var TAG = /\[\[\s*(?:算|calc)\s*\]\]([\s\S]?)\[\[\s\/\s*(?:算|calc)\s*\]\]/g;
 
@@ -2181,7 +2181,7 @@ var st=document.createElement('style');
   }
 })();
 
-/* ===== 20. 暂停思考 ===== */
+/* ===== 21. 暂停思考 ===== */
 (function(){
   var ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
     'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+
@@ -2279,7 +2279,7 @@ var st=document.createElement('style');
   try { if (document.getElementById('msgs')) decorate(); } catch(e){}
 })();
 
-/* ===== 21. 输入栏改造：贴/说/🔍 删掉，+ 当发送 ===== */
+/* ===== 22. 输入栏改造：贴/说/🔍 删掉，+ 当发送 ===== */
 (function(){
   var WAVE = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
     'stroke-width="1.8" stroke-linecap="round"><path d="M4 10.5v3"/><path d="M8 7.5v9"/>'+
@@ -2353,7 +2353,7 @@ var st=document.createElement('style');
   setInterval(build, 900);
 })();
 
-/* ===== /* ===== 22. 聊天 + 面板：图片 / 拍摄 / 收藏 / 位置（照片真送进模型） ===== */
+ /* ===== 23. 聊天 + 面板：图片 / 拍摄 / 收藏 / 位置（照片真送进模型） ===== */
 (function(){
   if (S.vision === undefined){ S.vision = 1; try { save(); } catch(e){} }
 
@@ -2782,7 +2782,7 @@ var st=document.createElement('style');
 if (+S.dim !== 0){ S.dim = 0; save(); }
 setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400);
 
-/* ===== 23. 底部栏毛玻璃 ===== */
+/* ===== 24. 底部栏毛玻璃 ===== */
 (function(){
   var st = document.createElement('style');
   st.textContent =
@@ -2794,7 +2794,7 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
   document.head.appendChild(st);
 })();
 
-/* ===== 24. 输入栏微调：加号贴右、发送改上箭头、placeholder 锁住 ===== */
+/* ===== 25. 输入栏微调：加号贴右、发送改上箭头、placeholder 锁住 ===== */
 (function(){
   var UP = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
     'stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">'+
@@ -2823,7 +2823,7 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
   setInterval(fix, 700);
 })();
 
-/* ===== 25. 微信主页 / 通讯录 / 朋友圈 ===== */
+/* ===== 26. 微信主页 / 通讯录 / 朋友圈 ===== */
 (function(){
   var W = 'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"';
   function sv(p, s){ return '<svg width="'+(s||24)+'" height="'+(s||24)+'" viewBox="0 0 24 24" '+W+'>'+p+'</svg>'; }
