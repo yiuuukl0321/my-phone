@@ -1,456 +1,726 @@
-/* ===== 1. 聊天 + 面板：图片 / 拍摄 / 收藏 / 位置（照片真送进模型） ===== */
+/* ===== 1. 底部栏毛玻璃 ===== */
 (function(){
-  if (S.vision === undefined){ S.vision = 1; try { save(); } catch(e){} }
+  var st = document.createElement('style');
+  st.textContent =
+    '.dock{background:rgba(255,255,255,.34)!important;'+
+      'backdrop-filter:blur(32px) saturate(180%)!important;'+
+      '-webkit-backdrop-filter:blur(32px) saturate(180%)!important;'+
+      'border:1px solid rgba(255,255,255,.5)!important;'+
+      'box-shadow:0 8px 28px rgba(0,0,0,.08)!important}';
+  document.head.appendChild(st);
+})();
 
-  var S1 = 'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"';
+
+/* ===== 2. 微信主页 / 通讯录 / 朋友圈 ===== */
+(function(){
+  var W = 'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"';
+  function sv(p, s){ return '<svg width="'+(s||24)+'" height="'+(s||24)+'" viewBox="0 0 24 24" '+W+'>'+p+'</svg>'; }
   var IC = {
-    pic:'<svg width="23" height="23" viewBox="0 0 24 24" '+S1+'><rect x="3.2" y="4.8" width="17.6" height="14.4" rx="3"/><circle cx="8.7" cy="9.7" r="1.5"/><path d="M3.6 16.6l4.6-4.2 3.3 3 3.1-2.8 5.8 5.2"/></svg>',
-    cam:'<svg width="23" height="23" viewBox="0 0 24 24" '+S1+'><path d="M3.4 8.8a2.6 2.6 0 0 1 2.6-2.6h1.4l1.3-2h6.6l1.3 2H18a2.6 2.6 0 0 1 2.6 2.6v7.8a2.6 2.6 0 0 1-2.6 2.6H6a2.6 2.6 0 0 1-2.6-2.6z"/><circle cx="12" cy="12.7" r="3.5"/></svg>',
-    fav:'<svg width="23" height="23" viewBox="0 0 24 24" '+S1+'><path d="M6.6 3.9h10.8a1.5 1.5 0 0 1 1.5 1.5v14.7L12 16.3l-6.9 3.8V5.4a1.5 1.5 0 0 1 1.5-1.5z"/></svg>',
-    loc:'<svg width="23" height="23" viewBox="0 0 24 24" '+S1+'><path d="M12 21.3s6.5-6 6.5-10.7A6.5 6.5 0 0 0 5.5 10.6c0 4.7 6.5 10.7 6.5 10.7z"/><circle cx="12" cy="10.4" r="2.4"/></svg>'
+    chat: sv('<path d="M20.4 12.4c0 3.9-3.8 7-8.4 7-1 0-2-.15-2.9-.42L4.2 20.4l1.3-3.3C4.1 15.9 3.6 14.2 3.6 12.4c0-3.9 3.8-7 8.4-7s8.4 3.1 8.4 7z"/>',25),
+    book: sv('<circle cx="12" cy="8.4" r="3.7"/><path d="M4.8 20.2c.7-3.6 3.7-5.9 7.2-5.9s6.5 2.3 7.2 5.9"/>',25),
+    find: sv('<circle cx="12" cy="12" r="8.4"/><path d="M14.8 9.2 13 13l-3.8 1.8L11 11z"/>',25),
+    me:   sv('<circle cx="12" cy="8.2" r="3.8"/><path d="M4.6 20.3c.6-3.7 3.7-6 7.4-6s6.8 2.3 7.4 6"/>',25),
+    back: sv('<path d="M14.6 5.4 8 12l6.6 6.6"/>',22),
+    plus: sv('<path d="M12 5.6v12.8"/><path d="M5.6 12h12.8"/>',20),
+    heart: sv('<path d="M12 20.2S4.4 15.4 4.4 10.4a4 4 0 0 1 7.6-1.9 4 4 0 0 1 7.6 1.9c0 5-7.6 9.8-7.6 9.8z"/>',16),
+    cmt: sv('<path d="M19.6 11.6c0 3.5-3.4 6.4-7.6 6.4-.9 0-1.8-.14-2.6-.4L5 19.6l1.2-3c-1.3-1.2-2-2.9-2-5 0-3.5 3.4-6.4 7.6-6.4s7.8 2.9 7.8 6.4z"/>',16),
+    cam: sv('<path d="M3.4 8.8a2.6 2.6 0 0 1 2.6-2.6h1.4l1.3-2h6.6l1.3 2H18a2.6 2.6 0 0 1 2.6 2.6v7.8a2.6 2.6 0 0 1-2.6 2.6H6a2.6 2.6 0 0 1-2.6-2.6z"/><circle cx="12" cy="12.7" r="3.5"/>',19)
   };
+  var KAI_AVA = 'PICs/icon.jpeg';
 
   var st = document.createElement('style');
   st.textContent =
-    '.xmPanel{flex:0 0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:14px 0;'+
-      'padding:0 8px;background:#f2f2f0;border-top:1px solid var(--line);'+
-      'max-height:0;overflow:hidden;opacity:0;transition:max-height .22s ease,opacity .16s,padding .22s}'+
-    '.xmPanel.on{max-height:200px;opacity:1;padding:16px 8px 12px}'+
-    '.xmItem{display:flex;flex-direction:column;align-items:center;gap:7px;font-size:11px;'+
-      'color:#5d5d59;-webkit-tap-highlight-color:transparent}'+
-    '.xmItem .box{width:54px;height:54px;border-radius:16px;background:#fff;display:flex;'+
-      'align-items:center;justify-content:center;color:#3a3a37;box-shadow:0 1px 4px rgba(0,0,0,.05);'+
-      'transition:transform .12s}'+
-    '.xmItem:active .box{transform:scale(.93)}'+
-    '.xmBar{position:fixed;left:50%;bottom:130px;transform:translateX(-50%);z-index:95;'+
-      'background:rgba(0,0,0,.82);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:14px;'+
-      'max-width:82vw;text-align:center;display:none}'+
-    'img.xmPic{display:block;max-width:190px;max-height:250px;border-radius:13px;cursor:zoom-in}';
+    '#wx{position:fixed;inset:0;z-index:18;background:#f4f4f2;display:none;flex-direction:column}'+
+    '#wx.on{display:flex}'+
+    '.wxTop{flex:0 0 auto;padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;text-align:center;'+
+      'font-size:16px;font-weight:600;position:relative}'+
+    '.wxBack,.wxPlus{position:absolute;top:calc(env(safe-area-inset-top) + 6px);width:36px;height:36px;'+
+      'display:flex;align-items:center;justify-content:center;border-radius:50%}'+
+    '.wxBack{left:8px}.wxPlus{right:8px}'+
+    '.wxBack:active,.wxPlus:active{background:rgba(0,0,0,.06)}'+
+    '.wxBody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}'+
+    '.wxTabs{flex:0 0 auto;display:grid;grid-template-columns:repeat(4,1fr);'+
+      'padding:8px 0 calc(env(safe-area-inset-bottom) + 8px);background:rgba(255,255,255,.42);'+
+      'backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);'+
+      'border-top:1px solid rgba(0,0,0,.06)}'+
+    '.wxT{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:#9a9a96}'+
+    '.wxT.on{color:#0b0b0b}'+
+    '.wxRow{display:flex;align-items:center;gap:11px;padding:12px 14px;background:#fff;'+
+      'border-bottom:1px solid var(--line)}'+
+    '.wxRow:active{background:#f7f7f5}'+
+    '.wxAva{width:46px;height:46px;border-radius:9px;background:#e6e6e2 center/cover;flex:0 0 auto;overflow:hidden}'+
+    '.wxAva img{width:100%;height:100%;object-fit:cover;display:block}'+
+    '.wxMid{flex:1;min-width:0}'+
+    '.wxMid b{display:block;font-size:15.5px;font-weight:500}'+
+    '.wxMid span{display:block;font-size:12.5px;color:#a3a39f;margin-top:2px;overflow:hidden;'+
+      'text-overflow:ellipsis;white-space:nowrap}'+
+    '.wxRow em{font-style:normal;font-size:11px;color:#b4b4b0;align-self:flex-start;margin-top:3px}'+
+    '.wxHead{font-size:11px;color:#9a9a96;padding:8px 16px 6px;letter-spacing:.08em}'+
+    '.momCover{height:210px;background:#ddd center/cover;position:relative}'+
+    '.momAva{position:absolute;right:14px;bottom:-24px;width:66px;height:66px;border-radius:9px;'+
+      'background:#e6e6e2 center/cover;border:2.5px solid #f4f4f2;box-shadow:0 2px 8px rgba(0,0,0,.12)}'+
+    '.momPad{height:36px}'+
+    '.momName{text-align:right;padding:0 16px 10px;font-size:14.5px;font-weight:500;color:#fff;'+
+      'position:absolute;right:90px;bottom:-18px;text-shadow:0 1px 4px rgba(0,0,0,.35)}'+
+    '.mom{display:flex;gap:11px;padding:14px;border-bottom:1px solid var(--line)}'+
+    '.mom .av{width:40px;height:40px;border-radius:7px;background:#e6e6e2 center/cover;flex:0 0 auto}'+
+    '.mom .bd{flex:1;min-width:0}'+
+    '.mom .nm{font-size:14px;color:#5b6b8c;font-weight:500}'+
+    '.mom .tx{font-size:14.5px;line-height:1.6;margin-top:4px;white-space:pre-wrap;word-break:break-word}'+
+    '.mom .im{width:100%;border-radius:8px;margin-top:8px;display:block}'+
+    '.mom .tm{font-size:11px;color:#b4b4b0;margin-top:8px;display:flex;align-items:center;gap:12px}'+
+    '.mom .op{margin-left:auto;display:flex;gap:14px;color:#8a8a86}'+
+    '.mom .likes{background:#f6f6f4;border-radius:6px;padding:6px 9px;font-size:12.5px;color:#5b6b8c;margin-top:8px}'+
+    '.mom .cms{background:#f6f6f4;border-radius:6px;padding:6px 9px;font-size:12.5px;margin-top:4px;line-height:1.7}'+
+    '.mom .cms b{color:#5b6b8c;font-weight:500}'+
+    '.wxEmpty{text-align:center;color:#b4b4b0;font-size:13px;padding:70px 30px;line-height:1.9}'+
+    '.momBox{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.3);display:flex;align-items:flex-end}'+
+    '.momBox>div{width:100%;background:#f4f4f2;border-radius:20px 20px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 18px)}'+
+    '.momBox textarea{width:100%;min-height:90px;border:0;background:transparent;font-size:15px;'+
+      'line-height:1.6;color:var(--ink);resize:none;outline:none}'+
+    '.momBox .row{display:flex;align-items:center;gap:10px;margin-top:8px}'+
+    '.momBox .go{margin-left:auto;background:#111;color:#fff;border:0;border-radius:16px;'+
+      'padding:8px 18px;font-size:13.5px}'+
+    '.momBox .go:disabled{opacity:.35}'+
+    '.momBox .pick{width:38px;height:38px;border-radius:11px;background:#fff;display:flex;'+
+      'align-items:center;justify-content:center;color:#3a3a37;border:1px solid var(--line)}'+
+    '.momBox .pv{width:38px;height:38px;border-radius:11px;background:center/cover;border:1px solid var(--line)}';
   document.head.appendChild(st);
 
-  var tEl = null, tTimer = 0;
-  function toast(t){
+  /* ---- 存储 ---- */
+  function ls(k, d){ try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(d)); } catch(e){ return d; } }
+  function ss(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  var MOM = ls('xm_moments', []);
+  function saveMom(){ ss('xm_moments', MOM.slice(-60)); }
+  var COVER = function(){ return localStorage.getItem('xm_cover') || ''; };
+  var MYAVA = function(){ return localStorage.getItem('xm_ava') || ''; };
+
+  function hhmm(t){
+    var d = new Date(t || Date.now());
+    return (d.getHours() < 10 ? '0' : '') + d.getHours() + ':' + (d.getMinutes() < 10 ? '0' : '') + d.getMinutes();
+  }
+  function ago(t){
+    var s = (Date.now() - t) / 1000;
+    if (s < 60) return '刚刚';
+    if (s < 3600) return Math.floor(s / 60) + '分钟前';
+    if (s < 86400) return Math.floor(s / 3600) + '小时前';
+    return Math.floor(s / 86400) + '天前';
+  }
+
+  /* ---- 中继调用（用 raw，避免和聊天 outbox 抢） ---- */
+  async function rawApi(path, opts){
+    var r = await fetch((S.relay || '').replace(/\/+$/, '') + path, Object.assign({}, opts || {}, {
+      headers: Object.assign({ 'Authorization': 'Bearer ' + S.key }, (opts && opts.headers) || {})
+    }));
+    var t = await r.text();
+    try { return JSON.parse(t); } catch(e){ return t; }
+  }
+  async function ask(user, temp){
+    var msgs = [{ role: 'system', content: PERSONA }, { role: 'user', content: user }];
+    var rid = 'mom' + Date.now() + Math.random().toString(36).slice(2, 6);
+    await rawApi('/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestId: rid, inboxId: S.inbox, messages: msgs,
+        settings: { mainApiUrl: S.apiUrl, mainApiKey: S.apiKey, mainApiModel: S.model,
+                    apiType: S.apiType || 'openai', temperature: temp || 0.95 },
+        meta: { charName: '祁砚', charId: 'kai' }
+      })
+    });
+    for (var i = 0; i < 22; i++){
+      await sleep(i ? 2000 : 600);
+      try {
+        var j = await rawApi('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
+        var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
+        if (f){
+          await rawApi('/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] }) }).catch(function(){});
+          return String(f.content || '');
+        }
+      } catch(e){}
+    }
+    return '';
+  }
+  /* 别让朋友圈的返回被聊天拉走 */
+  var _api = window.api;
+  if (typeof _api === 'function' && !_api.__mom){
+    var fa = function(path, opts){
+      var p = _api.apply(this, arguments);
+      if (String(path).indexOf('/outbox') > -1 && p && p.then){
+        return p.then(function(j){
+          if (j && Array.isArray(j.items)){
+            j.items = j.items.filter(function(x){ return !/^mom/i.test(String(x.requestId || '')); });
+          }
+          return j;
+        });
+      }
+      return p;
+    };
+    fa.__mom = true;
+    window.api = fa;
+  }
+
+  function makePic(){
+    var c = document.createElement('canvas');
+    c.width = 900; c.height = 700;
+    var g = c.getContext('2d');
+    var h = Math.floor(20 + Math.random() * 60);
+    var gr = g.createLinearGradient(0, 0, 900, 700);
+    gr.addColorStop(0, 'hsl(' + h + ',30%,90%)');
+    gr.addColorStop(1, 'hsl(' + ((h + 40) % 360) + ',26%,70%)');
+    g.fillStyle = gr; g.fillRect(0, 0, 900, 700);
+    for (var i = 0; i < 8; i++){
+      g.beginPath();
+      g.strokeStyle = 'rgba(255,255,255,' + (0.1 + Math.random() * 0.32) + ')';
+      g.lineWidth = 1 + Math.random() * 3;
+      g.moveTo(Math.random() * 900, Math.random() * 700);
+      g.bezierCurveTo(Math.random()*900, Math.random()*700, Math.random()*900, Math.random()*700,
+                      Math.random()*900, Math.random()*700);
+      g.stroke();
+    }
+    return c.toDataURL('image/jpeg', .68);
+  }
+
+  /* ---- 他发一条 ---- */
+  async function kaiPost(){
+    if (!S.key){ toastWx('先去设置填中继密钥'); return; }
+    toastWx('他在写…');
+    var raw = await ask('发一条朋友圈。第一行只写正文，30 字内，不要引号不要解释。'+
+      '想配图就在第二行写 [[图]]，不想就不写。');
+    if (!raw){ toastWx('没写出来，再试一次'); return; }
+    var lines = String(raw).split('\n').map(function(x){ return x.trim(); }).filter(Boolean);
+    var txt = '', pic = '';
+    lines.forEach(function(l){
+      if (/^\[\[\s图\s\]\]$/.test(l)) pic = makePic();
+      else if (!txt) txt = l.replace(/^\[\[\s文\s\]\]/, '');
+    });
+    MOM.push({ who: 'kai', text: txt, img: pic, t: Date.now(), likes: [], cms: [] });
+    saveMom(); render();
+    toastWx('他发了朋友圈');
+  }
+
+  /* ---- 他看我的 ---- */
+  async function kaiSee(m){
+    if (!S.key) return;
+    var raw = await ask('小咩刚发了一条朋友圈：\n「' + String(m.text || '（图片）') + '」\n\n'+
+      '写一句评论，20 字内，第一行以 [[评]] 开头。想点赞就另起一行写 [[赞]]。'+
+      '如果想私聊她一句，再另起一行写 [[私]] 加上那句话，不想就别写。', 0.95);
+    if (!raw) return;
+    var lines = String(raw).split('\n').map(function(x){ return x.trim(); }).filter(Boolean);
+    var liked = false, cmt = '', dm = '';
+    lines.forEach(function(l){
+      if (/^\[\[\s赞\s\]\]/.test(l)) liked = true;
+      else if (/^\[\[\s评\s\]\]/.test(l)) cmt = l.replace(/^\[\[\s评\s\]\]/, '').trim();
+      else if (/^\[\[\s私\s\]\]/.test(l)) dm = l.replace(/^\[\[\s私\s\]\]/, '').trim();
+    });
+    if (liked) m.likes.push('祁砚');
+    if (cmt) m.cms.push({ who: '祁砚', text: cmt });
+    saveMom(); render();
+    if (dm && Math.random() < 0.75) dmLater(dm);
+  }
+  function dmLater(t){
+    setTimeout(function(){
+      CHAT.push({ role: 'assistant', text: t, t: Date.now() });
+      saveChat();
+      if (document.getElementById('msgs')) renderChat(true);
+      notify('祁砚', t);
+    }, 9000 + Math.random() * 20000);
+  }
+  function notify(title, body){
+    try {
+      if ('Notification' in window && Notification.permission === 'granted'){
+        navigator.serviceWorker.ready.then(function(r){
+          r.showNotification(title, { body: body, tag: 'kai-wx' });
+        }).catch(function(){});
+      }
+    } catch(e){}
+  }
+
+  /* ---- 界面 ---- */
+  var wx = document.createElement('div');
+  wx.id = 'wx';
+  document.body.appendChild(wx);
+  var TAB = 'wx', SUB = '';
+
+  var tEl = null, tT = 0;
+  function toastWx(t){
     if (!tEl){ tEl = document.createElement('div'); tEl.className = 'xmBar'; document.body.appendChild(tEl); }
     tEl.textContent = t; tEl.style.display = 'block';
-    clearTimeout(tTimer);
-    tTimer = setTimeout(function(){ tEl.style.display = 'none'; }, 2400);
-  }
-  function closePanel(){ var p = document.querySelector('.xmPanel'); if (p) p.classList.remove('on'); }
-
-  /* ---- 附件库：IndexedDB，不占 localStorage ---- */
-  var DB = null, IMGC = {};
-  function idb(){
-    return new Promise(function(res, rej){
-      if (DB) return res(DB);
-      var r = indexedDB.open('xmimg', 1);
-      r.onupgradeneeded = function(){ r.result.createObjectStore('img'); };
-      r.onsuccess = function(){ DB = r.result; res(DB); };
-      r.onerror = function(){ rej(r.error); };
-    });
-  }
-  function idbPut(k, v){
-    return idb().then(function(d){ return new Promise(function(res){
-      var t = d.transaction('img', 'readwrite');
-      t.objectStore('img').put(v, k);
-      t.oncomplete = res; t.onerror = res;
-    }); }).catch(function(){});
-  }
-  function idbGet(k){
-    return idb().then(function(d){ return new Promise(function(res){
-      var q = d.transaction('img', 'readonly').objectStore('img').get(k);
-      q.onsuccess = function(){ res(q.result || null); };
-      q.onerror = function(){ res(null); };
-    }); }).catch(function(){ return null; });
+    clearTimeout(tT);
+    tT = setTimeout(function(){ tEl.style.display = 'none'; }, 2400);
   }
 
-  /* ---- 选图 / 拍照 ---- */
-  var fPic = document.createElement('input');
-  fPic.type = 'file'; fPic.accept = 'image/*'; fPic.multiple = true; fPic.style.display = 'none';
-  var fCam = document.createElement('input');
-  fCam.type = 'file'; fCam.accept = 'image/*'; fCam.capture = 'environment'; fCam.style.display = 'none';
-  document.body.appendChild(fPic); document.body.appendChild(fCam);
+  function avaBox(url, cls){ return '<span class="' + (cls || 'wxAva') + '"' +
+    (url ? ' style="background-image:url(\'' + url + '\')"' : '') + '></span>'; }
 
-  function shrink(file, cb){
+  function chatList(){
+    var last = CHAT.filter(function(x){ return !x.typing; }).slice(-1)[0] || {};
+    var t = last.text || (last.thumb ? '[图片]' : '');
+    return '<div class="wxRow" data-go="chat">' + avaBox(KAI_AVA) +
+      '<div class="wxMid"><b>祁砚</b><span>' + esc(String(t).slice(0, 26)) + '</span></div>' +
+      '<em>' + (last.t ? hhmm(last.t) : '') + '</em></div>';
+  }
+  function bookList(){
+    return '<div class="wxHead">K</div><div class="wxRow" data-go="chat">' + avaBox(KAI_AVA) +
+      '<div class="wxMid"><b>祁砚</b><span>Kai · 哥哥</span></div></div>';
+  }
+  function findList(){
+    var n = MOM.filter(function(m){ return m.who === 'kai'; }).length;
+    return '<div class="wxRow" data-go="moments">' + avaBox('') +
+      '<div class="wxMid"><b>朋友圈</b><span>' +
+      (MOM.length ? MOM.length + ' 条动态' : '还没有动态') + '</span></div></div>';
+  }
+  function mePage(){
+    return '<div class="wxRow" style="padding:22px 14px">' + avaBox(MYAVA(), 'wxAva') +
+      '<div class="wxMid"><b>' + esc(S.name || '小咩') + '</b><span>点这里换头像</span></div>' +
+      '<em><b class="momAvaBtn" style="color:#5b6b8c;font-size:12px">更换</b></em></div>' +
+      '<div class="wxRow" data-go="moments">' + avaBox('') +
+      '<div class="wxMid"><b>我的朋友圈</b><span>' + MOM.filter(function(m){ return m.who === 'me'; }).length +
+      ' 条</span></div></div>' +
+      '<div class="wxRow" data-kai="1">' + avaBox(KAI_AVA) +
+      '<div class="wxMid"><b>让祁砚发一条</b><span>他随手拍的那种</span></div></div>';
+  }
+  function momentsPage(){
+    var list = MOM.slice().reverse();
+    return '<div class="momCover" id="wxCover"' +
+      (COVER() ? ' style="background-image:url(\'' + COVER() + '\')"' : '') + '>' +
+      '<div class="momAva" id="wxAva"' +
+      (MYAVA() ? ' style="background-image:url(\'' + MYAVA() + '\')"' : '') + '></div>' +
+      '<div class="momName">' + esc(S.name || '小咩') + '</div></div>' +
+      '<div class="momPad"></div>' +
+      (list.length ? list.map(function(m, i){
+        var idx = MOM.length - 1 - i;
+        return '<div class="mom">' + avaBox(m.who === 'me' ? MYAVA() : KAI_AVA, 'av') +
+          '<div class="bd"><div class="nm">' + (m.who === 'me' ? esc(S.name || '小咩') : '祁砚') + '</div>' +
+          (m.text ? '<div class="tx">' + esc(m.text) + '</div>' : '') +
+          (m.img ? '<img class="im" src="' + m.img + '">' : '') +
+          '<div class="tm">' + ago(m.t) +
+            '<span class="op"><span data-like="' + idx + '">' + IC.heart + '</span>' +
+            '<span data-cm="' + idx + '">' + IC.cmt + '</span></span></div>' +
+          ((m.likes && m.likes.length) ? '<div class="likes">' + m.likes.join('、') + '</div>' : '') +
+          ((m.cms && m.cms.length) ? '<div class="cms">' + m.cms.map(function(c){
+            return '<b>' + esc(c.who) + '</b>：' + esc(c.text);
+          }).join('<br>') + '</div>' : '') +
+          '</div></div>';
+      }).join('') : '<div class="wxEmpty">还没有动态。<br>点右上角 + 发一条，<br>或者去「我」让祁砚发一条。</div>');
+  }
+
+  function render(){
+    var title = SUB === 'moments' ? '朋友圈'
+      : TAB === 'wx' ? '聊天' : TAB === 'book' ? '通讯录' : TAB === 'find' ? '朋友圈' : '我';
+    var bd = SUB === 'moments' ? momentsPage()
+      : TAB === 'wx' ? chatList() : TAB === 'book' ? bookList()
+      : TAB === 'find' ? findList() : mePage();
+    wx.innerHTML =
+      '<div class="wxTop">' + (SUB === 'moments' ? '<span class="wxBack" id="wxBack">' + IC.back + '</span>' : '') +
+        title + (SUB === 'moments' ? '<span class="wxPlus" id="wxNew">' + IC.plus + '</span>' : '') + '</div>' +
+      '<div class="wxBody">' + bd + '</div>' +
+      (SUB ? '' : '<div class="wxTabs">' +
+        [['wx', IC.chat, '聊天'], ['book', IC.book, '通讯录'],
+         ['find', IC.find, '发现'], ['me', IC.me, '我']].map(function(t){
+          return '<div class="wxT' + (TAB === t[0] ? ' on' : '') + '" data-tab="' + t[0] + '">' +
+            t[1] + '<span>' + t[2] + '</span></div>';
+        }).join('') + '</div>');
+    bind();
+  }
+
+  /* ---- 发朋友圈 ---- */
+  var fPost = document.createElement('input');
+  fPost.type = 'file'; fPost.accept = 'image/*'; fPost.style.display = 'none';
+  document.body.appendChild(fPost);
+  var fCover = document.createElement('input');
+  fCover.type = 'file'; fCover.accept = 'image/*'; fCover.style.display = 'none';
+  document.body.appendChild(fCover);
+  var fAva = document.createElement('input');
+  fAva.type = 'file'; fAva.accept = 'image/*'; fAva.style.display = 'none';
+  document.body.appendChild(fAva);
+
+  function pick(file, mx, cb){
     var fr = new FileReader();
     fr.onload = function(){
       var im = new Image();
       im.onload = function(){
-        function mk(mx, q){
-          var s = Math.min(1, mx / im.naturalWidth, mx / im.naturalHeight);
-          var c = document.createElement('canvas');
-          c.width = Math.max(1, Math.round(im.naturalWidth * s));
-          c.height = Math.max(1, Math.round(im.naturalHeight * s));
-          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-          return c.toDataURL('image/jpeg', q);
-        }
-        cb({ full: mk(1600, .85), thumb: mk(260, .55) });
+        var s = Math.min(1, mx / im.naturalWidth, mx / im.naturalHeight);
+        var c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(im.naturalWidth * s));
+        c.height = Math.max(1, Math.round(im.naturalHeight * s));
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        cb(c.toDataURL('image/jpeg', .72));
       };
-      im.onerror = function(){ cb(null); };
+      im.onerror = function(){ cb(''); };
       im.src = fr.result;
     };
-    fr.onerror = function(){ cb(null); };
+    fr.onerror = function(){ cb(''); };
     fr.readAsDataURL(file);
   }
 
-  function handleFiles(files){
-    var list = Array.prototype.slice.call(files || []).slice(0, 4);
-    if (!list.length) return;
-    var done = 0;
-    list.forEach(function(f){
-      shrink(f, function(o){
-        if (o){
-          var id = 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-          IMGC[id] = o.full;
-          idbPut(id, o.full);
-          CHAT.push({ role:'user', imgId:id, thumb:o.thumb, text:'', t:Date.now() });
-        }
-        if (++done === list.length) finish();
-      });
-    });
-    function finish(){
-      saveChat();
-      if (document.getElementById('msgs')) renderChat(true);
-      closePanel();
-      var inp = document.getElementById('mIn');
-      if (!inp) return;
-      if (!inp.value.trim()) inp.value = '（我发了张照片）';
-      try { sendChat(); } catch(e){}
-    }
-  }
-  fPic.onchange = function(){ handleFiles(fPic.files); fPic.value = ''; };
-  fCam.onchange = function(){ handleFiles(fCam.files); fCam.value = ''; };
-
-  /* ---- 全屏看 ---- */
-  function view(m){
+  var draft = { text: '', img: '' };
+  function composer(){
+    var old = document.getElementById('momBox'); if (old) old.remove();
     var d = document.createElement('div');
-    d.style.cssText = 'position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.94);'+
-      'display:flex;align-items:center;justify-content:center';
-    var im = document.createElement('img');
-    im.src = IMGC[m.imgId] || m.thumb;
-    im.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain';
-    d.appendChild(im);
-    d.onclick = function(){ d.remove(); };
+    d.id = 'momBox';
+    d.className = 'momBox';
+    d.innerHTML = '<div><textarea id="momTx" placeholder="这一刻的想法…">' + esc(draft.text) + '</textarea>' +
+      '<div class="row">' +
+        '<span class="pick" id="momPick">' + IC.cam + '</span>' +
+        (draft.img ? '<span class="pv" style="background-image:url(\'' + draft.img + '\')"></span>' : '') +
+        '<button class="go" id="momGo">发表</button></div></div>';
+    d.onclick = function(e){ if (e.target === d) d.remove(); };
     document.body.appendChild(d);
-    if (m.imgId && !IMGC[m.imgId]){
-      idbGet(m.imgId).then(function(v){ if (v){ IMGC[m.imgId] = v; im.src = v; } });
-    }
-  }
-
-  /* ---- 收藏 ---- */
-  function favs(){ try { return JSON.parse(localStorage.getItem('xm_favs') || '[]'); } catch(e){ return []; } }
-  function saveFavs(a){ try { localStorage.setItem('xm_favs', JSON.stringify(a)); } catch(e){} }
-  function favSheet(){
-    var old = document.getElementById('xmFav'); if (old) old.remove();
-    var list = favs();
-    var d = document.createElement('div');
-    d.id = 'xmFav';
-    d.style.cssText = 'position:fixed;inset:0;z-index:85;background:rgba(0,0,0,.3);display:flex;align-items:flex-end';
-    d.innerHTML = '<div style="width:100%;max-height:68vh;overflow-y:auto;background:#f4f4f2;'+
-      'border-radius:20px 20px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 18px)">'+
-      '<div style="font-size:15px;font-weight:600;margin-bottom:6px">收藏</div>'+
-      (list.length ? list.map(function(t, i){
-        return '<div class="item"><span>' + esc(t) + '</span><em><b class="x" data-d="' + i + '">×</b></em></div>';
-      }).join('') : '<div class="empty">还没有收藏。在输入框里写好，点「收藏」就存下来了。</div>')+
-      '</div>';
-    d.onclick = function(e){
-      if (e.target === d){ d.remove(); return; }
-      var del = e.target.closest('[data-d]');
-      if (del){ var a = favs(); a.splice(+del.dataset.d, 1); saveFavs(a); favSheet(); return; }
-      var row = e.target.closest('.item');
-      if (row){
-        var t = (row.querySelector('span') || {}).textContent || '';
-        var inp = document.getElementById('mIn');
-        if (inp){ inp.value = inp.value.trim() ? inp.value.trim() + ' ' + t : t; inp.focus(); }
-        d.remove();
-      }
+    d.querySelector('#momTx').oninput = function(){ draft.text = this.value; };
+    d.querySelector('#momPick').onclick = function(){ fPost.click(); };
+    d.querySelector('#momGo').onclick = function(){
+      var t = String(draft.text || '').trim();
+      if (!t && !draft.img) return;
+      var m = { who: 'me', text: t, img: draft.img, t: Date.now(), likes: [], cms: [] };
+      MOM.push(m);
+      var withImg = MOM.filter(function(x){ return x.img; });
+      if (withImg.length > 12) withImg[0].img = '';
+      saveMom();
+      draft = { text: '', img: '' };
+      d.remove(); render();
+      kaiSee(m);
     };
-    document.body.appendChild(d);
-  }
-  function doFav(){
-    var inp = document.getElementById('mIn');
-    var t = inp ? inp.value.trim() : '';
-    if (t){
-      var a = favs();
-      if (a.indexOf(t) < 0) a.unshift(t);
-      saveFavs(a.slice(0, 50));
-      inp.value = ''; toast('已收藏');
-    } else favSheet();
-    closePanel();
   }
 
-  /* ---- 位置 ---- */
-  function doLoc(){
-    if (!navigator.geolocation){ toast('这台设备不给定位'); return; }
-    toast('定位中…');
-    navigator.geolocation.getCurrentPosition(function(p){
-      var la = p.coords.latitude, lo = p.coords.longitude;
-      var send = function(name){
-        var t = '我在' + (name ? name : '这里') + '（' + la.toFixed(4) + ', ' + lo.toFixed(4) + '）';
-        var inp = document.getElementById('mIn');
-        if (inp){ inp.value = t; try { sendChat(); } catch(e){} }
-        closePanel();
+  /* ---- 交互 ---- */
+  function bind(){
+    wx.querySelectorAll('[data-tab]').forEach(function(el){
+      el.onclick = function(){ TAB = el.dataset.tab; SUB = ''; render(); };
+    });
+    wx.querySelectorAll('[data-go]').forEach(function(el){
+      el.onclick = function(){
+        if (el.dataset.go === 'chat'){ openChatReal(); }
+        else { SUB = 'moments'; render(); }
       };
-      fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=16&accept-language=zh-CN&lat='
-        + la + '&lon=' + lo)
-        .then(function(r){ return r.json(); })
-        .then(function(j){
-          var a = (j && j.address) || {};
-          var n = a.road || a.suburb || a.neighbourhood || a.village || a.town || a.city_district || '';
-          send(n ? n + '附近' : '');
-        })
-        .catch(function(){ send(''); });
-    }, function(){
-      toast('拿不到位置。去 iPhone 设置 → 隐私与安全性 → 定位服务 里给 Safari 打开。');
-    }, { timeout: 9000, enableHighAccuracy: true });
-  }
-
-  /* ---- 挂到输入栏 ---- */
-  function build(){
-    var bar = document.querySelector('.inputbar');
-    if (!bar) return;
-    var plus = bar.querySelector('.ibPlus');
-    if (!plus || bar.dataset.xm2 === '1') return;
-    bar.dataset.xm2 = '1';
-    var panel = document.createElement('div');
-    panel.className = 'xmPanel';
-    panel.innerHTML = [['pic','图片'], ['cam','拍摄'], ['fav','收藏'], ['loc','位置']]
-      .map(function(x){
-        return '<div class="xmItem" data-a="' + x[0] + '"><span class="box">' + IC[x[0]] + '</span>' + x[1] + '</div>';
-      }).join('');
-    bar.parentNode.insertBefore(panel, bar);
-    panel.onclick = function(e){
-      var it = e.target.closest('[data-a]');
-      if (!it) return;
-      var a = it.dataset.a;
-      if (a === 'pic') fPic.click();
-      else if (a === 'cam') fCam.click();
-      else if (a === 'fav') doFav();
-      else if (a === 'loc') doLoc();
-    };
-    plus.onclick = function(e){ e.preventDefault(); e.stopPropagation(); panel.classList.toggle('on'); };
-    var inp = bar.querySelector('#mIn');
-    if (inp) inp.addEventListener('focus', closePanel);
-  }
-  build();
-  setInterval(build, 900);
-
-  /* ---- 渲染缩略图 ---- */
-  var _rc = window.renderChat;
-  if (typeof _rc === 'function' && !_rc.__pic){
-    var fr = function(){
-      var r = _rc.apply(this, arguments);
-      try {
-        var box = document.getElementById('msgs');
-        if (box) CHAT.forEach(function(m, i){
-          if (!m || !m.thumb) return;
-          var el = box.querySelector('[data-i="' + i + '"]');
-          if (!el || el.querySelector('img.xmPic')) return;
-          var im = document.createElement('img');
-          im.className = 'xmPic';
-          im.src = m.thumb;
-          im.onclick = function(ev){ ev.stopPropagation(); view(m); };
-          el.insertBefore(im, el.firstChild);
-          if (el.classList.contains('bub')) el.style.padding = '7px';
-        });
-      } catch(e){}
-      return r;
-    };
-    fr.__pic = true;
-    window.renderChat = fr;
-  }
-
-  /* ---- 启动时把最近的图预读进内存 ---- */
-  function preload(){
-    var ids = [];
-    for (var i = CHAT.length - 1; i >= 0 && ids.length < 6; i--){
-      var m = CHAT[i];
-      if (m && m.imgId && !IMGC[m.imgId] && ids.indexOf(m.imgId) < 0) ids.push(m.imgId);
-    }
-    ids.forEach(function(k){ idbGet(k).then(function(v){ if (v) IMGC[k] = v; }); });
-  }
-  setTimeout(preload, 1200);
-  setInterval(preload, 60000);
-
-  /* ---- 带图的消息改成 OpenAI content 数组 ---- */
-  var _bm = window.buildMessages;
-  if (typeof _bm === 'function' && !_bm.__vis){
-    var fb = function(){
-      var m = _bm.apply(this, arguments);
-      try {
-        if (!Array.isArray(m)) return m;
-        var src = CHAT.filter(function(x){ return !x.typing; }).slice(-12);
-        for (var i = 0; i < src.length; i++){
-          var c = src[i], t = m[i + 1];
-          if (!c || !t || t.role !== 'user') continue;
-          var txt = String(t.content || '').trim();
-          if (!txt || txt === '（图片）') txt = '（我发了张照片）';
-          var url = c.imgId ? (IMGC[c.imgId] || c.thumb) : (c.img || null);
-          t.content = (url && +S.vision)
-            ? [{ type:'text', text: txt }, { type:'image_url', image_url:{ url: url } }]
-            : txt;
-        }
-      } catch(e){}
-      return m;
-    };
-    fb.__vis = true;
-    window.buildMessages = fb;
-  }
-
-  /* ---- 发带图的请求时，临时换成视觉模型 ---- */
-  var _api = window.api;
-  if (typeof _api === 'function' && !_api.__vis){
-    var fa = function(path, opts){
-      try {
-        if (String(path).indexOf('/generate') > -1 && opts && opts.body){
-          var b = JSON.parse(opts.body);
-          var has = JSON.stringify(b.messages || []).indexOf('image_url') > -1;
-          if (has){
-            window.__lastGen = { settings: JSON.parse(JSON.stringify(b.settings || {})), meta: b.meta, messages: b.messages };
-            if (S.visModel && b.settings){
-              b.settings.mainApiUrl = S.visUrl || S.apiUrl;
-              b.settings.mainApiKey = S.visKey || S.apiKey;
-              b.settings.mainApiModel = S.visModel;
-              b.settings.apiType = 'openai';
-            }
-          } else window.__lastGen = null;
-          return _api.call(this, path, Object.assign({}, opts, { body: JSON.stringify(b) }));
-        }
-      } catch(e){}
-      return _api.apply(this, arguments);
-    };
-    fa.__vis = true;
-    window.api = fa;
-  }
-
-  /* ---- 模型看不了图时，自动退回纯文字再发一次 ---- */
-  async function degrade(){
-    var g = window.__lastGen; window.__lastGen = null;
-    if (!g) return;
-    var last = CHAT[CHAT.length - 1];
-    if (!last || last.role !== 'assistant' || last.typing) return;
-    if (!/出错了|error|invalid|image|400/i.test(String(last.text || ''))) return;
-    var msgs = (g.messages || []).map(function(x){
-      if (x && Array.isArray(x.content)){
-        var t = x.content.filter(function(c){ return c.type === 'text'; })
-                        .map(function(c){ return c.text; }).join(' ').trim();
-        return { role: x.role, content: t || '（我发了张照片）' };
-      }
-      return x;
     });
-    var rid = 'rv' + Date.now() + Math.random().toString(36).slice(2, 7);
-    SENDING = true;
-    try {
-      await api('/generate', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId: rid, inboxId: S.inbox, messages: msgs,
-                               settings: g.settings, meta: g.meta })
-      });
-      var hit = null;
-      for (var i = 0; i < 20; i++){
-        await sleep(i ? 2000 : 500);
-        try {
-          var j = await api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
-          var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
-          if (f){
-            await api('/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] }) }).catch(function(){});
-            hit = f; break;
-          }
-        } catch(e){}
-      }
-      if (hit && hit.content && CHAT[CHAT.length - 1] === last){
-        var r = parseReply(hit.content);
-        last.text = r.text || last.text;
-        last.think = r.think || last.think;
-        if (S.autoMem) r.mems.forEach(function(m){ addMemAuto(m); });
-      }
-    } catch(e){
-    } finally {
-      SENDING = false; saveChat();
-      if (document.getElementById('msgs')) renderChat(true);
-    }
+    var b = wx.querySelector('#wxBack');
+    if (b) b.onclick = function(){ SUB = ''; render(); };
+    var n = wx.querySelector('#wxNew');
+    if (n) n.onclick = function(){ draft = { text: '', img: '' }; composer(); };
+    var cv = wx.querySelector('#wxCover');
+    if (cv) cv.onclick = function(){ fCover.click(); };
+    var av = wx.querySelector('#wxAva');
+    if (av) av.onclick = function(e){ e.stopPropagation(); fAva.click(); };
+    var ab = wx.querySelector('.momAvaBtn');
+    if (ab) ab.parentNode.parentNode.onclick = function(){ fAva.click(); };
+    var kk = wx.querySelector('[data-kai]');
+    if (kk) kk.onclick = kaiPost;
+
+    wx.querySelectorAll('[data-like]').forEach(function(el){
+      el.onclick = function(){
+        var m = MOM[+el.dataset.like];
+        if (!m) return;
+        m.likes = m.likes || [];
+        var i = m.likes.indexOf(S.name || '小咩');
+        if (i < 0) m.likes.push(S.name || '小咩'); else m.likes.splice(i, 1);
+        saveMom(); render();
+      };
+    });
+    wx.querySelectorAll('[data-cm]').forEach(function(el){
+      el.onclick = function(){
+        var m = MOM[+el.dataset.cm];
+        if (!m) return;
+        var t = window.prompt('评论');
+        if (!t) return;
+        m.cms = m.cms || [];
+        m.cms.push({ who: S.name || '小咩', text: String(t).slice(0, 120) });
+        saveMom(); render();
+      };
+    });
   }
-  var _send = window.sendChat;
-  if (typeof _send === 'function' && !_send.__vis){
-    var fs = async function(){
-      var r = await _send.apply(this, arguments);
-      try { await degrade(); } catch(e){}
+
+  fPost.onchange = function(){
+    var f = fPost.files && fPost.files[0];
+    fPost.value = '';
+    if (!f) return;
+    pick(f, 900, function(u){ draft.img = u; composer(); });
+  };
+  fCover.onchange = function(){
+    var f = fCover.files && fCover.files[0];
+    fCover.value = '';
+    if (!f) return;
+    pick(f, 1000, function(u){
+      try { localStorage.setItem('xm_cover', u); } catch(e){ toastWx('图太大，存不下'); }
+      render();
+    });
+  };
+  fAva.onchange = function(){
+    var f = fAva.files && fAva.files[0];
+    fAva.value = '';
+    if (!f) return;
+    pick(f, 320, function(u){
+      try { localStorage.setItem('xm_ava', u); } catch(e){}
+      render();
+    });
+  };
+
+  /* ---- 接管聊天入口 ---- */
+  var _oa = window.openApp;
+  function openChatReal(){ if (typeof _oa === 'function') _oa.call(window, 'chat'); }
+  if (typeof _oa === 'function' && !_oa.__wx){
+    var fo = function(k){
+      if (k === 'chat'){ openWx(); return; }
+      return _oa.apply(this, arguments);
+    };
+    fo.__wx = true;
+    window.openApp = fo;
+  }
+  function openWx(){ wx.classList.add('on'); TAB = 'wx'; SUB = ''; render(); }
+  window.openWx = openWx;
+
+  /* ---- 左边缘滑回 ---- */
+  (function(){
+    var live = false, x0 = 0, y0 = 0, dx = 0;
+    wx.addEventListener('touchstart', function(e){
+      if (!wx.classList.contains('on')) return;
+      var t = e.touches[0];
+      if (t.clientX > 40) return;
+      live = true; x0 = t.clientX; y0 = t.clientY; dx = 0;
+      wx.style.transition = 'none';
+    }, { passive: true });
+    wx.addEventListener('touchmove', function(e){
+      if (!live) return;
+      var t = e.touches[0];
+      var mx = t.clientX - x0, my = t.clientY - y0;
+      if (my > 30 && Math.abs(my) > Math.abs(mx)){ live = false; wx.style.transform = ''; return; }
+      dx = Math.max(0, mx);
+      e.preventDefault();
+      wx.style.transform = 'translateX(' + dx + 'px)';
+    }, { passive: false });
+    wx.addEventListener('touchend', function(){
+      if (!live) return;
+      live = false;
+      wx.style.transition = 'transform .22s ease-out';
+      if (dx > 80){
+        wx.style.transform = 'translateX(100%)';
+        setTimeout(function(){
+          if (SUB === 'moments'){ SUB = ''; render(); }
+          else wx.classList.remove('on');
+          wx.style.transition = 'none'; wx.style.transform = '';
+          requestAnimationFrame(function(){ wx.style.transition = ''; });
+        }, 220);
+      } else {
+        wx.style.transform = '';
+        setTimeout(function(){ wx.style.transition = ''; }, 220);
+      }
+      dx = 0;
+    }, { passive: true });
+  })();
+})();
+
+/* ===== 26. 主动消息（带人设 + 记忆 + 最近聊天） ===== */
+(function(){
+  if (S.lastAct === undefined){
+    S.lastAct = Date.now(); S.asleep = 0; S.wakeH = 7; S.proOn = 1; S.lastPro = '';
+    try { save(); } catch(e){}
+  }
+
+  /* 睡觉 / 醒来信号 */
+  var _pr = window.parseReply;
+  if (typeof _pr === 'function' && !_pr.__pro){
+    var fp = function(raw){
+      var r = _pr.apply(this, arguments);
+      try {
+        var s = String(raw || '');
+        if (/\[\[\s睡\s\]\]/.test(s)){ S.asleep = 1; S.sleepAt = Date.now(); save(); }
+        if (/\[\[\s醒\s\]\]/.test(s)){ S.asleep = 0; S.wakeH = new Date().getHours(); save(); }
+        r.text = String(r.text || '').replace(/\[\[\s*(睡|醒)\s*\]\]/g, '').trim();
+      } catch(e){}
       return r;
     };
-    fs.__vis = true;
+    fp.__pro = true;
+    window.parseReply = fp;
+  }
+
+  /* 每次收发都刷新活跃时间；隔了很久再来就当成醒了 */
+  var _send = window.sendChat;
+  if (typeof _send === 'function' && !_send.__pro){
+    var fs = async function(){
+      var gap = Date.now() - (S.lastAct || 0);
+      if (S.asleep && gap > 4 * 3600e3){ S.asleep = 0; S.wakeH = new Date().getHours(); }
+      if (gap > 5 * 3600e3 && new Date().getHours() >= 4 && new Date().getHours() <= 14){
+        S.wakeH = new Date().getHours();
+      }
+      S.lastAct = Date.now();
+      try { save(); } catch(e){}
+      return _send.apply(this, arguments);
+    };
+    fs.__pro = true;
     window.sendChat = fs;
   }
 
-  /* ---- 聊天详情里的视觉设置 ---- */
-  var _oci = window.openChatInfo;
-  if (typeof _oci === 'function' && !_oci.__vis){
-    var fo = function(){
-      _oci.apply(this, arguments);
-      try {
-        var b = document.getElementById('shbody'); if (!b) return;
-        var old = document.getElementById('xmVisCard'); if (old) old.remove();
-        var d = document.createElement('div');
-        d.id = 'xmVisCard';
-        d.className = 'card';
-        d.innerHTML =
-          '<div class="eyebrow">视觉</div>'+
-          '<div class="item"><span>让祁砚看到照片</span><em>'+
-            '<span class="sw ' + (+S.vision ? 'on' : '') + '" id="xmVisSw"><i></i></span></em></div>'+
-          '<div class="field"><span>视觉模型</span>'+
-            '<input id="xmVisModel" value="' + String(S.visModel || '') + '" placeholder="留空就用主模型"></div>'+
-          '<div class="field"><span>地址</span>'+
-            '<input id="xmVisUrl" value="' + String(S.visUrl || '') + '" placeholder="留空就同上"></div>'+
-          '<div class="field"><span>密钥</span>'+
-            '<input id="xmVisKey" type="password" value="' + String(S.visKey || '') + '" placeholder="留空就同上"></div>'+
-          '<div class="sub" style="margin:12px 0 0">主模型（DeepSeek 官方）看不见图，'+
-          '这里单独填一个支持看图的模型，只在发照片那一条用它。'+
-          '填错或失败会自动退回纯文字重发，不会卡住。</div>';
-        b.insertBefore(d, b.firstChild);
-        d.querySelector('#xmVisSw').onclick = function(){
-          S.vision = +S.vision ? 0 : 1; save();
-          this.classList.toggle('on', !!+S.vision);
-        };
-        var bind = function(id, key){
-          d.querySelector('#' + id).oninput = function(){ S[key] = this.value.trim(); save(); };
-        };
-        bind('xmVisModel', 'visModel');
-        bind('xmVisUrl', 'visUrl');
-        bind('xmVisKey', 'visKey');
-      } catch(e){}
-    };
-    fo.__vis = true;
-    window.openChatInfo = fo;
+  function inWindow(){
+    var h = new Date().getHours();
+    var w = Math.max(0, Math.min(12, +S.wakeH || 7));
+    return h >= w - 1 && h <= 22;
   }
-})();
+  function hhmm(t){
+    var d = new Date(t || Date.now());
+    return (d.getHours() < 10 ? '0' : '') + d.getHours() + ':' +
+           (d.getMinutes() < 10 ? '0' : '') + d.getMinutes();
+  }
+  function partOfDay(){
+    var h = new Date().getHours();
+    if (h < 5) return '凌晨';
+    if (h < 11) return '早上';
+    if (h < 14) return '中午';
+    if (h < 18) return '下午';
+    if (h < 22) return '晚上';
+    return '深夜';
+  }
 
+  /* ---- 拼上下文：人设 + 长期记忆 + 最近对话 + 最近几条她发的 ---- */
+  function buildCtx(){
+    var sys = PERSONA;
+    sys += '\n\n【现在】' + hhmm() + '，' + partOfDay() + '。';
+    var gapMin = Math.round((Date.now() - (S.lastAct || 0)) / 60000);
+    sys += gapMin >= 60
+      ? '你们已经 ' + Math.floor(gapMin / 60) + ' 小时 ' + (gapMin % 60) + ' 分钟没说话了。'
+      : '你们刚刚还在说话。';
+    if (+S.asleep) sys += '她睡着了。';
+    sys += '\n你要主动找她说话。可以提到你们之前聊过的具体事、她提过的烦恼或约定，' +
+      '别泛泛地问「在干嘛」。不要问她为什么不回，不要解释你在等她，不要提这是自动发送。' +
+      '一句话，30 字内，口语，不要 markdown。';
 
-/* ===== 2. 输入栏微调：加号贴右、发送改上箭头、placeholder 锁住 ===== */
-(function(){
-  var UP = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
-    'stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">'+
-    '<path d="M12 19.4V5.4"/><path d="M6.1 11.3 12 5.4l5.9 5.9"/></svg>';
-
-  var st = document.createElement('style');
-  st.textContent =
-    '.inputbar .ibField{padding-right:7px!important}'+
-    '.inputbar .ibField .ibPlus{padding:2px!important;margin-left:2px}';
-  document.head.appendChild(st);
-
-  function fix(){
-    var bar = document.querySelector('.inputbar');
-    if (!bar) return;
-
-    var send = bar.querySelector('button.send');
-    if (send && send.dataset.up !== '1'){
-      send.dataset.up = '1';
-      send.innerHTML = UP;
+    if (MEM && MEM.length){
+      sys += '\n\n【你记得关于她的事】\n' +
+        MEM.slice(-40).map(function(x){ return '· ' + x; }).join('\n');
     }
+    if (S.lastPro) sys += '\n\n【你上次主动说的是】' + S.lastPro + '\n这次别重复。';
 
-    var inp = bar.querySelector('#mIn');
-    if (inp && inp.placeholder !== '愛してる') inp.placeholder = '愛してる';
+    var hist = CHAT.filter(function(m){ return !m.typing && (m.text || m.thumb); }).slice(-24)
+      .map(function(m){
+        var t = String(m.text || '').trim();
+        if (!t && m.thumb) t = '（发了张照片）';
+        if (!t) return null;
+        return { role: m.role === 'user' ? 'user' : 'assistant', content: t.slice(0, 400) };
+      })
+      .filter(Boolean);
+
+    return [{ role: 'system', content: sys }].concat(hist);
   }
-  fix();
-  setInterval(fix, 700);
+
+  async function fire(test){
+    if (!S.key){ if (test) alert('先去设置填中继密钥'); return; }
+    var msgs = buildCtx();
+    msgs.push({ role: 'user', content: '（现在轮到你主动开口。只写你要说的那一句话。）' });
+
+    var rid = 'pro' + Date.now() + Math.random().toString(36).slice(2, 6);
+    try {
+      await api('/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: rid, inboxId: S.inbox, messages: msgs,
+          settings: { mainApiUrl: S.apiUrl, mainApiKey: S.apiKey, mainApiModel: S.model,
+                      apiType: S.apiType || 'openai', temperature: 1.0 },
+          meta: { charName: '祁砚', charId: 'kai' }
+        })
+      });
+    } catch(e){ return; }
+
+    for (var i = 0; i < 22; i++){
+      await sleep(i ? 2000 : 600);
+      try {
+        var j = await api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
+        var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
+        if (!f) continue;
+        await api('/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] }) }).catch(function(){});
+        var r = parseReply(f.content);
+        var t = String(r.text || '').trim();
+        if (!t) return;
+        CHAT.push({ role: 'assistant', text: t, think: r.think, t: Date.now() });
+        S.lastAct = Date.now();
+        S.lastPro = t;
+        try { save(); saveChat(); } catch(e){}
+        if (document.getElementById('msgs')) renderChat(true);
+        var box = document.getElementById('msgs');
+        if (box) box.scrollTop = box.scrollHeight;
+        popup(t);
+        return;
+      } catch(e){}
+    }
+  }
+
+  function popup(t){
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 10px);'+
+      'z-index:130;background:rgba(255,255,255,.9);backdrop-filter:blur(24px) saturate(180%);'+
+      '-webkit-backdrop-filter:blur(24px) saturate(180%);border-radius:18px;padding:13px 16px;'+
+      'box-shadow:0 8px 30px rgba(0,0,0,.16);transition:transform .3s,opacity .3s;'+
+      'transform:translateY(-140%);opacity:0';
+    d.innerHTML = '<div style="font-size:12px;color:#8f8f8b;margin-bottom:3px">祁砚</div>' +
+      '<div style="font-size:14.5px;line-height:1.5">' + esc(t) + '</div>';
+    document.body.appendChild(d);
+    requestAnimationFrame(function(){ d.style.transform = 'translateY(0)'; d.style.opacity = '1'; });
+    var kill = function(){
+      d.style.transform = 'translateY(-140%)'; d.style.opacity = '0';
+      setTimeout(function(){ d.remove(); }, 320);
+    };
+    d.onclick = function(){
+      kill();
+      try { if (typeof window.openWx === 'function') window.openWx(); } catch(e){}
+      try { if (typeof window.openApp === 'function') window.openApp('chat'); } catch(e){}
+    };
+    setTimeout(kill, 7000);
+    try {
+      if ('Notification' in window && Notification.permission === 'granted'){
+        navigator.serviceWorker.ready.then(function(r){
+          r.showNotification('祁砚', { body: t, tag: 'kai-pro' });
+        }).catch(function(){});
+      }
+    } catch(e){}
+    try { if (navigator.vibrate) navigator.vibrate(40); } catch(e){}
+  }
+
+  /* ---- 轮询 ---- */
+  setInterval(function(){
+    if (!+S.proOn) return;
+    if (SENDING) return;
+    if (document.hidden) return;
+    if (+S.asleep) return;
+    if (!inWindow()) return;
+    var gap = Date.now() - (S.lastAct || 0);
+    var test = !!+S.testPro;
+    var need = test ? 30000 : 60 * 60 * 1000;
+    if (gap < need) return;
+    if (test){ S.testPro = 0; try { save(); } catch(e){} }
+    fire(test);
+  }, 15000);
+
+  /* ---- 设置里的卡片 ---- */
+  setInterval(function(){
+    var b = document.getElementById('ovbody');
+    if (!b || b.querySelector('#xmProCard')) return;
+    if (!/壁纸|暗度|中继/.test(b.textContent || '')) return;
+    var d = document.createElement('div');
+    d.id = 'xmProCard';
+    d.className = 'card';
+    d.innerHTML =
+      '<div class="eyebrow">主动消息</div>' +
+      '<div class="item"><span>他主动找我</span><em><span class="sw ' + (+S.proOn ? 'on' : '') +
+        '" id="xmProSw"><i></i></span></em></div>' +
+      '<div class="item"><span>我通常几点醒</span><em><input id="xmWake" value="' + (+S.wakeH || 7) +
+        '" style="width:46px;text-align:right;border:0;background:transparent;font-size:14px"></em></div>' +
+      '<div class="item" id="xmProTest"><span>测试（30 秒后弹）</span><em>点一下</em></div>' +
+      '<div class="sub" style="margin:10px 0 0">超过 60 分钟没消息他会主动说话，' +
+      '会带着人设、长期记忆和最近 24 条聊天记录一起发，所以能接着之前的话题。' +
+      '睡着后不发，醒来那阵子发得最勤。网页在后台时 iOS 不跑 JS，' +
+      '所以只在 app 开着的时候会触发。</div>';
+    b.insertBefore(d, b.firstChild);
+    d.querySelector('#xmProSw').onclick = function(){
+      S.proOn = +S.proOn ? 0 : 1; save(); this.classList.toggle('on', !!+S.proOn);
+    };
+    d.querySelector('#xmWake').oninput = function(){
+      S.wakeH = Math.max(0, Math.min(23, parseInt(this.value, 10) || 7)); save();
+    };
+    d.querySelector('#xmProTest').onclick = function(){
+      S.testPro = 1; S.lastAct = Date.now() - 31000; S.asleep = 0;
+      try { save(); } catch(e){}
+      alert('好，30 秒后他会来找你。别关屏幕。');
+    };
+  }, 1200);
 })();
 
 
