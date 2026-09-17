@@ -7,14 +7,12 @@ self.addEventListener('push', e => {
     try { d = { body: e.data.text() }; } catch (e2) {}
   }
   e.waitUntil((async () => {
-    // 人还在「咩&砚」画面里 → 不弹通知，只叫页面自己去取新消息
     const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const here = list.filter(c => c.visibilityState === 'visible');
     if (here.length) {
       here.forEach(c => { try { c.postMessage({ type: 'kai-new' }); } catch (e) {} });
       return;
     }
-    // 人离开画面了 → 正常弹通知
     await self.registration.showNotification(d.title || '咩&砚', {
       body: d.body || d.text || '有新消息',
       tag: d.kind || 'kai',
@@ -37,18 +35,35 @@ self.addEventListener('notificationclick', e => {
   })());
 });
 
-const MJC = 'mj-v1';
+const MJC = 'mj-v2';
+const IMG = /\.(jpe?g|png|svg|webp)$/i;
+
 self.addEventListener('fetch', e => {
-  if (e.request.mode !== 'navigate') return;
+  const req = e.request;
+
+  // 图片：有缓存直接给，没有再去拿，拿到就存
+  if (IMG.test(req.url)){
+    e.respondWith((async () => {
+      const c = await caches.open(MJC);
+      const hit = await c.match(req, { ignoreSearch: true });
+      if (hit) return hit;
+      try {
+        const r = await fetch(req);
+        if (r && r.ok) c.put(req, r.clone());
+        return r;
+      } catch (err){ return Response.error(); }
+    })());
+    return;
+  }
+
+  if (req.mode !== 'navigate') return;
   e.respondWith((async () => {
     const c = await caches.open(MJC);
-    const hit = await c.match(e.request);
+    const hit = await c.match(req);
     try {
-      const r = await fetch(e.request);
-      if (r && r.ok) c.put(e.request, r.clone());
+      const r = await fetch(req);
+      if (r && r.ok) c.put(req, r.clone());
       return r;
-    } catch (err) {
-      return hit || Response.error();
-    }
+    } catch (err){ return hit || Response.error(); }
   })());
 });
