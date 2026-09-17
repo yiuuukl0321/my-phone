@@ -1781,3 +1781,24 @@ document.addEventListener('keydown',function(e){
     }
   }
 },true);
+
+(function(){
+  function clr(){
+    try{ if(navigator.clipboard) navigator.clipboard.writeText(''); }catch(e){}
+    try{
+      var ta=document.createElement('textarea');
+      ta.value=''; ta.style.cssText='position:fixed;left:-9999px;';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove();
+    }catch(e){}
+  }
+  document.addEventListener('click',function(e){
+    var t=(e.target.textContent||'').trim();
+    if(t==='Send'){
+      clr();
+      setTimeout(function(){ if(document.activeElement) document.activeElement.blur(); },200);
+    }
+  },true);
+})();
+
+
