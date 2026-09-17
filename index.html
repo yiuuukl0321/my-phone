@@ -692,13 +692,12 @@ async function sendChat(){
 
   const t0 = Date.now();
   const rid = 'r' + t0 + Math.random().toString(36).slice(2,7);
-  try {
+  async function askOnce(rid2, msgs, max){
     await api('/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        requestId: rid, inboxId: S.inbox,
-        messages: buildMessages(),
+        requestId: rid2, inboxId: S.inbox, messages: msgs,
         settings: {
           mainApiUrl: S.apiUrl, mainApiKey: S.apiKey, mainApiModel: S.model,
           apiType: S.apiType || 'openai', temperature: 0.9
@@ -706,30 +705,41 @@ async function sendChat(){
         meta: { charName: '祁砚', charId: 'kai' }
       })
     });
+    for (let i = 0; i < (max || 24); i++){
+      await sleep(i ? 2000 : 400);
+      try {
+        const j = await api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
+        const f = (j.items || []).find(x => String(x.requestId) === String(rid2));
+        if (f){
+          await api('/ack', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] })
+          }).catch(() => {});
+          return f;
+        }
+      } catch(e){}
+    }
+    return null;
+  }
+
+  let hit = null, fT = null;
+  try {
+    const rs = await Promise.all([
+      askOnce(rid + 't', buildThinkMessages(), 12).catch(() => null),
+      askOnce(rid, buildMessages()).catch(() => null)
+    ]);
+    fT = rs[0]; hit = rs[1];
   } catch(e){
     SENDING = false;
     CHAT.pop();
     CHAT.push({ role: 'assistant', text: '发不出去：' + e.message, t: Date.now() });
     saveChat(); renderChat(true); return;
   }
-
-  let hit = null;
-  for (let i = 0; i < 24; i++){
-    await sleep(i ? 2000 : 400);
-    try {
-      const j = await api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
-      const f = (j.items || []).find(x => String(x.requestId) === String(rid));
-      if (f){
-        await api('/ack', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] })
-        }).catch(() => {});
-        hit = f;
-        break;
-      }
-    } catch(e){}
-  }
+  const think = (fT && fT.content)
+    ? String(fT.content).replace(/<\/?think(?:ing)?>/gi, '').trim()
+    : '';
   const ms = Date.now() - t0;
+
 
   let msg;
   if (!hit){
