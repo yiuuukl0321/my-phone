@@ -26,7 +26,7 @@
     cmt: sv('<path d="M19.6 11.6c0 3.5-3.4 6.4-7.6 6.4-.9 0-1.8-.14-2.6-.4L5 19.6l1.2-3c-1.3-1.2-2-2.9-2-5 0-3.5 3.4-6.4 7.6-6.4s7.8 2.9 7.8 6.4z"/>',16),
     cam: sv('<path d="M3.4 8.8a2.6 2.6 0 0 1 2.6-2.6h1.4l1.3-2h6.6l1.3 2H18a2.6 2.6 0 0 1 2.6 2.6v7.8a2.6 2.6 0 0 1-2.6 2.6H6a2.6 2.6 0 0 1-2.6-2.6z"/><circle cx="12" cy="12.7" r="3.5"/>',19)
   };
-  var KAI_AVA = 'PICs/icon.jpeg';
+  var KAI_AVA = '#F6F1C9';
 
   var st = document.createElement('style');
   st.textContent =
@@ -39,7 +39,7 @@
     '.wxBack{left:8px}.wxPlus{right:8px}'+
     '.wxBack:active,.wxPlus:active{background:rgba(0,0,0,.06)}'+
     '.wxBody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}'+
-    '.wxTabs{flex:0 0 auto;display:grid;grid-template-columns:repeat(4,1fr);'+
+    '.wxTabs{flex:0 0 auto;display:grid;grid-template-columns:repeat(2,1fr);'+
       'padding:8px 0 calc(env(safe-area-inset-bottom) + 8px);background:rgba(255,255,255,.42);'+
       'backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);'+
       'border-top:1px solid rgba(0,0,0,.06)}'+
@@ -250,8 +250,13 @@
     tT = setTimeout(function(){ tEl.style.display = 'none'; }, 2400);
   }
 
-  function avaBox(url, cls){ return '<span class="' + (cls || 'wxAva') + '"' +
-    (url ? ' style="background-image:url(\'' + url + '\')"' : '') + '></span>'; }
+  function avaBox(url, cls){
+    var c = url && url.charAt(0) === '#';
+    return '<span class="' + (cls || 'wxAva') + '"' +
+      (url && !c ? ' style="background-image:url(\'' + url + '\')"' : '') +
+      (c ? ' style="background:' + url + '"' : '') + '></span>';
+  }
+
 
   function chatList(){
     var last = CHAT.filter(function(x){ return !x.typing; }).slice(-1)[0] || {};
@@ -306,8 +311,7 @@
   }
 
   function render(){
-    var title = SUB === 'moments' ? '朋友圈'
-      : TAB === 'wx' ? '聊天' : TAB === 'book' ? '通讯录' : TAB === 'find' ? '朋友圈' : '我';
+    var title = SUB === 'moments' ? '朋友圈' : TAB === 'wx' ? '祁砚' : '我';
     var bd = SUB === 'moments' ? momentsPage()
       : TAB === 'wx' ? chatList() : TAB === 'book' ? bookList()
       : TAB === 'find' ? findList() : mePage();
@@ -316,8 +320,7 @@
         title + (SUB === 'moments' ? '<span class="wxPlus" id="wxNew">' + IC.plus + '</span>' : '') + '</div>' +
       '<div class="wxBody">' + bd + '</div>' +
       (SUB ? '' : '<div class="wxTabs">' +
-        [['wx', IC.chat, '聊天'], ['book', IC.book, '通讯录'],
-         ['find', IC.find, '发现'], ['me', IC.me, '我']].map(function(t){
+        [['wx', IC.chat, ''], ['me', IC.me, '']].map(function(t){
           return '<div class="wxT' + (TAB === t[0] ? ' on' : '') + '" data-tab="' + t[0] + '">' +
             t[1] + '<span>' + t[2] + '</span></div>';
         }).join('') + '</div>');
@@ -500,8 +503,10 @@
       if (dx > 80){
         wx.style.transform = 'translateX(100%)';
         setTimeout(function(){
-          if (SUB === 'moments'){ SUB = ''; render(); }
+          if (TAB !== 'wx'){ TAB = 'wx'; SUB = ''; render(); }
+          else if (SUB){ SUB = ''; render(); }
           else wx.classList.remove('on');
+      
           wx.style.transition = 'none'; wx.style.transform = '';
           requestAnimationFrame(function(){ wx.style.transition = ''; });
         }, 220);
@@ -1320,4 +1325,16 @@
   }, 1200);
 })();
 
+
+/* ===== 34. 右滑时挡住后面的壁纸 ===== */
+(function(){
+  var p = document.createElement('div');
+  p.id = 'wxPad';
+  p.style.cssText = 'position:fixed;inset:0;z-index:17;background:#f4f4f2;display:none';
+  document.body.appendChild(p);
+  setInterval(function(){
+    var w = document.getElementById('wx');
+    p.style.display = (w && w.classList.contains('on')) ? 'block' : 'none';
+  }, 200);
+})();
 
