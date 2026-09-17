@@ -1635,12 +1635,13 @@ self.addEventListener('notificationclick', e => {
         });
     }
     function readPhone(kind, label){
-      return sbGet('phone_data?kind=eq.' + kind + '&order=at.asc&limit=30&select=payload')
+      return sbGet('phone_data?kind=eq.' + kind + '&order=at.desc&limit=1&select=payload')
         .then(function(rows){
-          if (!rows.length) return '（' + label + '现在是空的）';
-          return rows.map(function(x){ return '· ' + String(x.payload || '').trim(); }).join('\n');
+          var t = rows.length ? String(rows[0].payload || '').trim() : '';
+          return t ? t : '（' + label + '现在是空的）';
         });
     }
+
 
     async function collect(){
       var lines = [], show = [];
