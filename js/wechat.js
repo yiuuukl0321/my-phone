@@ -185,16 +185,14 @@
   async function kaiPost(){
     if (!S.key){ toastWx('先去设置填中继密钥'); return; }
     toastWx('他在写…');
-    var raw = await ask('发一条朋友圈。第一行只写正文，30 字内，不要引号不要解释。'+
-      '想配图就在第二行写 [[图]]，不想就不写。');
+    var raw = await ask('发一条朋友圈。只写正文，30 字内。不要引号，不要解释，'+
+      '不要配图，不要写任何 [[ ]] 标记。');
     if (!raw){ toastWx('没写出来，再试一次'); return; }
-    var lines = String(raw).split('\n').map(function(x){ return x.trim(); }).filter(Boolean);
-    var txt = '', pic = '';
-    lines.forEach(function(l){
-      if (/^\[\[\s图\s\]\]$/.test(l)) pic = makePic();
-      else if (!txt) txt = l.replace(/^\[\[\s文\s\]\]/, '');
-    });
-    MOM.push({ who: 'kai', text: txt, img: pic, t: Date.now(), likes: [], cms: [] });
+    var txt = String(raw).split('\n')
+      .map(function(x){ return x.trim(); })
+      .filter(function(x){ return x && x.indexOf('[[') !== 0; })[0] || '';
+    if (!txt){ toastWx('没写出来，再试一次'); return; }
+    MOM.push({ who: 'kai', text: txt, img: '', t: Date.now(), likes: [], cms: [] });
     saveMom(); render();
     toastWx('他发了朋友圈');
   }
