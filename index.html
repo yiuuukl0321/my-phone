@@ -748,9 +748,11 @@ async function sendChat(){
     msg = { role: 'assistant', text: '出错了：' + hit.error, t: Date.now(), ms };
   } else {
     const r = parseReply(hit.content);
-    const tok = pickTokens(hit) || estTokens(hit.content);
+    const tok = (pickTokens(hit) || estTokens(hit.content)) +
+                (fT ? (pickTokens(fT) || estTokens(fT.content || '')) : 0);
     msg = { role: 'assistant', text: r.text || '（空）', t: Date.now(),
-            think: r.think, ms, tok };
+            think: think || r.think, ms, tok };
+
     if (S.autoMem){
       const saved = [];
       r.mems.forEach(m => { if (addMemAuto(m)) saved.push(m); });
