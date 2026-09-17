@@ -311,7 +311,7 @@
   }
 
   function render(){
-    var title = SUB === 'moments' ? '朋友圈' : TAB === 'wx' ? '祁砚' : '我';
+    var title = SUB === 'moments' ? '朋友圈' : TAB === 'wx' ? '聊天' : '我';
     var bd = SUB === 'moments' ? momentsPage()
       : TAB === 'wx' ? chatList() : TAB === 'book' ? bookList()
       : TAB === 'find' ? findList() : mePage();
