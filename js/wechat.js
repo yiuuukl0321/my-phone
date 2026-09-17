@@ -593,6 +593,7 @@
 
   document.addEventListener('touchstart', function(e){
     if (!onMoments() || busy) return;
+    if (e.target && e.target.closest && e.target.closest('input,textarea')) return;
     var b = body(); if (!b || b.scrollTop > 2) return;
     live = true; y0 = e.touches[0].clientY; dy = 0;
     b.style.transition = 'none';
