@@ -1338,3 +1338,285 @@
   }, 200);
 })();
 
+
+/* ===== 35. 「我的」页面：头像居中 + 帖子流 + Edit Profile ===== */
+(function(){
+  var st = document.createElement('style');
+  st.textContent =
+    '#wx .meWrap{padding:24px 0 calc(env(safe-area-inset-bottom) + 44px);text-align:center}'+
+    '#wx .meAva{width:92px;height:92px;border-radius:50%;margin:0 auto;'+
+      'background:#e6e6e2 center/cover;border:1px solid rgba(0,0,0,.06);'+
+      'box-shadow:0 3px 14px rgba(0,0,0,.07)}'+
+    '#wx .meName{display:block;margin-top:15px;font-size:17px;font-weight:500;'+
+      'letter-spacing:.03em;color:#0b0b0b}'+
+    '#wx .meHr{height:1px;background:rgba(0,0,0,.09);margin:15px 22px}'+
+    '#wx .meSign{font-size:14px;font-weight:300;line-height:1.7;color:#6b6b67;'+
+      'padding:0 30px;word-break:break-word}'+
+    '#wx .meSign.ph{color:#c6c6c2}'+
+    '#wx .meStar{padding:2px 0;color:#8d8d89;line-height:0}'+
+    '#wx .meStar:active{color:#0b0b0b}'+
+    '#wx .meBtns{display:flex;gap:10px;padding:0 20px}'+
+    '#wx .meBtn2{flex:1;padding:13px;border-radius:14px;background:#fff;'+
+      'font-size:13.5px;color:#0b0b0b;border:1px solid rgba(0,0,0,.08);'+
+      'box-shadow:0 1px 4px rgba(0,0,0,.03)}'+
+    '#wx .meBtn2:active{background:#f2f2f0;transform:scale(.985)}'+
+    '#wx .pf{display:flex;gap:11px;padding:17px 18px 15px;text-align:left;'+
+      'border-top:1px solid rgba(0,0,0,.07)}'+
+    '#wx .pfAva{width:38px;height:38px;border-radius:50%;flex:0 0 auto;'+
+      'background:#e6e6e2 center/cover;border:1px solid rgba(0,0,0,.05)}'+
+    '#wx .pfR{flex:1;min-width:0}'+
+    '#wx .pfN{font-size:13.5px;font-weight:500;color:#0b0b0b}'+
+    '#wx .pfT{font-size:14.5px;line-height:1.72;color:#26262a;margin-top:5px;'+
+      'white-space:pre-wrap;word-break:break-word}'+
+    '#wx .pfI{width:100%;border-radius:12px;margin-top:10px;display:block}'+
+    '#wx .pfB{display:flex;justify-content:flex-end;gap:18px;margin-top:9px;color:#b0b0ae}'+
+    '#wx .pfB b{font-weight:400;font-size:11.5px;display:flex;align-items:center;gap:4px}'+
+    '#wx .pfB b.on{color:#e0525f}'+
+    '#wx .pfC{margin-top:9px;background:rgba(0,0,0,.04);border-radius:12px;'+
+      'padding:10px 12px;font-size:12.5px;line-height:1.75;color:#4d4d4a;text-align:left}'+
+    '#wx .pfC i{font-style:normal;font-weight:500;color:#26262a}'+
+    '#wx .pfC .more{color:#8b8b87;margin-top:5px}'+
+    '#wx .pfEmpty{padding:44px 30px;text-align:center;font-size:13px;line-height:1.9;color:#b4b4b0}'+
+    '#wx .meFeed{margin-top:4px}';
+  document.head.appendChild(st);
+
+  var KAI = '#F6F1C9';
+  function ls(k, d){ try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(d)); } catch(e){ return d; } }
+  function ss(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  function MOM(){ return ls('xm_moments', []); }
+  function MYAVA(){ return localStorage.getItem('xm_ava') || ''; }
+  function ago(t){
+    var s = (Date.now() - t) / 1000;
+    if (s < 60) return '刚刚';
+    if (s < 3600) return Math.floor(s / 60) + '分钟前';
+    if (s < 86400) return Math.floor(s / 3600) + '小时前';
+    return Math.floor(s / 86400) + '天前';
+  }
+  function ava(url){
+    var c = url && url.charAt(0) === '#';
+    return '<span class="pfAva"' +
+      (url && !c ? ' style="background-image:url(\'' + url + '\')"' : '') +
+      (c ? ' style="background:' + url + '"' : '') + '></span>';
+  }
+
+  var STAR = '<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.5" stroke-linejoin="round"><path d="M12 3.6l2.6 5.3 5.8.85-4.2 4.1 1 5.8' +
+    '-5.2-2.75-5.2 2.75 1-5.8-4.2-4.1 5.8-.85z"/></svg>';
+  var HEART = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.7" stroke-linejoin="round"><path d="M12 20.2S4.4 15.4 4.4 10.4a4 4 0 0 1 7.6-1.9 ' +
+    '4 4 0 0 1 7.6 1.9c0 5-7.6 9.8-7.6 9.8z"/></svg>';
+  var CMT = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.7" stroke-linejoin="round"><path d="M19.6 11.6c0 3.5-3.4 6.4-7.6 6.4-.9 0-1.8-.14-2.6-.4' +
+    'L5 19.6l1.2-3c-1.3-1.2-2-2.9-2-5 0-3.5 3.4-6.4 7.6-6.4s7.8 2.9 7.8 6.4z"/></svg>';
+
+  var openCm = {};
+
+  function feed(list){
+    if (!list.length)
+      return '<div class="pfEmpty">还没有帖子。<br>右上角 + 发一条，<br>或者等他来找你。</div>';
+    return list.slice().reverse().map(function(m, k){
+      var i = list.length - 1 - k;
+      var mine = m.who === 'me';
+      var likes = m.likes || [], cms = m.cms || [];
+      var liked = likes.indexOf(S.name || '小咩') >= 0;
+      var show = openCm[i] ? cms : cms.slice(0, 2);
+      return '<div class="pf" data-i="' + i + '">' +
+        ava(mine ? MYAVA() : KAI) +
+        '<div class="pfR">' +
+          '<div class="pfN">' + esc(mine ? (S.name || '小咩') : '祁砚') + '</div>' +
+          (m.text ? '<div class="pfT">' + esc(m.text) + '</div>' : '') +
+          (m.img ? '<img class="pfI" src="' + m.img + '">' : '') +
+          '<div class="pfB">' +
+            '<b class="' + (liked ? 'on' : '') + '" data-like="' + i + '">' + HEART +
+              (likes.length ? likes.length : '') + '</b>' +
+            '<b data-cm="' + i + '">' + CMT + (cms.length ? cms.length : '') + '</b>' +
+          '</div>' +
+          (cms.length ? '<div class="pfC">' +
+            show.map(function(c){
+              return '<div><i>' + esc(c.who) + '</i> ' + esc(c.text) + '</div>';
+            }).join('') +
+            (!openCm[i] && cms.length > 2 ?
+              '<div class="more" data-more="' + i + '">展开 ' + (cms.length - 2) + ' 条评论</div>' : '') +
+            '</div>' : '') +
+        '</div></div>';
+    }).join('');
+  }
+
+  function meHtml(){
+    var sign = String(S.sign || '').trim();
+    return '<div class="meWrap">' +
+      '<div class="meAva" id="meAva"' +
+        (MYAVA() ? ' style="background-image:url(\'' + MYAVA() + '\')"' : '') + '></div>' +
+      '<div class="meName">' + esc(S.name || '小咩') + '</div>' +
+      '<div class="meHr"></div>' +
+      '<div class="meSign' + (sign ? '' : ' ph') + '">' + esc(sign || '还没写签名') + '</div>' +
+      '<div class="meHr"></div>' +
+      '<div class="meStar" id="meStar">' + STAR + '</div>' +
+      '<div class="meHr"></div>' +
+      '<div class="meBtns">' +
+        '<div class="meBtn2" id="meEditBtn">Edit Profile</div>' +
+        '<div class="meBtn2" id="meSetBtn">Settings</div>' +
+      '</div>' +
+      '<div class="meFeed">' + feed(MOM()) + '</div>' +
+    '</div>';
+  }
+
+  /* ---- Edit Profile ---- */
+  function editProfile(){
+    var old = document.getElementById('meEditBox'); if (old) old.remove();
+    var ava = MYAVA();
+    var d = document.createElement('div');
+    d.id = 'meEditBox';
+    d.style.cssText = 'position:fixed;inset:0;z-index:150;background:#f4f4f2;display:flex;flex-direction:column';
+    d.innerHTML =
+      '<div style="flex:0 0 auto;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;' +
+        'display:flex;align-items:center;border-bottom:1px solid rgba(0,0,0,.07)">' +
+        '<span id="epBack" style="width:34px;height:34px;display:grid;place-items:center;' +
+          'border-radius:50%;font-size:24px;line-height:1;color:#0b0b0b">‹</span>' +
+        '<b style="font-size:16px;font-weight:600">Edit Profile</b></div>' +
+      '<div style="flex:1;overflow-y:auto;padding:34px 22px calc(env(safe-area-inset-bottom) + 30px);text-align:center">' +
+        '<div id="epAva" style="width:104px;height:104px;border-radius:50%;margin:0 auto;' +
+          'background:#e6e6e2 center/cover;border:1px solid rgba(0,0,0,.06)' +
+          (ava ? ';background-image:url(\'' + ava + '\')' : '') + '"></div>' +
+        '<div style="font-size:11.5px;color:#a8a8a4;margin-top:12px">点一下换头像</div>' +
+        '<div style="text-align:left;font-size:11px;letter-spacing:.18em;color:#9a9a96;' +
+          'margin:30px 0 10px">自我介绍</div>' +
+        '<textarea id="epBio" maxlength="60" placeholder="写点什么…" ' +
+          'style="width:100%;min-height:92px;border:1px solid rgba(0,0,0,.1);border-radius:14px;' +
+          'padding:13px 15px;font-size:15px;line-height:1.7;background:#fff;color:#0b0b0b;' +
+          'resize:none;box-sizing:border-box">' + esc(S.sign || '') + '</textarea>' +
+        '<div style="font-size:11.5px;color:#b4b4b0;margin-top:8px;text-align:right">' +
+          '<span id="epNum">' + String(S.sign || '').length + '</span>/60</div>' +
+      '</div>';
+    document.body.appendChild(d);
+
+    var f = document.createElement('input');
+    f.type = 'file'; f.accept = 'image/*'; f.style.display = 'none';
+    document.body.appendChild(f);
+
+    d.querySelector('#epBack').onclick = function(){ f.remove(); d.remove(); };
+    d.querySelector('#epAva').onclick = function(){ f.click(); };
+    var bio = d.querySelector('#epBio');
+    bio.oninput = function(){
+      d.querySelector('#epNum').textContent = this.value.length;
+    };
+    f.onchange = function(){
+      var file = f.files && f.files[0]; f.value = '';
+      if (!file) return;
+      var fr = new FileReader();
+      fr.onload = function(){
+        var im = new Image();
+        im.onload = function(){
+          var mx = 320, s = Math.min(1, mx / im.naturalWidth, mx / im.naturalHeight);
+          var c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(im.naturalWidth * s));
+          c.height = Math.max(1, Math.round(im.naturalHeight * s));
+          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+          var u = c.toDataURL('image/jpeg', .72);
+          try { localStorage.setItem('xm_ava', u); } catch(e){}
+          var box = d.querySelector('#epAva');
+          box.style.backgroundImage = 'url(\'' + u + '\')';
+          repaint(true);
+        };
+        im.onerror = function(){};
+        im.src = fr.result;
+      };
+      fr.readAsDataURL(file);
+    };
+    bio.onblur = function(){
+      S.sign = this.value.trim();
+      try { save(); } catch(e){}
+      repaint(true);
+    };
+  }
+
+  /* ---- 收藏 ---- */
+  function favSheet(){
+    var old = document.getElementById('meFav2'); if (old) old.remove();
+    var list = ls('xm_favs', []);
+    var d = document.createElement('div');
+    d.id = 'meFav2';
+    d.style.cssText = 'position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.3);display:flex;align-items:flex-end';
+    d.innerHTML = '<div style="width:100%;max-height:70vh;overflow-y:auto;background:#f4f4f2;' +
+      'border-radius:20px 20px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 18px)">' +
+      '<div style="font-size:15px;font-weight:600;margin-bottom:8px">收藏</div>' +
+      (list.length ? list.map(function(t, i){
+        return '<div style="display:flex;gap:10px;align-items:flex-start;padding:12px 0;' +
+          'border-bottom:1px solid rgba(0,0,0,.07);font-size:13.5px;line-height:1.65">' +
+          '<span style="flex:1" data-fc="' + i + '">' + esc(t) + '</span>' +
+          '<b style="color:#c2c2be;font-weight:400;font-size:17px" data-fd="' + i + '">×</b></div>';
+      }).join('') : '<div style="font-size:12.5px;color:#a8a8a4;padding:16px 2px;line-height:1.7">' +
+        '还没有收藏。聊天里那条回复下面点星星就有了。</div>') +
+      '</div>';
+    d.onclick = function(e){
+      if (e.target === d){ d.remove(); return; }
+      var del = e.target.closest('[data-fd]');
+      if (del){
+        var a = ls('xm_favs', []);
+        a.splice(+del.dataset.fd, 1); ss('xm_favs', a); favSheet(); return;
+      }
+      var cp = e.target.closest('[data-fc]');
+      if (cp){ try { navigator.clipboard.writeText(cp.textContent); } catch(err){} }
+    };
+    document.body.appendChild(d);
+  }
+
+  /* ---- 接管 ---- */
+  function repaint(force){
+    var box = document.getElementById('wx');
+    if (!box || !box.classList.contains('on')) return;
+    var on = box.querySelector('.wxT.on');
+    if (!on || on.dataset.tab !== 'me') return;
+    var b = box.querySelector('.wxBody');
+    if (!b) return;
+    if (b.dataset.me2 === '1' && !force) return;
+    b.dataset.me = '1';
+    b.dataset.me2 = '1';
+    b.innerHTML = meHtml();
+
+    var q = function(id){ return b.querySelector('#' + id); };
+    if (q('meAva')) q('meAva').onclick = function(){ editProfile(); };
+    if (q('meStar')) q('meStar').onclick = function(){ favSheet(); };
+    if (q('meEditBtn')) q('meEditBtn').onclick = function(){ editProfile(); };
+    if (q('meSetBtn')) q('meSetBtn').onclick = function(){
+      var m = document.getElementById('meSet');
+      if (!m || !m.innerHTML){ 
+        // 设置页由第 5 块负责，触发它的入口
+        var el = box.querySelector('.meBtn[data-me="set"]');
+        if (el) el.click();
+        return;
+      }
+      m.classList.add('on');
+      var bk = m.querySelector('#meBack');
+      if (bk) bk.onclick = function(){ m.classList.remove('on'); };
+    };
+    b.querySelectorAll('[data-like]').forEach(function(el){
+      el.onclick = function(){
+        var all = MOM(), i = +el.dataset.like, m = all[i];
+        if (!m) return;
+        m.likes = m.likes || [];
+        var n = S.name || '小咩', p = m.likes.indexOf(n);
+        if (p < 0) m.likes.push(n); else m.likes.splice(p, 1);
+        ss('xm_moments', all); repaint(true);
+      };
+    });
+    b.querySelectorAll('[data-more]').forEach(function(el){
+      el.onclick = function(){ openCm[+el.dataset.more] = 1; repaint(true); };
+    });
+    b.querySelectorAll('[data-cm]').forEach(function(el){
+      el.onclick = function(){
+        var all = MOM(), i = +el.dataset.cm, m = all[i];
+        if (!m) return;
+        var t = window.prompt('回复');
+        if (!t) return;
+        m.cms = m.cms || [];
+        m.cms.push({ who: S.name || '小咩', text: String(t).slice(0, 120) });
+        ss('xm_moments', all); openCm[i] = 1; repaint(true);
+      };
+    });
+  }
+
+  new MutationObserver(function(){ setTimeout(repaint, 60); })
+    .observe(document.body, { childList: true, subtree: true });
+  setInterval(repaint, 300);
+})();
