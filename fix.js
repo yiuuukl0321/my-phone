@@ -1505,18 +1505,8 @@ self.addEventListener('notificationclick', e => {
     if((e.target.textContent||'').trim()==='Send')setTimeout(bottom,400);},true);
 })();
 
-
-(function(){
-  function bottom(){
-    var best=null,bh=0,all=document.querySelectorAll('div,main,section,ul');
-    for(var i=0;i<all.length;i++){var e=all[i];
-      if(e.scrollHeight>e.clientHeight+30&&e.clientHeight>100&&e.scrollHeight>bh){bh=e.scrollHeight;best=e;}}
-    if(best)best.scrollTop=best.scrollHeight;
-  }
-  function go(){bottom();setTimeout(bottom,150);setTimeout(bottom,500);setTimeout(bottom,1200);}
-  document.addEventListener('click',function(e){
-    var t=(e.target.textContent||'').trim();
-    if(t==='聊天'||t==='砚'||t==='💬')go();
-  },true);
-  go();
+true);
 })();
+
+
+
