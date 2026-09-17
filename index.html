@@ -669,6 +669,14 @@ async function pasteClip(){
     alert('读不到剪贴板。\niOS 只在你自己点的时候才给读，长按输入框手动粘贴也可以。');
   }
 }
+function buildThinkMessages(){
+  const hist = CHAT.filter(m => !m.typing).slice(-12)
+    .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
+  let sys = THINK_SYS + '\n\n【小咩的朋友圈】\n' + momentsCtx();
+  if (MEM.length) sys += '\n\n【已经记住的事】\n' + MEM.slice(-40).map(m => '· ' + m).join('\n');
+  return [{ role: 'system', content: sys }, ...hist];
+}
+
 
 async function sendChat(){
   if (isBlocked()) return;
