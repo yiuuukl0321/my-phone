@@ -579,10 +579,16 @@
 
   var live = false, y0 = 0, dy = 0, busy = false, TH = 34;
   function body(){ return document.querySelector('#wx .wxBody'); }
+    
   function onMoments(){
+    if (document.querySelector('#meSet.on')) return false;
+    if (document.querySelector('#meEditBox')) return false;
+    if (document.querySelector('#meFav2')) return false;
     return !!document.querySelector('#wx #wxBack') ||
            !!document.querySelector('#wx .wxT.on[data-tab="me"]');
   }
+
+
 
 
   document.addEventListener('touchstart', function(e){
