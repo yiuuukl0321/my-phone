@@ -1765,3 +1765,11 @@ self.addEventListener('notificationclick', e => {
   document.addEventListener('contextmenu',function(e){e.preventDefault();},true);
   document.addEventListener('copy',function(e){e.preventDefault();});
 })();
+
+document.addEventListener('click',function(e){
+  var t=(e.target.textContent||'').trim();
+  if(t==='Send'||t==='说'||t==='贴'){
+    setTimeout(function(){if(document.activeElement)document.activeElement.blur();},300);
+  }
+},true);
+
