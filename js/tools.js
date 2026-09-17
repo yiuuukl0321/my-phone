@@ -528,3 +528,312 @@
     };
   }, 1200);
 })();
+
+
+/* ===== 32. token 统计 ===== */
+(function(){
+  var K = 'xm_tok';
+  function blank(){ return { total:0, inp:0, out:0, n:0, by:{}, since:Date.now() }; }
+  function load(){
+    try {
+      var o = JSON.parse(localStorage.getItem(K) || 'null');
+      if (!o || typeof o.total !== 'number') return blank();
+      o.by = o.by || {};
+      return o;
+    } catch(e){ return blank(); }
+  }
+  function saveTok(t){ try { localStorage.setItem(K, JSON.stringify(t)); } catch(e){} }
+  function fmt(n){
+    n = Math.round(+n || 0);
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function est(s){
+    var t = String(s || ''), cjk = 0, o = 0;
+    for (var i = 0; i < t.length; i++){
+      var ch = t[i];
+      if (/[\u3400-\u9fff\uf900-\ufaff\u3000-\u303f\uff00-\uffef]/.test(ch)) cjk++;
+      else o++;
+    }
+    return Math.round(cjk + o / 4);
+  }
+  function kindOf(rid){
+    var s = String(rid || '');
+    if (/^pro/.test(s)) return '主动消息';
+    if (/^mom/.test(s)) return '朋友圈';
+    if (/^tr/.test(s))  return '翻译';
+    if (/^r2/.test(s))  return '计算';
+    if (/^rv/.test(s))  return '重试';
+    if (/^r/.test(s))   return '聊天';
+    return '其他';
+  }
+
+  var pend = {};
+  function bump(rid, inp, out){
+    var T = load();
+    T.total += inp + out;
+    T.inp += inp; T.out += out; T.n += 1;
+    var k = kindOf(rid);
+    T.by[k] = (T.by[k] || 0) + inp + out;
+    saveTok(T);
+  }
+
+  var _f = window.fetch;
+  window.fetch = function(url, opts){
+    try {
+      if (typeof url === 'string' && url.indexOf('/generate') > -1 && opts && opts.body){
+        var b = JSON.parse(opts.body);
+        if (b && b.requestId) pend[b.requestId] = est(JSON.stringify(b.messages || []));
+      }
+    } catch(e){}
+    var p = _f.apply(this, arguments);
+    try {
+      if (typeof url === 'string' && url.indexOf('/outbox') > -1 && p && p.then){
+        return p.then(function(r){
+          try {
+            r.clone().json().then(function(j){
+              ((j && j.items) || []).forEach(function(it){
+                if (!it || !it.requestId) return;
+                var rid = String(it.requestId);
+                var u = it.usage || it.tokens_used || {};
+                var got = +((u && (u.total_tokens || u.totalTokens)) || it.tokens || 0);
+                var inp = pend[rid] || 0;
+                delete pend[rid];
+                var out = got > inp ? (got - inp) : est(it.content || '');
+                bump(rid, inp, out);
+              });
+            }).catch(function(){});
+          } catch(e){}
+          return r;
+        });
+      }
+    } catch(e){}
+    return p;
+  };
+
+  setInterval(function(){
+    var b = document.getElementById('ovbody');
+    if (!b || b.querySelector('#xmTokCard')) return;
+    if (!/壁纸|暗度|中继/.test(b.textContent || '')) return;
+    var T = load();
+    var rows = Object.keys(T.by).sort(function(a, c){ return T.by[c] - T.by[a]; })
+      .map(function(k){
+        return '<div class="item"><span>' + esc(k) + '</span><em>' + fmt(T.by[k]) + '</em></div>';
+      }).join('') || '<div class="empty">还没有消耗。</div>';
+    var d = document.createElement('div');
+    d.id = 'xmTokCard';
+    d.className = 'card';
+    d.innerHTML =
+      '<div class="eyebrow">TOKENS</div>' +
+      '<div class="item"><span>总计</span><em>≈' + fmt(T.total) + '</em></div>' +
+      '<div class="item"><span>输入 / 输出</span><em>' + fmt(T.inp) + ' / ' + fmt(T.out) + '</em></div>' +
+      '<div class="item"><span>调用次数</span><em>' + (T.n || 0) + ' 次</em></div>' +
+      rows +
+      '<div class="item" id="xmTokClr"><span style="color:#ff3b30">清零</span><em></em></div>' +
+      '<div class="sub" style="margin:10px 0 0">只统计真正过模型的调用。收藏、点赞、换头像、下拉刷新这些不花 token。' +
+      '中继有报用量就用它报的，没报就按字数估，所以是「≈」。</div>';
+    b.insertBefore(d, b.firstChild);
+    d.querySelector('#xmTokClr').onclick = function(){
+      if (!confirm('把统计清零？')) return;
+      saveTok(blank());
+      d.remove();
+    };
+  }, 1200);
+})();
+
+
+/* ===== 33. 记忆整理：每加 30 条自动合并精简 ===== */
+(function(){
+  if (S.memNew === undefined){ S.memNew = 0; S.memLastAt = 0; try { save(); } catch(e){} }
+
+  var TRIG = 30, KEEP = 60;
+
+  function ls(k, d){ try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(d)); } catch(e){ return d; } }
+  function ss(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  function toast(t){
+    var el = document.createElement('div');
+    el.className = 'xmBar'; el.textContent = t; el.style.display = 'block';
+    document.body.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 2400);
+  }
+  function memArr(){
+    try { return (typeof MEM !== 'undefined' && Array.isArray(MEM)) ? MEM : []; }
+    catch(e){ return []; }
+  }
+  function setMem(a){
+    try { MEM = a; saveMem(); } catch(e){}
+  }
+
+  async function rawApi(path, opts){
+    var r = await fetch((S.relay || '').replace(/\/+$/, '') + path, Object.assign({}, opts || {}, {
+      headers: Object.assign({ 'Authorization': 'Bearer ' + S.key }, (opts && opts.headers) || {})
+    }));
+    var t = await r.text();
+    try { return JSON.parse(t); } catch(e){ return t; }
+  }
+
+  /* 别让整理的结果被聊天拉走 */
+  var _api = window.api;
+  if (typeof _api === 'function' && !_api.__mem){
+    var fx = function(path, opts){
+      var p = _api.apply(this, arguments);
+      if (String(path).indexOf('/outbox') > -1 && p && p.then){
+        return p.then(function(j){
+          if (j && Array.isArray(j.items)){
+            j.items = j.items.filter(function(x){ return !/^mem/i.test(String(x.requestId || '')); });
+          }
+          return j;
+        });
+      }
+      return p;
+    };
+    fx.__mem = true;
+    window.api = fx;
+  }
+
+  var SYS = '你是记忆整理器。给你一份「关于小咩」的记忆清单，你要把它精简、去重、合并，' +
+    '让它以后能被精确读取。\n\n规则：\n' +
+    '1. 一条只写一件事，主谓宾完整。不许用「她」「这个」「之前」这种指代，要写清是谁、什么时候、什么地点。\n' +
+    '2. 同一件事的多条合并成一条，保留最新、最具体的那版。\n' +
+    '3. 人名、地点、时间、数字、喜好、忌讳、身体状况、约定，必须原样保留，不许模糊成「有些」「经常」。\n' +
+    '4. 一次性的闲聊、当天的心情、已经过期的事，直接删掉。\n' +
+    '5. 保留 40 到 ' + KEEP + ' 条，最重要的放最前面。\n' +
+    '6. 只输出一个 JSON 数组，例如 ["小咩叫姚錦玲，也叫 Krystal","小咩住香港东涌"]。' +
+    '不要解释，不要加代码块标记，不要加编号。';
+
+  function parseList(raw){
+    var t = String(raw || '').trim();
+    t = t.replace(/^
+[a-z]*\s*/i, '').replace(/\s*$/, '').trim();
+    var out = [];
+    var m = t.match(/\[[\s\S]*\]/);
+    if (m){
+      try {
+        var a = JSON.parse(m[0]);
+        if (Array.isArray(a)) out = a.map(function(x){ return String(x).trim(); });
+      } catch(e){}
+    }
+    if (!out.length){
+      out = t.split('\n').map(function(x){
+        return x.replace(/^\s*[-·•\d.、)\]]+\s*/, '').replace(/^["']+|["',]+$/g, '').trim();
+      });
+    }
+    var seen = {};
+    return out.filter(function(x){
+      if (!x || x.length < 2 || x.length > 160) return false;
+      if (seen[x]) return false;
+      seen[x] = 1; return true;
+    }).slice(0, KEEP);
+  }
+
+  var busy = false;
+  async function tidy(silent){
+    if (busy) return;
+    var old = memArr();
+    if (old.length < 8){ S.memNew = 0; try { save(); } catch(e){} return; }
+    if (!S.key || !S.apiUrl || !S.apiKey){
+      if (!silent) toast('先去设置把中继和模型参数填好');
+      return;
+    }
+    busy = true;
+    if (!silent) toast('整理记忆…');
+
+    var rid = 'mem' + Date.now() + Math.random().toString(36).slice(2, 6);
+    var msgs = [
+      { role: 'system', content: SYS },
+      { role: 'user', content: old.map(function(x, i){ return (i + 1) + '. ' + x; }).join('\n') }
+    ];
+
+    try {
+      await rawApi('/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: rid, inboxId: S.inbox, messages: msgs,
+          settings: { mainApiUrl: S.apiUrl, mainApiKey: S.apiKey, mainApiModel: S.model,
+                      apiType: S.apiType || 'openai', temperature: 0.2 },
+          meta: { charName: '祁砚', charId: 'kai' }
+        })
+      });
+    } catch(e){
+      busy = false; if (!silent) toast('发不出去'); return;
+    }
+
+    var hit = null;
+    for (var i = 0; i < 24; i++){
+      await sleep(i ? 2000 : 600);
+      try {
+        var j = await rawApi('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
+        var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
+        if (f){
+          await rawApi('/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] }) }).catch(function(){});
+          hit = f; break;
+        }
+      } catch(e){}
+    }
+    busy = false;
+
+    if (!hit || !hit.content){ if (!silent) toast('整理失败，记忆没动'); return; }
+    var list = parseList(hit.content);
+    if (list.length < 4){ if (!silent) toast('整理结果太少，没敢替换'); return; }
+
+    ss('xm_mem_bak', { at: Date.now(), items: old });
+    setMem(list);
+    S.memNew = 0;
+    S.memLastAt = Date.now();
+    try { save(); } catch(e){}
+    if (!silent) toast('整理好了：' + old.length + ' → ' + list.length + ' 条');
+    if (document.getElementById('msgs')) renderChat(true);
+  }
+  window.memTidyNow = function(){ tidy(false); };
+
+  /* 每加一条就数一下 */
+  var _add = window.addMemAuto;
+  if (typeof _add === 'function' && !_add.__mem){
+    var fa = function(t){
+      var ok = _add.apply(this, arguments);
+      try {
+        if (ok){
+          S.memNew = (+S.memNew || 0) + 1;
+          save();
+          if (+S.memNew >= TRIG) setTimeout(function(){ tidy(true); }, 2000);
+        }
+      } catch(e){}
+      return ok;
+    };
+    fa.__mem = true;
+    window.addMemAuto = fa;
+  }
+
+  /* 设置里的卡片 */
+  setInterval(function(){
+    var b = document.getElementById('ovbody');
+    if (!b || b.querySelector('#xmMemCard')) return;
+    if (!/壁纸|暗度|中继/.test(b.textContent || '')) return;
+    var n = memArr().length;
+    var left = Math.max(0, TRIG - (+S.memNew || 0));
+    var bak = ls('xm_mem_bak', null);
+    var d = document.createElement('div');
+    d.id = 'xmMemCard';
+    d.className = 'card';
+    d.innerHTML =
+      '<div class="eyebrow">记忆整理</div>' +
+      '<div class="item"><span>现有记忆</span><em>' + n + ' 条</em></div>' +
+      '<div class="item"><span>再攒几条就整理</span><em>' + left + ' 条</em></div>' +
+      '<div class="item" id="xmMemNow"><span>现在就整理</span><em>›</em></div>' +
+      (bak && bak.items ? '<div class="item" id="xmMemBak"><span>恢复整理前</span><em>' +
+        bak.items.length + ' 条</em></div>' : '') +
+      '<div class="sub" style="margin:10px 0 0">每新记 30 条，自动把它们合并、去重、写得更具体。' +
+      '整理完旧的删掉，只留精简版，所以之后每条消息都便宜一点。</div>';
+    b.insertBefore(d, b.firstChild);
+    d.querySelector('#xmMemNow').onclick = function(){ tidy(false); };
+    var bk = d.querySelector('#xmMemBak');
+    if (bk) bk.onclick = function(){
+      var o = ls('xm_mem_bak', null);
+      if (!o || !o.items){ return; }
+      setMem(o.items);
+      try { save(); } catch(e){}
+      toast('回到整理前了');
+      d.remove();
+    };
+  }, 1200);
+})();
