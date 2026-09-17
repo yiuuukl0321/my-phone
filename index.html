@@ -931,7 +931,7 @@ const FRAGMENTS = [
 
 /* ---------- 应用 ---------- */
 const APPS = {
-  chat:   { cell:6,  n:'聊天',   v:vChat, full:true },
+  chat:   { cell:6,  n:'聊天', t:'祁砚', v:vChat, full:true },
   netease:{ cell:12, n:'网易云', href:'https://music.163.com/' },
   douyin: { cell:20, n:'抖音',   href:'https://www.douyin.com/' },
   ig:     { cell:21, n:'IG',     href:'https://www.instagram.com/' },
@@ -1265,7 +1265,8 @@ function openApp(k){
   const body = $('ovbody');
   body.className = app.full ? 'ovchat' : '';
   body.style.background = (k === 'chat' && S.chatBg) ? S.chatBg : '';
-  $('ovTitle').textContent = app.n;
+  $('ovTitle').textContent = app.t || app.n;
+
   const top = document.querySelector('#ov .ovtop');
   const old = top.querySelector('.ovact'); if (old) old.remove();
   if (k === 'chat'){
