@@ -950,16 +950,10 @@
       S.momOn = +S.momOn ? 0 : 1; try { save(); } catch(e){}
       this.classList.toggle('on', !!+S.momOn);
     };
-    if (q('meSetGap')){
-      var g = q('meSetGap');
-      g.oninput = function(){
-        S.momGap = Math.max(1, Math.min(72, parseInt(this.value, 10) || 8));
-        try { save(); } catch(e){}
-      };
-      g.onblur = function(){ this.value = (+S.momGap || 8); };
-      g.onkeydown = function(e){ if (e.key === 'Enter') this.blur(); };
-    }
-
+    if (q('meSetGap')) q('meSetGap').oninput = function(){
+      S.momGap = Math.max(1, Math.min(72, parseInt(this.value, 10) || 8));
+      try { save(); } catch(e){}
+    };
     if (q('meSetNow')) q('meSetNow').onclick = function(){
       if (typeof window.kaiPostNow === 'function') window.kaiPostNow();
       else toast('要贴第 28 块才能用');
