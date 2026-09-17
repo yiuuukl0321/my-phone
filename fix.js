@@ -1,5 +1,8 @@
 /* 咩&砚 · 补丁包
 
+/* 暗度归零 */
+if (+S.dim !== 0){ S.dim = 0; save(); }
+setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400);
 
 /* ===== 1. 壁纸修复（底部白边） ===== */
 (function(){
