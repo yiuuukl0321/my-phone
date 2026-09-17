@@ -729,7 +729,7 @@
     if (inp.parentNode) inp.parentNode.removeChild(inp);   // 保住输入框本身
     bar.innerHTML = '';
 
-    inp.placeholder = '愛してる';
+    inp.placeholder = '在想什么...';
     inp.setAttribute('autocapitalize', 'off');
     inp.setAttribute('autocorrect', 'off');
 
@@ -1222,7 +1222,7 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
     }
 
     var inp = bar.querySelector('#mIn');
-    if (inp && inp.placeholder !== '愛してる') inp.placeholder = '愛してる';
+    if (inp && inp.placeholder !== '在想什么...') inp.placeholder = '在想什么...';
   }
   fix();
   setInterval(fix, 700);
