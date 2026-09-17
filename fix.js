@@ -2282,3 +2282,77 @@ var st=document.createElement('style');
 
   try { if (document.getElementById('msgs')) decorate(); } catch(e){}
 })();
+
+/* ===== 21. 输入栏改造：贴/说/🔍 删掉，+ 当发送 ===== */
+(function(){
+  var WAVE = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
+    'stroke-width="1.8" stroke-linecap="round"><path d="M4 10.5v3"/><path d="M8 7.5v9"/>'+
+    '<path d="M12 5v14"/><path d="M16 8v8"/><path d="M20 10.5v3"/></svg>';
+  var PLUS = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
+    'stroke-width="1.9" stroke-linecap="round"><path d="M12 5.6v12.8"/><path d="M5.6 12h12.8"/></svg>';
+
+  var st = document.createElement('style');
+  st.textContent =
+    '.inputbar{gap:9px;padding:11px 13px calc(env(safe-area-inset-bottom) + 15px);'+
+      'background:transparent;border-top:0}'+
+    '.inputbar .ibField{flex:1;min-width:0;display:flex;align-items:center;gap:9px;'+
+      'background:#fff;border-radius:24px;padding:0 13px;height:46px}'+
+    '.inputbar .ibField .wave{color:#b9b9b5;display:flex;flex:0 0 auto}'+
+    '.inputbar .ibField input{flex:1;min-width:0;border:0;background:transparent;padding:0;'+
+      'font-size:16px;font-weight:200;letter-spacing:.02em;'+
+      'font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif}'+
+    '.inputbar .ibField input::placeholder{color:#c4c4c0;font-weight:200}'+
+    '.inputbar .ibField .ibPlus{border:0;background:transparent;color:#8f8f8b;padding:4px;'+
+      'display:flex;align-items:center}'+
+    '.inputbar button.send{width:46px;height:46px;min-width:46px;padding:0;border-radius:50%;'+
+      'background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:0}';
+  document.head.appendChild(st);
+
+  function build(){
+    var bar = document.querySelector('.inputbar');
+    if (!bar || bar.dataset.xm) return;
+    var inp = document.getElementById('mIn');
+    if (!inp) return;
+    bar.dataset.xm = '1';
+
+    if (inp.parentNode) inp.parentNode.removeChild(inp);   // 保住输入框本身
+    bar.innerHTML = '';
+
+    inp.placeholder = '愛してる';
+    inp.setAttribute('autocapitalize', 'off');
+    inp.setAttribute('autocorrect', 'off');
+
+    var field = document.createElement('div');
+    field.className = 'ibField';
+
+    var w = document.createElement('span');
+    w.className = 'wave';
+    w.innerHTML = WAVE;
+
+    var plus = document.createElement('button');
+    plus.type = 'button';
+    plus.className = 'ibPlus';
+    plus.innerHTML = PLUS;
+    plus.onclick = function(e){ e.preventDefault(); sendChat(); };
+
+    field.appendChild(w);
+    field.appendChild(inp);
+    field.appendChild(plus);
+
+    var send = document.createElement('button');
+    send.type = 'button';
+    send.className = 'send';
+    send.innerHTML = PLUS;
+    send.onclick = function(e){ e.preventDefault(); sendChat(); };
+
+    bar.appendChild(field);
+    bar.appendChild(send);
+
+    inp.addEventListener('keydown', function(e){
+      if (e.key === 'Enter'){ e.preventDefault(); sendChat(); }
+    });
+  }
+
+  build();
+  setInterval(build, 900);
+})();
