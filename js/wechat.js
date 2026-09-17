@@ -573,7 +573,11 @@
 
   var live = false, y0 = 0, dy = 0, busy = false, TH = 34;
   function body(){ return document.querySelector('#wx .wxBody'); }
-  function onMoments(){ return !!document.querySelector('#wx #wxBack'); }
+  function onMoments(){
+    return !!document.querySelector('#wx #wxBack') ||
+           !!document.querySelector('#wx .wxT.on[data-tab="me"]');
+  }
+
 
   document.addEventListener('touchstart', function(e){
     if (!onMoments() || busy) return;
@@ -606,7 +610,6 @@
       b.style.transform = 'translateY(56px)';
       setTimeout(function(){
         if (typeof window.wxRefresh === 'function') window.wxRefresh();
-        if (ft) ft.click();
         var nb = body();
         if (!nb || !nb.parentNode){ busy = false; return; }
         nb.parentNode.insertBefore(ind, nb);
