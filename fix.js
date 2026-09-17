@@ -3896,3 +3896,866 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
     };
   }, 1200);
 })();
+/* ===== 29. 朋友圈：下拉刷新 + 他评论/点赞了发通知 ===== */
+(function(){
+  function ls(k, d){ try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(d)); } catch(e){ return d; } }
+  function ME(){ return S.name || '小咩'; }
+  function others(a){ return (a || []).filter(function(x){ return x !== ME(); }); }
+
+  function note(title, body){
+    try {
+      if ('Notification' in window && Notification.permission === 'granted'){
+        navigator.serviceWorker.ready.then(function(r){
+          r.showNotification(title, { body: body, tag: 'kai-mom' });
+        }).catch(function(){});
+      }
+    } catch(e){}
+  }
+
+  var seen = {};
+  function snap(){
+    ls('xm_moments', []).forEach(function(m){
+      seen[String(m.t)] = {
+        c: (m.cms || []).filter(function(x){ return x.who !== ME(); }).length,
+        l: others(m.likes).length
+      };
+    });
+  }
+  snap();
+
+  setInterval(function(){
+    ls('xm_moments', []).forEach(function(m){
+      var k = String(m.t);
+      var cs = (m.cms || []).filter(function(x){ return x.who !== ME(); });
+      var cur = { c: cs.length, l: others(m.likes).length };
+      var old = seen[k];
+      seen[k] = cur;
+      if (!old) return;
+      if (cur.c > old.c){
+        var last = cs[cs.length - 1];
+        if (last) note('祁砚评论了你', last.text);
+      } else if (cur.l > old.l){
+        note('祁砚赞了你', String(m.text || '（图片）').slice(0, 30));
+      }
+    });
+  }, 4000);
+
+  /* ---------- 下拉刷新 ---------- */
+  var ind = document.createElement('div');
+  ind.style.cssText = 'position:absolute;left:0;right:0;top:0;height:56px;display:flex;'+
+    'align-items:center;justify-content:center;color:#9a9a96;font-size:12px;'+
+    'opacity:0;pointer-events:none;transition:opacity .15s';
+  ind.textContent = '下拉刷新';
+
+  var live = false, y0 = 0, dy = 0, busy = false, TH = 34;
+  function body(){ return document.querySelector('#wx .wxBody'); }
+  function onMoments(){ return !!document.querySelector('#wx #wxBack'); }
+
+  document.addEventListener('touchstart', function(e){
+    if (!onMoments() || busy) return;
+    var b = body(); if (!b || b.scrollTop > 2) return;
+    live = true; y0 = e.touches[0].clientY; dy = 0;
+    b.style.transition = 'none';
+    if (ind.parentNode !== b.parentNode) b.parentNode.insertBefore(ind, b);
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function(e){
+    if (!live) return;
+    var b = body(); if (!b) return;
+    var d = e.touches[0].clientY - y0;
+    if (d <= 0){ dy = 0; b.style.transform = ''; ind.style.opacity = '0'; return; }
+    e.preventDefault();
+    dy = Math.min(90, d * 0.55);
+    b.style.transform = 'translateY(' + dy + 'px)';
+    ind.style.opacity = Math.min(1, dy / 40);
+    ind.textContent = dy >= TH ? '松手刷新' : '下拉刷新';
+  }, { passive: false });
+
+  document.addEventListener('touchend', function(){
+    if (!live) return;
+    live = false;
+    var b = body(); if (!b) return;
+    b.style.transition = 'transform .2s ease-out';
+    if (dy >= TH){
+      busy = true;
+      ind.textContent = '刷新中…';
+      b.style.transform = 'translateY(56px)';
+      setTimeout(function(){
+        var back = document.querySelector('#wx #wxBack');
+        if (back) back.click();
+        var row = document.querySelector('#wx [data-go="moments"]');
+        if (row) row.click();
+        var nb = body();
+        if (!nb || !nb.parentNode){ busy = false; return; }
+        nb.parentNode.insertBefore(ind, nb);
+        ind.textContent = '好了';
+        ind.style.opacity = '1';
+        nb.style.transition = 'none';
+        nb.style.transform = 'translateY(56px)';
+        nb.getBoundingClientRect();
+        nb.style.transition = 'transform .24s ease-out';
+        nb.style.transform = '';
+        setTimeout(function(){
+          ind.style.opacity = '0';
+          nb.style.transition = '';
+          busy = false;
+        }, 560);
+      }, 420);
+    } else {
+      b.style.transform = ''; ind.style.opacity = '0';
+      setTimeout(function(){ b.style.transition = ''; }, 220);
+    }
+    dy = 0;
+  }, { passive: true });
+})();
+
+/* ===== 30. 「我」页面改版 + 清空我的朋友圈（留备份 + 分析） ===== */
+(function(){
+  if (S.sign === undefined){ S.sign = ''; try { save(); } catch(e){} }
+
+  var st = document.createElement('style');
+  st.textContent =
+    '#wx .meWrap{padding:30px 20px calc(env(safe-area-inset-bottom) + 30px);text-align:center}'+
+    '#wx .meAva{width:98px;height:98px;border-radius:50%;margin:0 auto;'+
+      'background:#e6e6e2 center/cover;border:1px solid rgba(0,0,0,.06);'+
+      'box-shadow:0 3px 14px rgba(0,0,0,.08)}'+
+    '#wx .meNameWrap{margin-top:18px}'+
+    '#wx .meName{display:inline-block;min-width:70px;font-size:17px;font-weight:500;'+
+      'letter-spacing:.03em;padding:0 12px 7px;border-bottom:1px solid rgba(0,0,0,.15);color:#0b0b0b}'+
+    '#wx .meSign{margin-top:30px;font-size:19px;font-weight:200;line-height:1.65;'+
+      'color:#5d5d59;padding:0 4px;min-height:32px;word-break:break-word}'+
+    '#wx .meSign.ph{color:#c4c4c0}'+
+    '#wx .meBtns{margin-top:46px;display:flex;flex-direction:column;gap:14px}'+
+    '#wx .meBtn{padding:20px;border-radius:18px;background:#fff;'+
+      'border:1px solid rgba(0,0,0,.09);font-size:16.5px;font-weight:300;'+
+      'letter-spacing:.08em;color:#0b0b0b;box-shadow:0 1px 5px rgba(0,0,0,.03)}'+
+    '#wx .meBtn:active{background:#f2f2f0;transform:scale(.985)}'+
+    '#wx .meEdit{font:inherit;font-weight:inherit;letter-spacing:inherit;color:inherit;'+
+      'text-align:center;border:0;background:transparent;outline:none;width:100%;'+
+      'border-bottom:1px solid rgba(0,0,0,.3);padding:0 12px 7px}'+
+    '#meSet{position:fixed;inset:0;z-index:19;background:#f4f4f2;display:none;flex-direction:column}'+
+    '#meSet.on{display:flex}'+
+    '#meSet .mtop{flex:0 0 auto;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;'+
+      'display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}'+
+    '#meSet .mtop b{font-size:16px;font-weight:600}'+
+    '#meSet .mback{width:34px;height:34px;display:grid;place-items:center;border-radius:50%}'+
+    '#meSet .mback:active{background:rgba(0,0,0,.06)}'+
+    '#meSet .mbody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;'+
+      'padding:18px 16px calc(env(safe-area-inset-bottom) + 20px)}';
+  document.head.appendChild(st);
+
+  function ls(k, d){ try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(d)); } catch(e){ return d; } }
+  function ss(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  function toast(t){
+    var el = document.createElement('div');
+    el.className = 'xmBar'; el.textContent = t; el.style.display = 'block';
+    document.body.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 2200);
+  }
+  function ago(t){
+    var s = (Date.now() - t) / 1000;
+    if (s < 60) return '刚刚';
+    if (s < 3600) return Math.floor(s / 60) + '分钟前';
+    if (s < 86400) return Math.floor(s / 3600) + '小时前';
+    return Math.floor(s / 86400) + '天前';
+  }
+  function partOfDay(){
+    var h = new Date().getHours();
+    if (h < 5) return '凌晨';
+    if (h < 11) return '早上';
+    if (h < 14) return '中午';
+    if (h < 18) return '下午';
+    if (h < 22) return '晚上';
+    return '深夜';
+  }
+
+  /* ---- 自己问一次模型 ---- */
+  async function rawApi(path, opts){
+    var r = await fetch((S.relay || '').replace(/\/+$/, '') + path, Object.assign({}, opts || {}, {
+      headers: Object.assign({ 'Authorization': 'Bearer ' + S.key }, (opts && opts.headers) || {})
+    }));
+    var t = await r.text();
+    try { return JSON.parse(t); } catch(e){ return t; }
+  }
+  async function ask(user, temp){
+    var sys = PERSONA;
+    if (typeof MEM !== 'undefined' && MEM.length){
+      sys += '\n\n【你记得关于她的事】\n' + MEM.slice(-40).map(function(x){ return '· ' + x; }).join('\n');
+    }
+    var msgs = [{ role: 'system', content: sys }];
+    if (typeof CHAT !== 'undefined' && CHAT.length){
+      CHAT.filter(function(m){ return !m.typing && m.text; }).slice(-16).forEach(function(m){
+        msgs.push({ role: m.role === 'user' ? 'user' : 'assistant',
+                    content: String(m.text).slice(0, 300) });
+      });
+    }
+    msgs.push({ role: 'user', content: user });
+
+    var rid = 'mom' + Date.now() + Math.random().toString(36).slice(2, 6);
+    await rawApi('/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestId: rid, inboxId: S.inbox, messages: msgs,
+        settings: { mainApiUrl: S.apiUrl, mainApiKey: S.apiKey, mainApiModel: S.model,
+                    apiType: S.apiType || 'openai', temperature: temp || 0.9 },
+        meta: { charName: '祁砚', charId: 'kai' }
+      })
+    });
+    for (var i = 0; i < 22; i++){
+      await sleep(i ? 2000 : 600);
+      try {
+        var j = await rawApi('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
+        var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
+        if (f){
+          await rawApi('/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] }) }).catch(function(){});
+          return String(f.content || '');
+        }
+      } catch(e){}
+    }
+    return '';
+  }
+
+  /* ---- 我 页面 ---- */
+  function meHtml(){
+    var ava = localStorage.getItem('xm_ava') || '';
+    var sign = String(S.sign || '').trim();
+    return '<div class="meWrap">' +
+      '<div class="meAva" id="meAva"' + (ava ? ' style="background-image:url(\'' + ava + '\')"' : '') + '></div>' +
+      '<div class="meNameWrap"><span class="meName" id="meName">' + esc(S.name || '小咩') + '</span></div>' +
+      '<div class="meSign' + (sign ? '' : ' ph') + '" id="meSign">' +
+        esc(sign || '点这里写点什么') + '</div>' +
+      '<div class="meBtns">' +
+        '<div class="meBtn" data-me="fav">收藏</div>' +
+        '<div class="meBtn" data-me="mom">朋友圈</div>' +
+        '<div class="meBtn" data-me="set">设置</div>' +
+      '</div></div>';
+  }
+
+  function edit(el, kind, max, done){
+    if (el.dataset.ed) return;
+    el.dataset.ed = '1';
+    var inp = document.createElement('input');
+    inp.className = 'meEdit';
+    inp.maxLength = max;
+    inp.value = kind === 'name' ? (S.name || '') : (S.sign || '');
+    if (kind === 'sign') inp.style.fontSize = '19px';
+    el.replaceWith(inp);
+    inp.focus();
+    try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch(e){}
+    var once = false;
+    function commit(){
+      if (once) return;
+      once = true;
+      var v = inp.value.trim();
+      if (kind === 'name'){ if (v) S.name = v; } else S.sign = v;
+      try { save(); } catch(e){}
+      done();
+    }
+    inp.onblur = commit;
+    inp.onkeydown = function(e){ if (e.key === 'Enter'){ e.preventDefault(); inp.blur(); } };
+  }
+
+  /* ---- 分析弹窗 ---- */
+  function showPop(text, canBak){
+    var old = document.getElementById('momPop'); if (old) old.remove();
+    var d = document.createElement('div');
+    d.id = 'momPop';
+    d.style.cssText = 'position:fixed;inset:0;z-index:140;background:rgba(0,0,0,.34);'+
+      'display:flex;align-items:center;justify-content:center;padding:26px';
+    d.innerHTML = '<div style="width:100%;max-width:340px;background:#f7f7f5;border-radius:22px;'+
+      'padding:22px 20px;box-shadow:0 20px 50px rgba(0,0,0,.28)">'+
+      '<div style="font-size:11px;letter-spacing:.18em;color:#9a9a96;margin-bottom:10px">祁砚</div>'+
+      '<div id="momPopTx" style="font-size:15px;line-height:1.75;color:#0b0b0b;'+
+      'white-space:pre-wrap;max-height:46vh;overflow-y:auto">' + esc(text) + '</div>'+
+      '<div style="display:flex;gap:10px;margin-top:20px">' +
+        (canBak ? '<button id="momPopBak" style="flex:1;border:1px solid rgba(0,0,0,.12);'+
+          'background:#fff;color:#0b0b0b;border-radius:16px;padding:12px;font-size:13.5px">恢复备份</button>' : '') +
+        '<button id="momPopOk" style="flex:1;border:0;background:#111;color:#fff;'+
+          'border-radius:16px;padding:12px;font-size:13.5px">知道了</button>'+
+      '</div></div>';
+    document.body.appendChild(d);
+    d.querySelector('#momPopOk').onclick = function(){ d.remove(); };
+    var bk = d.querySelector('#momPopBak');
+    if (bk) bk.onclick = function(){
+      var bak = ls('xm_moments_bak', null);
+      if (!bak || !bak.items || !bak.items.length){ toast('没有备份'); return; }
+      var all = ls('xm_moments', []);
+      bak.items.forEach(function(m){ all.push(m); });
+      all.sort(function(a, b){ return a.t - b.t; });
+      ss('xm_moments', all.slice(-60));
+      d.remove(); openSet(); repaint();
+      toast('备份回来了');
+    };
+  }
+
+  /* ---- 清空我的朋友圈 ---- */
+  async function clearMine(){
+    var all = ls('xm_moments', []);
+    var mine = all.filter(function(m){ return m.who === 'me'; });
+    if (!mine.length){ toast('你还没发过朋友圈'); return; }
+    if (!confirm('清掉你自己发的 ' + mine.length + ' 条朋友圈？\n他的会留着，你那份会存一份备份。')) return;
+
+    ss('xm_moments_bak', { at: Date.now(), items: mine });
+    ss('xm_moments', all.filter(function(m){ return m.who !== 'me'; }));
+    set.classList.remove('on');
+    repaint();
+
+    if (!S.key){ showPop('删掉了。备份留着，想拿回来点下面。', 1); return; }
+    showPop('…', 1);
+
+    var lines = mine.slice(-8).map(function(m, i){
+      return (i + 1) + '. 「' + String(m.text || '（图片）').slice(0, 50) + '」（' + ago(m.t) + '）';
+    }).join('\n');
+    var said = (typeof CHAT !== 'undefined' ? CHAT : [])
+      .filter(function(m){ return m.role === 'user' && m.text; }).slice(-8)
+      .map(function(m){ return '· ' + String(m.text).slice(0, 60); }).join('\n');
+
+    var raw = await ask('现在是 ' + partOfDay() + '。\n' +
+      '小咩刚刚把自己朋友圈里 ' + mine.length + ' 条动态全删了。删掉的是：\n' + lines + '\n\n' +
+      (said ? '她最近对你说过的话：\n' + said + '\n\n' : '') +
+      '写一段话，直接对她说。说说你觉得她为什么删。' +
+      '不要像心理咨询，不要列点，不要问「要不要聊聊」，不要说「我理解你」。' +
+      '60 字内，口语，不要 markdown，不要加引号。');
+    showPop(raw ? String(raw).trim() : '没连上中继，分析不了。备份还在。', 1);
+  }
+
+  /* ---- 我 的设置页 ---- */
+  var set = document.createElement('div');
+  set.id = 'meSet';
+  document.body.appendChild(set);
+
+  function setHtml(){
+    var mom = ls('xm_moments', []);
+    var bak = ls('xm_moments_bak', null);
+    var ava = localStorage.getItem('xm_ava') || '';
+    var cov = localStorage.getItem('xm_cover') || '';
+    return '<div class="mtop"><span class="mback" id="meBack">' +
+        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0b0b0b" ' +
+        'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M15 5l-7 7 7 7"/></svg></span><b>设置</b></div>' +
+      '<div class="mbody">' +
+      '<div class="card"><div class="eyebrow">我的资料</div>' +
+        '<div class="item" id="meSetAva"><span>头像</span><em>' +
+          '<i style="display:inline-block;width:34px;height:34px;border-radius:50%;' +
+          'background:#e6e6e2 center/cover' + (ava ? ';background-image:url(\'' + ava + '\')' : '') +
+          '"></i>›</em></div>' +
+        '<div class="item" id="meSetCov"><span>封面</span><em>' +
+          '<i style="display:inline-block;width:52px;height:34px;border-radius:8px;' +
+          'background:#e6e6e2 center/cover' + (cov ? ';background-image:url(\'' + cov + '\')' : '') +
+          '"></i>›</em></div>' +
+      '</div>' +
+      '<div class="card"><div class="eyebrow">朋友圈</div>' +
+        '<div class="item"><span>他自己发朋友圈</span><em><span class="sw ' + (+S.momOn ? 'on' : '') +
+          '" id="meSetMom"><i></i></span></em></div>' +
+        '<div class="item"><span>隔几小时发一条</span><em><input id="meSetGap" value="' +
+          (+S.momGap || 8) + '" style="width:44px;text-align:right;border:0;' +
+          'background:transparent;font-size:14px"></em></div>' +
+        '<div class="item" id="meSetNow"><span>让他现在发一条</span><em>›</em></div>' +
+        '<div class="item" id="meSetClr"><span style="color:#ff3b30">清空我的朋友圈</span><em>' +
+          (bak && bak.items ? bak.items.length + ' 条备份' : '') + '</em></div>' +
+      '</div>' +
+      '<div class="card"><div class="eyebrow">关于</div>' +
+        '<div class="item"><span>在一起</span><em>' + days() + ' 天</em></div>' +
+        '<div class="item"><span>朋友圈</span><em>' + mom.length + ' 条</em></div>' +
+        '<div class="item"><span>记住的事</span><em>' +
+          (typeof MEM !== 'undefined' ? MEM.length : 0) + ' 条</em></div>' +
+      '</div></div>';
+  }
+
+  var fAva = document.createElement('input');
+  fAva.type = 'file'; fAva.accept = 'image/*'; fAva.style.display = 'none';
+  document.body.appendChild(fAva);
+  var fCov = document.createElement('input');
+  fCov.type = 'file'; fCov.accept = 'image/*'; fCov.style.display = 'none';
+  document.body.appendChild(fCov);
+
+  function pick(file, mx, cb){
+    var fr = new FileReader();
+    fr.onload = function(){
+      var im = new Image();
+      im.onload = function(){
+        var s = Math.min(1, mx / im.naturalWidth, mx / im.naturalHeight);
+        var c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(im.naturalWidth * s));
+        c.height = Math.max(1, Math.round(im.naturalHeight * s));
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        cb(c.toDataURL('image/jpeg', .72));
+      };
+      im.onerror = function(){ cb(''); };
+      im.src = fr.result;
+    };
+    fr.onerror = function(){ cb(''); };
+    fr.readAsDataURL(file);
+  }
+  fAva.onchange = function(){
+    var f = fAva.files && fAva.files[0]; fAva.value = '';
+    if (!f) return;
+    pick(f, 320, function(u){
+      try { localStorage.setItem('xm_ava', u); } catch(e){ toast('图太大'); }
+      openSet(); repaint();
+    });
+  };
+  fCov.onchange = function(){
+    var f = fCov.files && fCov.files[0]; fCov.value = '';
+    if (!f) return;
+    pick(f, 1000, function(u){
+      try { localStorage.setItem('xm_cover', u); } catch(e){ toast('图太大'); }
+      openSet();
+    });
+  };
+
+  function openSet(){
+    set.innerHTML = setHtml();
+    set.classList.add('on');
+    bindSet();
+  }
+  function bindSet(){
+    var q = function(id){ return set.querySelector('#' + id); };
+    if (q('meBack')) q('meBack').onclick = function(){ set.classList.remove('on'); };
+    if (q('meSetAva')) q('meSetAva').onclick = function(){ fAva.click(); };
+    if (q('meSetCov')) q('meSetCov').onclick = function(){ fCov.click(); };
+    if (q('meSetMom')) q('meSetMom').onclick = function(){
+      S.momOn = +S.momOn ? 0 : 1; try { save(); } catch(e){}
+      this.classList.toggle('on', !!+S.momOn);
+    };
+    if (q('meSetGap')) q('meSetGap').oninput = function(){
+      S.momGap = Math.max(1, Math.min(72, parseInt(this.value, 10) || 8));
+      try { save(); } catch(e){}
+    };
+    if (q('meSetNow')) q('meSetNow').onclick = function(){
+      if (typeof window.kaiPostNow === 'function') window.kaiPostNow();
+      else toast('要贴第 28 块才能用');
+    };
+    if (q('meSetClr')) q('meSetClr').onclick = function(){ clearMine(); };
+  }
+
+  /* ---- 收藏 ---- */
+  function favSheet(){
+    var old = document.getElementById('meFav'); if (old) old.remove();
+    var list = ls('xm_favs', []);
+    var d = document.createElement('div');
+    d.id = 'meFav';
+    d.style.cssText = 'position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.3);'+
+      'display:flex;align-items:flex-end';
+    d.innerHTML = '<div style="width:100%;max-height:70vh;overflow-y:auto;background:#f4f4f2;'+
+      'border-radius:20px 20px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 18px)">'+
+      '<div style="font-size:15px;font-weight:600;margin-bottom:8px">收藏</div>'+
+      (list.length ? list.map(function(t, i){
+        return '<div class="item"><span data-fc="' + i + '">' + esc(t) + '</span>' +
+          '<em><b class="x" data-fd="' + i + '">×</b></em></div>';
+      }).join('') : '<div class="empty">还没有收藏。聊天里那条回复下面点星星，或者输入框里写好点「收藏」。</div>') +
+      '</div>';
+    d.onclick = function(e){
+      if (e.target === d){ d.remove(); return; }
+      var del = e.target.closest('[data-fd]');
+      if (del){
+        var a = ls('xm_favs', []);
+        a.splice(+del.dataset.fd, 1);
+        ss('xm_favs', a);
+        favSheet(); return;
+      }
+      var cp = e.target.closest('[data-fc]');
+      if (cp){
+        try { navigator.clipboard.writeText(cp.textContent); toast('复制好了'); }
+        catch(err){ toast('复制失败'); }
+      }
+    };
+    document.body.appendChild(d);
+  }
+
+  /* ---- 接管 我 页面 ---- */
+  function goMoments(){
+    var box = document.getElementById('wx');
+    if (!box) return;
+    var t = box.querySelector('[data-tab="find"]');
+    if (t) t.click();
+    var row = box.querySelector('[data-go="moments"]');
+    if (row) row.click();
+  }
+
+  function repaint(){
+    var box = document.getElementById('wx');
+    if (!box || !box.classList.contains('on')) return;
+    var on = box.querySelector('.wxT.on');
+    if (!on || on.dataset.tab !== 'me') return;
+    var b = box.querySelector('.wxBody');
+    if (!b || b.dataset.me === '1') return;
+    b.dataset.me = '1';
+    b.innerHTML = meHtml();
+    var q = function(id){ return b.querySelector('#' + id); };
+    if (q('meAva')) q('meAva').onclick = function(){ fAva.click(); };
+    if (q('meName')) q('meName').onclick = function(){ edit(this, 'name', 12, repaint); };
+    if (q('meSign')) q('meSign').onclick = function(){ edit(this, 'sign', 40, repaint); };
+    b.querySelectorAll('[data-me]').forEach(function(el){
+      el.onclick = function(){
+        var a = el.dataset.me;
+        if (a === 'fav') favSheet();
+        else if (a === 'mom') goMoments();
+        else openSet();
+      };
+    });
+  }
+
+  var last = 0;
+  new MutationObserver(function(){
+    var now = Date.now();
+    if (now - last < 250) return;
+    last = now;
+    repaint();
+  }).observe(document.body, { childList: true, subtree: true });
+  setInterval(repaint, 800);
+})();
+
+
+/* ===== 31. 回复下面的星标 = 收藏 ===== */
+(function(){
+  var STAR = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
+    'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+
+    '<path d="M12 3.6l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.8l5.9-.8z"/></svg>';
+
+  var st = document.createElement('style');
+  st.textContent = '#msgs .acts button.favBtn.on{color:#e0a63a}';
+  document.head.appendChild(st);
+
+  function favs(){ try { return JSON.parse(localStorage.getItem('xm_favs') || '[]'); } catch(e){ return []; } }
+  function saveFavs(a){ try { localStorage.setItem('xm_favs', JSON.stringify(a.slice(0, 100))); } catch(e){} }
+  function toast(t){
+    var d = document.createElement('div');
+    d.className = 'xmBar'; d.textContent = t; d.style.display = 'block';
+    document.body.appendChild(d);
+    setTimeout(function(){ d.remove(); }, 2000);
+  }
+
+  function add(){
+    var rows = document.querySelectorAll('#msgs .acts');
+    Array.prototype.forEach.call(rows, function(row){
+      if (row.querySelector('.favBtn')) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'favBtn';
+      b.innerHTML = STAR;
+      b.onclick = function(ev){
+        ev.stopPropagation();
+        var w = row.previousElementSibling;
+        var bub = w && w.querySelector ? w.querySelector('.bub.kai') : null;
+        var t = bub ? bub.textContent.trim() : '';
+        if (!t) return;
+        var a = favs();
+        if (a.indexOf(t) > -1){ toast('已经在收藏里了'); }
+        else { a.unshift(t); saveFavs(a); toast('收藏了'); }
+        b.classList.add('on');
+      };
+      row.appendChild(b);
+    });
+  }
+
+  setInterval(add, 700);
+  add();
+})();
+/* ===== 32. token 统计 ===== */
+(function(){
+  var K = 'xm_tok';
+  function blank(){ return { total:0, inp:0, out:0, n:0, by:{}, since:Date.now() }; }
+  function load(){
+    try {
+      var o = JSON.parse(localStorage.getItem(K) || 'null');
+      if (!o || typeof o.total !== 'number') return blank();
+      o.by = o.by || {};
+      return o;
+    } catch(e){ return blank(); }
+  }
+  function saveTok(t){ try { localStorage.setItem(K, JSON.stringify(t)); } catch(e){} }
+  function fmt(n){
+    n = Math.round(+n || 0);
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function est(s){
+    var t = String(s || ''), cjk = 0, o = 0;
+    for (var i = 0; i < t.length; i++){
+      var ch = t[i];
+      if (/[\u3400-\u9fff\uf900-\ufaff\u3000-\u303f\uff00-\uffef]/.test(ch)) cjk++;
+      else o++;
+    }
+    return Math.round(cjk + o / 4);
+  }
+  function kindOf(rid){
+    var s = String(rid || '');
+    if (/^pro/.test(s)) return '主动消息';
+    if (/^mom/.test(s)) return '朋友圈';
+    if (/^tr/.test(s))  return '翻译';
+    if (/^r2/.test(s))  return '计算';
+    if (/^rv/.test(s))  return '重试';
+    if (/^r/.test(s))   return '聊天';
+    return '其他';
+  }
+
+  var pend = {};
+  function bump(rid, inp, out){
+    var T = load();
+    T.total += inp + out;
+    T.inp += inp; T.out += out; T.n += 1;
+    var k = kindOf(rid);
+    T.by[k] = (T.by[k] || 0) + inp + out;
+    saveTok(T);
+  }
+
+  var _f = window.fetch;
+  window.fetch = function(url, opts){
+    try {
+      if (typeof url === 'string' && url.indexOf('/generate') > -1 && opts && opts.body){
+        var b = JSON.parse(opts.body);
+        if (b && b.requestId) pend[b.requestId] = est(JSON.stringify(b.messages || []));
+      }
+    } catch(e){}
+    var p = _f.apply(this, arguments);
+    try {
+      if (typeof url === 'string' && url.indexOf('/outbox') > -1 && p && p.then){
+        return p.then(function(r){
+          try {
+            r.clone().json().then(function(j){
+              ((j && j.items) || []).forEach(function(it){
+                if (!it || !it.requestId) return;
+                var rid = String(it.requestId);
+                var u = it.usage || it.tokens_used || {};
+                var got = +((u && (u.total_tokens || u.totalTokens)) || it.tokens || 0);
+                var inp = pend[rid] || 0;
+                delete pend[rid];
+                var out = got > inp ? (got - inp) : est(it.content || '');
+                bump(rid, inp, out);
+              });
+            }).catch(function(){});
+          } catch(e){}
+          return r;
+        });
+      }
+    } catch(e){}
+    return p;
+  };
+
+  setInterval(function(){
+    var b = document.getElementById('ovbody');
+    if (!b || b.querySelector('#xmTokCard')) return;
+    if (!/壁纸|暗度|中继/.test(b.textContent || '')) return;
+    var T = load();
+    var rows = Object.keys(T.by).sort(function(a, c){ return T.by[c] - T.by[a]; })
+      .map(function(k){
+        return '<div class="item"><span>' + esc(k) + '</span><em>' + fmt(T.by[k]) + '</em></div>';
+      }).join('') || '<div class="empty">还没有消耗。</div>';
+    var d = document.createElement('div');
+    d.id = 'xmTokCard';
+    d.className = 'card';
+    d.innerHTML =
+      '<div class="eyebrow">TOKENS</div>' +
+      '<div class="item"><span>总计</span><em>≈' + fmt(T.total) + '</em></div>' +
+      '<div class="item"><span>输入 / 输出</span><em>' + fmt(T.inp) + ' / ' + fmt(T.out) + '</em></div>' +
+      '<div class="item"><span>调用次数</span><em>' + (T.n || 0) + ' 次</em></div>' +
+      rows +
+      '<div class="item" id="xmTokClr"><span style="color:#ff3b30">清零</span><em></em></div>' +
+      '<div class="sub" style="margin:10px 0 0">只统计真正过模型的调用。收藏、点赞、换头像、下拉刷新这些不花 token。' +
+      '中继有报用量就用它报的，没报就按字数估，所以是「≈」。</div>';
+    b.insertBefore(d, b.firstChild);
+    d.querySelector('#xmTokClr').onclick = function(){
+      if (!confirm('把统计清零？')) return;
+      saveTok(blank());
+      d.remove();
+    };
+  }, 1200);
+})();
+
+/* ===== 33. 记忆整理：每加 30 条自动合并精简 ===== */
+(function(){
+  if (S.memNew === undefined){ S.memNew = 0; S.memLastAt = 0; try { save(); } catch(e){} }
+
+  var TRIG = 30, KEEP = 60;
+
+  function ls(k, d){ try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(d)); } catch(e){ return d; } }
+  function ss(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  function toast(t){
+    var el = document.createElement('div');
+    el.className = 'xmBar'; el.textContent = t; el.style.display = 'block';
+    document.body.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 2400);
+  }
+  function memArr(){
+    try { return (typeof MEM !== 'undefined' && Array.isArray(MEM)) ? MEM : []; }
+    catch(e){ return []; }
+  }
+  function setMem(a){
+    try { MEM = a; saveMem(); } catch(e){}
+  }
+
+  async function rawApi(path, opts){
+    var r = await fetch((S.relay || '').replace(/\/+$/, '') + path, Object.assign({}, opts || {}, {
+      headers: Object.assign({ 'Authorization': 'Bearer ' + S.key }, (opts && opts.headers) || {})
+    }));
+    var t = await r.text();
+    try { return JSON.parse(t); } catch(e){ return t; }
+  }
+
+  /* 别让整理的结果被聊天拉走 */
+  var _api = window.api;
+  if (typeof _api === 'function' && !_api.__mem){
+    var fx = function(path, opts){
+      var p = _api.apply(this, arguments);
+      if (String(path).indexOf('/outbox') > -1 && p && p.then){
+        return p.then(function(j){
+          if (j && Array.isArray(j.items)){
+            j.items = j.items.filter(function(x){ return !/^mem/i.test(String(x.requestId || '')); });
+          }
+          return j;
+        });
+      }
+      return p;
+    };
+    fx.__mem = true;
+    window.api = fx;
+  }
+
+  var SYS = '你是记忆整理器。给你一份「关于小咩」的记忆清单，你要把它精简、去重、合并，' +
+    '让它以后能被精确读取。\n\n规则：\n' +
+    '1. 一条只写一件事，主谓宾完整。不许用「她」「这个」「之前」这种指代，要写清是谁、什么时候、什么地点。\n' +
+    '2. 同一件事的多条合并成一条，保留最新、最具体的那版。\n' +
+    '3. 人名、地点、时间、数字、喜好、忌讳、身体状况、约定，必须原样保留，不许模糊成「有些」「经常」。\n' +
+    '4. 一次性的闲聊、当天的心情、已经过期的事，直接删掉。\n' +
+    '5. 保留 40 到 ' + KEEP + ' 条，最重要的放最前面。\n' +
+    '6. 只输出一个 JSON 数组，例如 ["小咩叫姚錦玲，也叫 Krystal","小咩住香港东涌"]。' +
+    '不要解释，不要加代码块标记，不要加编号。';
+
+  function parseList(raw){
+    var t = String(raw || '').trim();
+    t = t.replace(/^
+[a-z]*\s*/i, '').replace(/\s*$/, '').trim();
+    var out = [];
+    var m = t.match(/\[[\s\S]*\]/);
+    if (m){
+      try {
+        var a = JSON.parse(m[0]);
+        if (Array.isArray(a)) out = a.map(function(x){ return String(x).trim(); });
+      } catch(e){}
+    }
+    if (!out.length){
+      out = t.split('\n').map(function(x){
+        return x.replace(/^\s*[-·•\d.、)\]]+\s*/, '').replace(/^["']+|["',]+$/g, '').trim();
+      });
+    }
+    var seen = {};
+    return out.filter(function(x){
+      if (!x || x.length < 2 || x.length > 160) return false;
+      if (seen[x]) return false;
+      seen[x] = 1; return true;
+    }).slice(0, KEEP);
+  }
+
+  var busy = false;
+  async function tidy(silent){
+    if (busy) return;
+    var old = memArr();
+    if (old.length < 8){ S.memNew = 0; try { save(); } catch(e){} return; }
+    if (!S.key || !S.apiUrl || !S.apiKey){
+      if (!silent) toast('先去设置把中继和模型参数填好');
+      return;
+    }
+    busy = true;
+    if (!silent) toast('整理记忆…');
+
+    var rid = 'mem' + Date.now() + Math.random().toString(36).slice(2, 6);
+    var msgs = [
+      { role: 'system', content: SYS },
+      { role: 'user', content: old.map(function(x, i){ return (i + 1) + '. ' + x; }).join('\n') }
+    ];
+
+    try {
+      await rawApi('/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: rid, inboxId: S.inbox, messages: msgs,
+          settings: { mainApiUrl: S.apiUrl, mainApiKey: S.apiKey, mainApiModel: S.model,
+                      apiType: S.apiType || 'openai', temperature: 0.2 },
+          meta: { charName: '祁砚', charId: 'kai' }
+        })
+      });
+    } catch(e){
+      busy = false; if (!silent) toast('发不出去'); return;
+    }
+
+    var hit = null;
+    for (var i = 0; i < 24; i++){
+      await sleep(i ? 2000 : 600);
+      try {
+        var j = await rawApi('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
+        var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
+        if (f){
+          await rawApi('/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] }) }).catch(function(){});
+          hit = f; break;
+        }
+      } catch(e){}
+    }
+    busy = false;
+
+    if (!hit || !hit.content){ if (!silent) toast('整理失败，记忆没动'); return; }
+    var list = parseList(hit.content);
+    if (list.length < 4){ if (!silent) toast('整理结果太少，没敢替换'); return; }
+
+    ss('xm_mem_bak', { at: Date.now(), items: old });
+    setMem(list);
+    S.memNew = 0;
+    S.memLastAt = Date.now();
+    try { save(); } catch(e){}
+    if (!silent) toast('整理好了：' + old.length + ' → ' + list.length + ' 条');
+    if (document.getElementById('msgs')) renderChat(true);
+  }
+  window.memTidyNow = function(){ tidy(false); };
+
+  /* 每加一条就数一下 */
+  var _add = window.addMemAuto;
+  if (typeof _add === 'function' && !_add.__mem){
+    var fa = function(t){
+      var ok = _add.apply(this, arguments);
+      try {
+        if (ok){
+          S.memNew = (+S.memNew || 0) + 1;
+          save();
+          if (+S.memNew >= TRIG) setTimeout(function(){ tidy(true); }, 2000);
+        }
+      } catch(e){}
+      return ok;
+    };
+    fa.__mem = true;
+    window.addMemAuto = fa;
+  }
+
+  /* 设置里的卡片 */
+  setInterval(function(){
+    var b = document.getElementById('ovbody');
+    if (!b || b.querySelector('#xmMemCard')) return;
+    if (!/壁纸|暗度|中继/.test(b.textContent || '')) return;
+    var n = memArr().length;
+    var left = Math.max(0, TRIG - (+S.memNew || 0));
+    var bak = ls('xm_mem_bak', null);
+    var d = document.createElement('div');
+    d.id = 'xmMemCard';
+    d.className = 'card';
+    d.innerHTML =
+      '<div class="eyebrow">记忆整理</div>' +
+      '<div class="item"><span>现有记忆</span><em>' + n + ' 条</em></div>' +
+      '<div class="item"><span>再攒几条就整理</span><em>' + left + ' 条</em></div>' +
+      '<div class="item" id="xmMemNow"><span>现在就整理</span><em>›</em></div>' +
+      (bak && bak.items ? '<div class="item" id="xmMemBak"><span>恢复整理前</span><em>' +
+        bak.items.length + ' 条</em></div>' : '') +
+      '<div class="sub" style="margin:10px 0 0">每新记 30 条，自动把它们合并、去重、写得更具体。' +
+      '整理完旧的删掉，只留精简版，所以之后每条消息都便宜一点。</div>';
+    b.insertBefore(d, b.firstChild);
+    d.querySelector('#xmMemNow').onclick = function(){ tidy(false); };
+    var bk = d.querySelector('#xmMemBak');
+    if (bk) bk.onclick = function(){
+      var o = ls('xm_mem_bak', null);
+      if (!o || !o.items){ return; }
+      setMem(o.items);
+      try { save(); } catch(e){}
+      toast('回到整理前了');
+      d.remove();
+    };
+  }, 1200);
+})();
