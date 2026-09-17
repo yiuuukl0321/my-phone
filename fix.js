@@ -3534,3 +3534,72 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
     };
   }, 1200);
 })();
+
+/* ===== 27. 回到底部按钮（不在底部时才出现） ===== */
+(function(){
+  var DOWN = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
+    'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">'+
+    '<path d="M7 7.8 12 12.8l5-5"/><path d="M7 13.6 12 18.6l5-5"/></svg>';
+
+  var st = document.createElement('style');
+  st.textContent = '#ovbody{position:relative}'+
+    '#xmDown:active{transform:scale(.9)!important}';
+  document.head.appendChild(st);
+
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'xmDown';
+  btn.innerHTML = DOWN;
+  btn.style.cssText =
+    'position:absolute;right:16px;width:38px;height:38px;padding:0;border:0;border-radius:50%;'+
+    'background:rgba(0,0,0,.42);color:#fff;display:flex;align-items:center;justify-content:center;'+
+    'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);'+
+    'box-shadow:0 4px 16px rgba(0,0,0,.18);z-index:12;'+
+    'opacity:0;transform:scale(.7);pointer-events:none;transition:opacity .18s,transform .18s';
+
+  function box(){ return document.getElementById('msgs'); }
+  function atBottom(){
+    var b = box();
+    if (!b) return true;
+    return b.scrollHeight - b.scrollTop - b.clientHeight < 90;
+  }
+  function place(){
+    var bar = document.querySelector('.inputbar');
+    var panel = document.querySelector('.xmPanel');
+    var h = (bar ? bar.offsetHeight : 62) +
+            (panel && panel.classList.contains('on') ? panel.offsetHeight : 0);
+    btn.style.bottom = (h + 14) + 'px';
+  }
+  function sync(){
+    var b = box(), ob = document.getElementById('ovbody');
+    if (!b || !ob || !ob.classList.contains('ovchat')) return;
+    if (btn.parentNode !== ob) ob.appendChild(btn);
+    place();
+    var show = !atBottom();
+    btn.style.opacity = show ? '1' : '0';
+    btn.style.transform = show ? 'scale(1)' : 'scale(.7)';
+    btn.style.pointerEvents = show ? 'auto' : 'none';
+  }
+
+  btn.onclick = function(e){
+    e.preventDefault(); e.stopPropagation();
+    var b = box();
+    if (b) b.scrollTo({ top: b.scrollHeight, behavior: 'smooth' });
+  };
+
+  var _rc = window.renderChat;
+  if (typeof _rc === 'function' && !_rc.__dn){
+    var fr = function(){
+      var r = _rc.apply(this, arguments);
+      try { sync(); } catch(e){}
+      return r;
+    };
+    fr.__dn = true;
+    window.renderChat = fr;
+  }
+
+  document.addEventListener('scroll', function(e){
+    if (e.target && e.target.id === 'msgs') sync();
+  }, true);
+  setInterval(sync, 900);
+})();
