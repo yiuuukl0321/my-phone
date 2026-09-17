@@ -474,7 +474,7 @@ function openDrawerAlarm(){ openApp('drawer'); drawerGo('alarm'); }
 function buildMessages(){
   const hist = CHAT.filter(m => !m.typing).slice(-12)
     .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
-  let sys = PERSONA;
+  let sys = PERSONA + '\n\n【小咩的朋友圈】这是你们真实发生过的事，不是新消息：\n' + momentsCtx();
   if (MEM.length){
     sys += '\n\n【已经记住的事】这些你已经知道，别当新消息，也别再问一遍：\n'
          + MEM.map(m => '· ' + m).join('\n');
