@@ -301,10 +301,6 @@
   }).observe(document.body, { childList: true, subtree: true });
 })();
 
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
-
-self.addEventListener('push', e => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch (err) {
     try { d = { body: e.data.text() }; } catch (e2) {}
