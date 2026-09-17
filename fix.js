@@ -1772,6 +1772,7 @@ var st=document.createElement('style');
   },true);
 })();
 
+
 /* ===== 10 让聊天能看到日历里的事项 ===== */
 (function(){
   function data(){
@@ -1823,4 +1824,32 @@ var st=document.createElement('style');
   }
   if (!wrap()){ var n = 0, t = setInterval(function(){ if (wrap() || ++n > 40) clearInterval(t); }, 300); }
   setInterval(wrap, 2000);
+})();
+
+/* ===== 11. 周六日淡枣红（大日历 + 桌面日期块） ===== */
+(function(){
+  var WK = '#B87C7C';
+
+  var st = document.createElement('style');
+  st.textContent =
+    // 大日历：第 1 列是周日、第 7 列是周六
+    '#calWrap .mRow .cell:nth-child(1) .n,'+
+    '#calWrap .mRow .cell:nth-child(7) .n{color:'+WK+' !important}'+
+    // 今天那颗圆点还是白字，不能被盖掉
+    '#calWrap .mRow .cell.tod .n{color:#fff !important}'+
+    // 表头「日」「六」一起染
+    '#calWrap .wkHead span:nth-child(1),'+
+    '#calWrap .wkHead span:nth-child(7){color:'+WK+' !important}'+
+    // 桌面那个大日期块：周六日整块跟着变
+    '.wid.we .wdt{color:'+WK+' !important}';
+  document.head.appendChild(st);
+
+  function sync(){
+    var w = document.querySelector('.wid');
+    if (!w) return;
+    var g = new Date().getDay();
+    w.classList.toggle('we', g === 0 || g === 6);
+  }
+  sync();
+  setInterval(sync, 800);
 })();
