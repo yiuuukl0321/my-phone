@@ -1314,13 +1314,8 @@
       '<div class="eyebrow">朋友圈</div>' +
       '<div class="item"><span>他自己发朋友圈</span><em><span class="sw ' + (+S.momOn ? 'on' : '') +
         '" id="xmMomSw"><i></i></span></em></div>' +
-        '<div class="item"><span>隔几小时发一条</span><em><input id="meSetGap" ' +
-          'type="number" inputmode="numeric" min="1" max="72" value="' + (+S.momGap || 8) +
-          '" onclick="event.stopPropagation()" ' +
-          'style="width:48px;text-align:right;border:0;background:transparent;' +
-          'font-size:14px;font-family:inherit;color:inherit;' +
-          'pointer-events:auto;-webkit-user-select:text;user-select:text"></em></div>' +
-
+      '<div class="item"><span>隔几小时发一条</span><em><input id="xmMomGap" value="' + (+S.momGap || 8) +
+        '" style="width:44px;text-align:right;border:0;background:transparent;font-size:14px"></em></div>' +
       '<div class="item" id="xmMomNow"><span>让他现在发一条</span><em>点一下</em></div>' +
       '<div class="sub" style="margin:10px 0 0">打开后他会在 8 点到 22 点之间自己发，隔多久由上面那个数决定。' +
       '他会先看你最近两条朋友圈，再决定是接着你说还是写自己的事。' +
