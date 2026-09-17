@@ -3119,7 +3119,7 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
 
   function render(){
     var title = SUB === 'moments' ? '朋友圈'
-      : TAB === 'wx' ? '微信' : TAB === 'book' ? '通讯录' : TAB === 'find' ? '发现' : '我';
+      : TAB === 'wx' ? '聊天' : TAB === 'book' ? '通讯录' : TAB === 'find' ? '朋友圈' : '我';
     var bd = SUB === 'moments' ? momentsPage()
       : TAB === 'wx' ? chatList() : TAB === 'book' ? bookList()
       : TAB === 'find' ? findList() : mePage();
@@ -3128,7 +3128,7 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
         title + (SUB === 'moments' ? '<span class="wxPlus" id="wxNew">' + IC.plus + '</span>' : '') + '</div>' +
       '<div class="wxBody">' + bd + '</div>' +
       (SUB ? '' : '<div class="wxTabs">' +
-        [['wx', IC.chat, '微信'], ['book', IC.book, '通讯录'],
+        [['wx', IC.chat, '聊天'], ['book', IC.book, '通讯录'],
          ['find', IC.find, '发现'], ['me', IC.me, '我']].map(function(t){
           return '<div class="wxT' + (TAB === t[0] ? ' on' : '') + '" data-tab="' + t[0] + '">' +
             t[1] + '<span>' + t[2] + '</span></div>';
