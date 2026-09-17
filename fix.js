@@ -14,12 +14,18 @@
   var db = document.getElementById('dbg');
   if (db) db.remove();
   function tall(){ return Math.max(innerHeight, screen.height, document.documentElement.clientHeight); }
-  function paint(){
+  var lastW = '';
+
+   function paint(){
     if (typeof S === 'undefined' || typeof WALL_DEFAULT === 'undefined') return;
     var w = String(S.wall || '').trim() || WALL_DEFAULT;
     w = w.replace(/'/g, '');
     var dim = Math.max(0, Math.min(.6, +S.dim || 0));
     var de = document.documentElement;
+    var key = w + '|' + dim;
+    if (key === lastW) return;
+    lastW = key;
+
     de.style.setProperty('height', tall() + 'px', 'important');
     de.style.setProperty('background-image',
       'linear-gradient(rgba(0,0,0,.34),rgba(0,0,0,0) 130px),' +
