@@ -1316,24 +1316,3 @@
 })();
 
 
-/* ===== 发现＝朋友圈：点开直接进，不留中间那层 ===== */
-(function(){
-  // 点「发现」→ 原 handler 先渲染出那层列表 → 这里马上再点进朋友圈
-  document.addEventListener('click', function(e){
-    var el = e.target && e.target.closest ? e.target.closest('#wx .wxT[data-tab="find"]') : null;
-    if (!el) return;
-    var row = document.querySelector('#wx [data-go="moments"]');
-    if (row) row.click();
-  }, false);
-
-  // 朋友圈左上角 ‹ → 直接回聊天
-  // （下拉刷新自己点的合成点击不管，不然刷新会跳到聊天页）
-  document.addEventListener('click', function(e){
-    var b = e.target && e.target.closest ? e.target.closest('#wx .wxTop .wxBack') : null;
-    if (!b || !e.isTrusted) return;
-    setTimeout(function(){
-      var t = document.querySelector('#wx .wxT[data-tab="wx"]');
-      if (t) t.click();
-    }, 0);
-  }, false);
-})();
