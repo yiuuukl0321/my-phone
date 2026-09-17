@@ -1417,7 +1417,7 @@ function refreshBlockUI(){
     bar.style.display = on ? 'block' : 'none';
     bar.textContent = on ? `已被拉黑 · ${left} 秒后自动解除` : '';
   }
-  if (inp){ inp.disabled = on; inp.placeholder = on ? '已被拉黑' : '说点什么'; }
+  if (inp){ inp.disabled = on; inp.placeholder = on ? '已被拉黑' : '在想什么...'; }
   if (btn) btn.disabled = on;
 }
 function startBlockWatch(){
@@ -1452,7 +1452,7 @@ function vChat(){
   return `<div id="msgs"></div>
     <div class="blockbar" id="blockBar"></div>
     <div class="inputbar">
-      <input id="mIn" placeholder="说点什么" onkeydown="if(event.key==='Enter')sendChat()">
+      <input id="mIn" placeholder="在想什么..." onkeydown="if(event.key==='Enter')sendChat()">
       <button class="ib" id="micBtn" onclick="toggleMic()">说</button>
       <button class="ib" onclick="pasteClip()">贴</button>
       <button onclick="sendChat()">Send</button>
