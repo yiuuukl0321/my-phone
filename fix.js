@@ -1521,3 +1521,22 @@ self.addEventListener('notificationclick', e => {
   setTimeout(fix,300);setTimeout(fix,1200);setInterval(fix,3000);
 })();
 
+
+(function(){
+  var hk=null;
+  function go(){var b=document.getElementById('msgs');if(b)b.scrollTop=b.scrollHeight;}
+  function go2(){go();setTimeout(go,120);setTimeout(go,400);setTimeout(go,900);}
+  function hook(){
+    var b=document.getElementById('msgs');
+    if(!b||b===hk)return;
+    hk=b;
+    new MutationObserver(function(){setTimeout(go,60);}).observe(b,{childList:true,subtree:true});
+    go2();
+  }
+  setInterval(hook,800);
+  document.addEventListener('click',function(e){
+    var t=(e.target.textContent||'').trim();
+    if(t==='Send'||t==='聊天')setTimeout(go2,60);
+  },true);
+  document.addEventListener('focusin',function(){setTimeout(go,350);});
+})();
