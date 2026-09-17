@@ -2352,7 +2352,7 @@ var st=document.createElement('style');
   setInterval(build, 900);
 })();
 
-/* ===== 22. 聊天 + 面板：图片 / 拍摄 / 收藏 / 位置，照片真的送进模型 ===== */
+/* ===== /* ===== 22. 聊天 + 面板：图片 / 拍摄 / 收藏 / 位置（照片真送进模型） ===== */
 (function(){
   if (S.vision === undefined){ S.vision = 1; try { save(); } catch(e){} }
 
@@ -2378,23 +2378,43 @@ var st=document.createElement('style');
     '.xmItem:active .box{transform:scale(.93)}'+
     '.xmBar{position:fixed;left:50%;bottom:130px;transform:translateX(-50%);z-index:95;'+
       'background:rgba(0,0,0,.82);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:14px;'+
-      'max-width:82vw;text-align:center;display:none}';
+      'max-width:82vw;text-align:center;display:none}'+
+    'img.xmPic{display:block;max-width:190px;max-height:250px;border-radius:13px;cursor:zoom-in}';
   document.head.appendChild(st);
 
   var tEl = null, tTimer = 0;
   function toast(t){
     if (!tEl){ tEl = document.createElement('div'); tEl.className = 'xmBar'; document.body.appendChild(tEl); }
-    tEl.textContent = t;
-    tEl.style.display = 'block';
+    tEl.textContent = t; tEl.style.display = 'block';
     clearTimeout(tTimer);
     tTimer = setTimeout(function(){ tEl.style.display = 'none'; }, 2400);
   }
   function closePanel(){ var p = document.querySelector('.xmPanel'); if (p) p.classList.remove('on'); }
-  function trimPics(){
-    var n = 0;
-    for (var i = CHAT.length - 1; i >= 0; i--){
-      if (CHAT[i] && CHAT[i].img && ++n > 6) delete CHAT[i].img;
-    }
+
+  /* ---- 附件库：IndexedDB，不占 localStorage ---- */
+  var DB = null, IMGC = {};
+  function idb(){
+    return new Promise(function(res, rej){
+      if (DB) return res(DB);
+      var r = indexedDB.open('xmimg', 1);
+      r.onupgradeneeded = function(){ r.result.createObjectStore('img'); };
+      r.onsuccess = function(){ DB = r.result; res(DB); };
+      r.onerror = function(){ rej(r.error); };
+    });
+  }
+  function idbPut(k, v){
+    return idb().then(function(d){ return new Promise(function(res){
+      var t = d.transaction('img', 'readwrite');
+      t.objectStore('img').put(v, k);
+      t.oncomplete = res; t.onerror = res;
+    }); }).catch(function(){});
+  }
+  function idbGet(k){
+    return idb().then(function(d){ return new Promise(function(res){
+      var q = d.transaction('img', 'readonly').objectStore('img').get(k);
+      q.onsuccess = function(){ res(q.result || null); };
+      q.onerror = function(){ res(null); };
+    }); }).catch(function(){ return null; });
   }
 
   /* ---- 选图 / 拍照 ---- */
@@ -2409,12 +2429,15 @@ var st=document.createElement('style');
     fr.onload = function(){
       var im = new Image();
       im.onload = function(){
-        var s = Math.min(1, 900 / im.naturalWidth, 1200 / im.naturalHeight);
-        var c = document.createElement('canvas');
-        c.width = Math.max(1, Math.round(im.naturalWidth * s));
-        c.height = Math.max(1, Math.round(im.naturalHeight * s));
-        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-        cb(c.toDataURL('image/jpeg', .72));
+        function mk(mx, q){
+          var s = Math.min(1, mx / im.naturalWidth, mx / im.naturalHeight);
+          var c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(im.naturalWidth * s));
+          c.height = Math.max(1, Math.round(im.naturalHeight * s));
+          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+          return c.toDataURL('image/jpeg', q);
+        }
+        cb({ full: mk(1600, .85), thumb: mk(260, .55) });
       };
       im.onerror = function(){ cb(null); };
       im.src = fr.result;
@@ -2428,13 +2451,18 @@ var st=document.createElement('style');
     if (!list.length) return;
     var done = 0;
     list.forEach(function(f){
-      shrink(f, function(u){
-        if (u) CHAT.push({ role:'user', img:u, text:'', t:Date.now() });
+      shrink(f, function(o){
+        if (o){
+          var id = 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+          IMGC[id] = o.full;
+          idbPut(id, o.full);
+          CHAT.push({ role:'user', imgId:id, thumb:o.thumb, text:'', t:Date.now() });
+        }
         if (++done === list.length) finish();
       });
     });
     function finish(){
-      trimPics(); saveChat();
+      saveChat();
       if (document.getElementById('msgs')) renderChat(true);
       closePanel();
       var inp = document.getElementById('mIn');
@@ -2446,10 +2474,25 @@ var st=document.createElement('style');
   fPic.onchange = function(){ handleFiles(fPic.files); fPic.value = ''; };
   fCam.onchange = function(){ handleFiles(fCam.files); fCam.value = ''; };
 
+  /* ---- 全屏看 ---- */
+  function view(m){
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.94);'+
+      'display:flex;align-items:center;justify-content:center';
+    var im = document.createElement('img');
+    im.src = IMGC[m.imgId] || m.thumb;
+    im.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain';
+    d.appendChild(im);
+    d.onclick = function(){ d.remove(); };
+    document.body.appendChild(d);
+    if (m.imgId && !IMGC[m.imgId]){
+      idbGet(m.imgId).then(function(v){ if (v){ IMGC[m.imgId] = v; im.src = v; } });
+    }
+  }
+
   /* ---- 收藏 ---- */
   function favs(){ try { return JSON.parse(localStorage.getItem('xm_favs') || '[]'); } catch(e){ return []; } }
   function saveFavs(a){ try { localStorage.setItem('xm_favs', JSON.stringify(a)); } catch(e){} }
-
   function favSheet(){
     var old = document.getElementById('xmFav'); if (old) old.remove();
     var list = favs();
@@ -2460,8 +2503,7 @@ var st=document.createElement('style');
       'border-radius:20px 20px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 18px)">'+
       '<div style="font-size:15px;font-weight:600;margin-bottom:6px">收藏</div>'+
       (list.length ? list.map(function(t, i){
-        return '<div class="item"><span>' + esc(t) + '</span>'+
-          '<em><b class="x" data-d="' + i + '">×</b></em></div>';
+        return '<div class="item"><span>' + esc(t) + '</span><em><b class="x" data-d="' + i + '">×</b></em></div>';
       }).join('') : '<div class="empty">还没有收藏。在输入框里写好，点「收藏」就存下来了。</div>')+
       '</div>';
     d.onclick = function(e){
@@ -2478,7 +2520,6 @@ var st=document.createElement('style');
     };
     document.body.appendChild(d);
   }
-
   function doFav(){
     var inp = document.getElementById('mIn');
     var t = inp ? inp.value.trim() : '';
@@ -2486,8 +2527,7 @@ var st=document.createElement('style');
       var a = favs();
       if (a.indexOf(t) < 0) a.unshift(t);
       saveFavs(a.slice(0, 50));
-      inp.value = '';
-      toast('已收藏');
+      inp.value = ''; toast('已收藏');
     } else favSheet();
     closePanel();
   }
@@ -2525,7 +2565,6 @@ var st=document.createElement('style');
     var plus = bar.querySelector('.ibPlus');
     if (!plus || bar.dataset.xm2 === '1') return;
     bar.dataset.xm2 = '1';
-
     var panel = document.createElement('div');
     panel.className = 'xmPanel';
     panel.innerHTML = [['pic','图片'], ['cam','拍摄'], ['fav','收藏'], ['loc','位置']]
@@ -2533,7 +2572,6 @@ var st=document.createElement('style');
         return '<div class="xmItem" data-a="' + x[0] + '"><span class="box">' + IC[x[0]] + '</span>' + x[1] + '</div>';
       }).join('');
     bar.parentNode.insertBefore(panel, bar);
-
     panel.onclick = function(e){
       var it = e.target.closest('[data-a]');
       if (!it) return;
@@ -2543,17 +2581,14 @@ var st=document.createElement('style');
       else if (a === 'fav') doFav();
       else if (a === 'loc') doLoc();
     };
-    plus.onclick = function(e){
-      e.preventDefault(); e.stopPropagation();
-      panel.classList.toggle('on');
-    };
+    plus.onclick = function(e){ e.preventDefault(); e.stopPropagation(); panel.classList.toggle('on'); };
     var inp = bar.querySelector('#mIn');
     if (inp) inp.addEventListener('focus', closePanel);
   }
   build();
   setInterval(build, 900);
 
-  /* ---- 图片渲染 ---- */
+  /* ---- 渲染缩略图 ---- */
   var _rc = window.renderChat;
   if (typeof _rc === 'function' && !_rc.__pic){
     var fr = function(){
@@ -2561,13 +2596,13 @@ var st=document.createElement('style');
       try {
         var box = document.getElementById('msgs');
         if (box) CHAT.forEach(function(m, i){
-          if (!m || !m.img) return;
+          if (!m || !m.thumb) return;
           var el = box.querySelector('[data-i="' + i + '"]');
           if (!el || el.querySelector('img.xmPic')) return;
           var im = document.createElement('img');
           im.className = 'xmPic';
-          im.src = m.img;
-          im.style.cssText = 'display:block;max-width:190px;max-height:250px;border-radius:13px';
+          im.src = m.thumb;
+          im.onclick = function(ev){ ev.stopPropagation(); view(m); };
           el.insertBefore(im, el.firstChild);
           if (el.classList.contains('bub')) el.style.padding = '7px';
         });
@@ -2578,6 +2613,18 @@ var st=document.createElement('style');
     window.renderChat = fr;
   }
 
+  /* ---- 启动时把最近的图预读进内存 ---- */
+  function preload(){
+    var ids = [];
+    for (var i = CHAT.length - 1; i >= 0 && ids.length < 6; i--){
+      var m = CHAT[i];
+      if (m && m.imgId && !IMGC[m.imgId] && ids.indexOf(m.imgId) < 0) ids.push(m.imgId);
+    }
+    ids.forEach(function(k){ idbGet(k).then(function(v){ if (v) IMGC[k] = v; }); });
+  }
+  setTimeout(preload, 1200);
+  setInterval(preload, 60000);
+
   /* ---- 带图的消息改成 OpenAI content 数组 ---- */
   var _bm = window.buildMessages;
   if (typeof _bm === 'function' && !_bm.__vis){
@@ -2587,20 +2634,14 @@ var st=document.createElement('style');
         if (!Array.isArray(m)) return m;
         var src = CHAT.filter(function(x){ return !x.typing; }).slice(-12);
         for (var i = 0; i < src.length; i++){
-          var c = src[i];
-          if (!c) continue;
-          var t = m[i + 1];
-          if (!t || t.role !== 'user') continue;
+          var c = src[i], t = m[i + 1];
+          if (!c || !t || t.role !== 'user') continue;
           var txt = String(t.content || '').trim();
           if (!txt || txt === '（图片）') txt = '（我发了张照片）';
-          if (c.img && +S.vision){
-            t.content = [
-              { type: 'text', text: txt },
-              { type: 'image_url', image_url: { url: c.img } }
-            ];
-          } else {
-            t.content = txt;
-          }
+          var url = c.imgId ? (IMGC[c.imgId] || c.thumb) : (c.img || null);
+          t.content = (url && +S.vision)
+            ? [{ type:'text', text: txt }, { type:'image_url', image_url:{ url: url } }]
+            : txt;
         }
       } catch(e){}
       return m;
@@ -2618,8 +2659,7 @@ var st=document.createElement('style');
           var b = JSON.parse(opts.body);
           var has = JSON.stringify(b.messages || []).indexOf('image_url') > -1;
           if (has){
-            window.__lastGen = { settings: JSON.parse(JSON.stringify(b.settings || {})),
-                                 meta: b.meta, messages: b.messages };
+            window.__lastGen = { settings: JSON.parse(JSON.stringify(b.settings || {})), meta: b.meta, messages: b.messages };
             if (S.visModel && b.settings){
               b.settings.mainApiUrl = S.visUrl || S.apiUrl;
               b.settings.mainApiKey = S.visKey || S.apiKey;
@@ -2643,7 +2683,6 @@ var st=document.createElement('style');
     var last = CHAT[CHAT.length - 1];
     if (!last || last.role !== 'assistant' || last.typing) return;
     if (!/出错了|error|invalid|image|400/i.test(String(last.text || ''))) return;
-
     var msgs = (g.messages || []).map(function(x){
       if (x && Array.isArray(x.content)){
         var t = x.content.filter(function(c){ return c.type === 'text'; })
@@ -2685,7 +2724,6 @@ var st=document.createElement('style');
       if (document.getElementById('msgs')) renderChat(true);
     }
   }
-
   var _send = window.sendChat;
   if (typeof _send === 'function' && !_send.__vis){
     var fs = async function(){
@@ -2718,19 +2756,16 @@ var st=document.createElement('style');
             '<input id="xmVisUrl" value="' + String(S.visUrl || '') + '" placeholder="留空就同上"></div>'+
           '<div class="field"><span>密钥</span>'+
             '<input id="xmVisKey" type="password" value="' + String(S.visKey || '') + '" placeholder="留空就同上"></div>'+
-          '<div class="sub" style="margin:12px 0 0">开了之后，你发的照片会原样送进模型。'+
-          '主模型（DeepSeek 官方）看不见图，所以这里单独填一个支持看图的模型，'+
-          '只在发照片那一条用它，普通聊天还是走主模型。'+
-          '填了也失败的话会自动退回纯文字，不会卡住。</div>';
+          '<div class="sub" style="margin:12px 0 0">主模型（DeepSeek 官方）看不见图，'+
+          '这里单独填一个支持看图的模型，只在发照片那一条用它。'+
+          '填错或失败会自动退回纯文字重发，不会卡住。</div>';
         b.insertBefore(d, b.firstChild);
-
         d.querySelector('#xmVisSw').onclick = function(){
           S.vision = +S.vision ? 0 : 1; save();
           this.classList.toggle('on', !!+S.vision);
         };
         var bind = function(id, key){
-          var el = d.querySelector('#' + id);
-          el.oninput = function(){ S[key] = this.value.trim(); save(); };
+          d.querySelector('#' + id).oninput = function(){ S[key] = this.value.trim(); save(); };
         };
         bind('xmVisModel', 'visModel');
         bind('xmVisUrl', 'visUrl');
