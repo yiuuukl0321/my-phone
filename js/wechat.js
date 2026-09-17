@@ -1619,5 +1619,6 @@
 
   new MutationObserver(function(){ setTimeout(repaint, 60); })
     .observe(document.body, { childList: true, subtree: true });
+  window.wxRefresh = function(){ repaint(true); };
   setInterval(repaint, 300);
 })();
