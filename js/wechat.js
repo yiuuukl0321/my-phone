@@ -1580,6 +1580,8 @@
     if (q('meStar')) q('meStar').onclick = function(){ favSheet(); };
     if (q('meEditBtn')) q('meEditBtn').onclick = function(){ editProfile(); };
     if (q('meSetBtn')) q('meSetBtn').onclick = function(){
+      if (typeof window.openSet === 'function') window.openSet();
+    };
       var m = document.getElementById('meSet');
       if (!m || !m.innerHTML){ 
         // 设置页由第 5 块负责，触发它的入口
