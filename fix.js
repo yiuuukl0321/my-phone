@@ -2351,3 +2351,393 @@ var st=document.createElement('style');
   build();
   setInterval(build, 900);
 })();
+
+/* ===== 22. 聊天 + 面板：图片 / 拍摄 / 收藏 / 位置，照片真的送进模型 ===== */
+(function(){
+  if (S.vision === undefined){ S.vision = 1; try { save(); } catch(e){} }
+
+  var S1 = 'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"';
+  var IC = {
+    pic:'<svg width="23" height="23" viewBox="0 0 24 24" '+S1+'><rect x="3.2" y="4.8" width="17.6" height="14.4" rx="3"/><circle cx="8.7" cy="9.7" r="1.5"/><path d="M3.6 16.6l4.6-4.2 3.3 3 3.1-2.8 5.8 5.2"/></svg>',
+    cam:'<svg width="23" height="23" viewBox="0 0 24 24" '+S1+'><path d="M3.4 8.8a2.6 2.6 0 0 1 2.6-2.6h1.4l1.3-2h6.6l1.3 2H18a2.6 2.6 0 0 1 2.6 2.6v7.8a2.6 2.6 0 0 1-2.6 2.6H6a2.6 2.6 0 0 1-2.6-2.6z"/><circle cx="12" cy="12.7" r="3.5"/></svg>',
+    fav:'<svg width="23" height="23" viewBox="0 0 24 24" '+S1+'><path d="M6.6 3.9h10.8a1.5 1.5 0 0 1 1.5 1.5v14.7L12 16.3l-6.9 3.8V5.4a1.5 1.5 0 0 1 1.5-1.5z"/></svg>',
+    loc:'<svg width="23" height="23" viewBox="0 0 24 24" '+S1+'><path d="M12 21.3s6.5-6 6.5-10.7A6.5 6.5 0 0 0 5.5 10.6c0 4.7 6.5 10.7 6.5 10.7z"/><circle cx="12" cy="10.4" r="2.4"/></svg>'
+  };
+
+  var st = document.createElement('style');
+  st.textContent =
+    '.xmPanel{flex:0 0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:14px 0;'+
+      'padding:0 8px;background:#f2f2f0;border-top:1px solid var(--line);'+
+      'max-height:0;overflow:hidden;opacity:0;transition:max-height .22s ease,opacity .16s,padding .22s}'+
+    '.xmPanel.on{max-height:200px;opacity:1;padding:16px 8px 12px}'+
+    '.xmItem{display:flex;flex-direction:column;align-items:center;gap:7px;font-size:11px;'+
+      'color:#5d5d59;-webkit-tap-highlight-color:transparent}'+
+    '.xmItem .box{width:54px;height:54px;border-radius:16px;background:#fff;display:flex;'+
+      'align-items:center;justify-content:center;color:#3a3a37;box-shadow:0 1px 4px rgba(0,0,0,.05);'+
+      'transition:transform .12s}'+
+    '.xmItem:active .box{transform:scale(.93)}'+
+    '.xmBar{position:fixed;left:50%;bottom:130px;transform:translateX(-50%);z-index:95;'+
+      'background:rgba(0,0,0,.82);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:14px;'+
+      'max-width:82vw;text-align:center;display:none}';
+  document.head.appendChild(st);
+
+  var tEl = null, tTimer = 0;
+  function toast(t){
+    if (!tEl){ tEl = document.createElement('div'); tEl.className = 'xmBar'; document.body.appendChild(tEl); }
+    tEl.textContent = t;
+    tEl.style.display = 'block';
+    clearTimeout(tTimer);
+    tTimer = setTimeout(function(){ tEl.style.display = 'none'; }, 2400);
+  }
+  function closePanel(){ var p = document.querySelector('.xmPanel'); if (p) p.classList.remove('on'); }
+  function trimPics(){
+    var n = 0;
+    for (var i = CHAT.length - 1; i >= 0; i--){
+      if (CHAT[i] && CHAT[i].img && ++n > 6) delete CHAT[i].img;
+    }
+  }
+
+  /* ---- 选图 / 拍照 ---- */
+  var fPic = document.createElement('input');
+  fPic.type = 'file'; fPic.accept = 'image/*'; fPic.multiple = true; fPic.style.display = 'none';
+  var fCam = document.createElement('input');
+  fCam.type = 'file'; fCam.accept = 'image/*'; fCam.capture = 'environment'; fCam.style.display = 'none';
+  document.body.appendChild(fPic); document.body.appendChild(fCam);
+
+  function shrink(file, cb){
+    var fr = new FileReader();
+    fr.onload = function(){
+      var im = new Image();
+      im.onload = function(){
+        var s = Math.min(1, 900 / im.naturalWidth, 1200 / im.naturalHeight);
+        var c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(im.naturalWidth * s));
+        c.height = Math.max(1, Math.round(im.naturalHeight * s));
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        cb(c.toDataURL('image/jpeg', .72));
+      };
+      im.onerror = function(){ cb(null); };
+      im.src = fr.result;
+    };
+    fr.onerror = function(){ cb(null); };
+    fr.readAsDataURL(file);
+  }
+
+  function handleFiles(files){
+    var list = Array.prototype.slice.call(files || []).slice(0, 4);
+    if (!list.length) return;
+    var done = 0;
+    list.forEach(function(f){
+      shrink(f, function(u){
+        if (u) CHAT.push({ role:'user', img:u, text:'', t:Date.now() });
+        if (++done === list.length) finish();
+      });
+    });
+    function finish(){
+      trimPics(); saveChat();
+      if (document.getElementById('msgs')) renderChat(true);
+      closePanel();
+      var inp = document.getElementById('mIn');
+      if (!inp) return;
+      if (!inp.value.trim()) inp.value = '（我发了张照片）';
+      try { sendChat(); } catch(e){}
+    }
+  }
+  fPic.onchange = function(){ handleFiles(fPic.files); fPic.value = ''; };
+  fCam.onchange = function(){ handleFiles(fCam.files); fCam.value = ''; };
+
+  /* ---- 收藏 ---- */
+  function favs(){ try { return JSON.parse(localStorage.getItem('xm_favs') || '[]'); } catch(e){ return []; } }
+  function saveFavs(a){ try { localStorage.setItem('xm_favs', JSON.stringify(a)); } catch(e){} }
+
+  function favSheet(){
+    var old = document.getElementById('xmFav'); if (old) old.remove();
+    var list = favs();
+    var d = document.createElement('div');
+    d.id = 'xmFav';
+    d.style.cssText = 'position:fixed;inset:0;z-index:85;background:rgba(0,0,0,.3);display:flex;align-items:flex-end';
+    d.innerHTML = '<div style="width:100%;max-height:68vh;overflow-y:auto;background:#f4f4f2;'+
+      'border-radius:20px 20px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 18px)">'+
+      '<div style="font-size:15px;font-weight:600;margin-bottom:6px">收藏</div>'+
+      (list.length ? list.map(function(t, i){
+        return '<div class="item"><span>' + esc(t) + '</span>'+
+          '<em><b class="x" data-d="' + i + '">×</b></em></div>';
+      }).join('') : '<div class="empty">还没有收藏。在输入框里写好，点「收藏」就存下来了。</div>')+
+      '</div>';
+    d.onclick = function(e){
+      if (e.target === d){ d.remove(); return; }
+      var del = e.target.closest('[data-d]');
+      if (del){ var a = favs(); a.splice(+del.dataset.d, 1); saveFavs(a); favSheet(); return; }
+      var row = e.target.closest('.item');
+      if (row){
+        var t = (row.querySelector('span') || {}).textContent || '';
+        var inp = document.getElementById('mIn');
+        if (inp){ inp.value = inp.value.trim() ? inp.value.trim() + ' ' + t : t; inp.focus(); }
+        d.remove();
+      }
+    };
+    document.body.appendChild(d);
+  }
+
+  function doFav(){
+    var inp = document.getElementById('mIn');
+    var t = inp ? inp.value.trim() : '';
+    if (t){
+      var a = favs();
+      if (a.indexOf(t) < 0) a.unshift(t);
+      saveFavs(a.slice(0, 50));
+      inp.value = '';
+      toast('已收藏');
+    } else favSheet();
+    closePanel();
+  }
+
+  /* ---- 位置 ---- */
+  function doLoc(){
+    if (!navigator.geolocation){ toast('这台设备不给定位'); return; }
+    toast('定位中…');
+    navigator.geolocation.getCurrentPosition(function(p){
+      var la = p.coords.latitude, lo = p.coords.longitude;
+      var send = function(name){
+        var t = '我在' + (name ? name : '这里') + '（' + la.toFixed(4) + ', ' + lo.toFixed(4) + '）';
+        var inp = document.getElementById('mIn');
+        if (inp){ inp.value = t; try { sendChat(); } catch(e){} }
+        closePanel();
+      };
+      fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=16&accept-language=zh-CN&lat='
+        + la + '&lon=' + lo)
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          var a = (j && j.address) || {};
+          var n = a.road || a.suburb || a.neighbourhood || a.village || a.town || a.city_district || '';
+          send(n ? n + '附近' : '');
+        })
+        .catch(function(){ send(''); });
+    }, function(){
+      toast('拿不到位置。去 iPhone 设置 → 隐私与安全性 → 定位服务 里给 Safari 打开。');
+    }, { timeout: 9000, enableHighAccuracy: true });
+  }
+
+  /* ---- 挂到输入栏 ---- */
+  function build(){
+    var bar = document.querySelector('.inputbar');
+    if (!bar) return;
+    var plus = bar.querySelector('.ibPlus');
+    if (!plus || bar.dataset.xm2 === '1') return;
+    bar.dataset.xm2 = '1';
+
+    var panel = document.createElement('div');
+    panel.className = 'xmPanel';
+    panel.innerHTML = [['pic','图片'], ['cam','拍摄'], ['fav','收藏'], ['loc','位置']]
+      .map(function(x){
+        return '<div class="xmItem" data-a="' + x[0] + '"><span class="box">' + IC[x[0]] + '</span>' + x[1] + '</div>';
+      }).join('');
+    bar.parentNode.insertBefore(panel, bar);
+
+    panel.onclick = function(e){
+      var it = e.target.closest('[data-a]');
+      if (!it) return;
+      var a = it.dataset.a;
+      if (a === 'pic') fPic.click();
+      else if (a === 'cam') fCam.click();
+      else if (a === 'fav') doFav();
+      else if (a === 'loc') doLoc();
+    };
+    plus.onclick = function(e){
+      e.preventDefault(); e.stopPropagation();
+      panel.classList.toggle('on');
+    };
+    var inp = bar.querySelector('#mIn');
+    if (inp) inp.addEventListener('focus', closePanel);
+  }
+  build();
+  setInterval(build, 900);
+
+  /* ---- 图片渲染 ---- */
+  var _rc = window.renderChat;
+  if (typeof _rc === 'function' && !_rc.__pic){
+    var fr = function(){
+      var r = _rc.apply(this, arguments);
+      try {
+        var box = document.getElementById('msgs');
+        if (box) CHAT.forEach(function(m, i){
+          if (!m || !m.img) return;
+          var el = box.querySelector('[data-i="' + i + '"]');
+          if (!el || el.querySelector('img.xmPic')) return;
+          var im = document.createElement('img');
+          im.className = 'xmPic';
+          im.src = m.img;
+          im.style.cssText = 'display:block;max-width:190px;max-height:250px;border-radius:13px';
+          el.insertBefore(im, el.firstChild);
+          if (el.classList.contains('bub')) el.style.padding = '7px';
+        });
+      } catch(e){}
+      return r;
+    };
+    fr.__pic = true;
+    window.renderChat = fr;
+  }
+
+  /* ---- 带图的消息改成 OpenAI content 数组 ---- */
+  var _bm = window.buildMessages;
+  if (typeof _bm === 'function' && !_bm.__vis){
+    var fb = function(){
+      var m = _bm.apply(this, arguments);
+      try {
+        if (!Array.isArray(m)) return m;
+        var src = CHAT.filter(function(x){ return !x.typing; }).slice(-12);
+        for (var i = 0; i < src.length; i++){
+          var c = src[i];
+          if (!c) continue;
+          var t = m[i + 1];
+          if (!t || t.role !== 'user') continue;
+          var txt = String(t.content || '').trim();
+          if (!txt || txt === '（图片）') txt = '（我发了张照片）';
+          if (c.img && +S.vision){
+            t.content = [
+              { type: 'text', text: txt },
+              { type: 'image_url', image_url: { url: c.img } }
+            ];
+          } else {
+            t.content = txt;
+          }
+        }
+      } catch(e){}
+      return m;
+    };
+    fb.__vis = true;
+    window.buildMessages = fb;
+  }
+
+  /* ---- 发带图的请求时，临时换成视觉模型 ---- */
+  var _api = window.api;
+  if (typeof _api === 'function' && !_api.__vis){
+    var fa = function(path, opts){
+      try {
+        if (String(path).indexOf('/generate') > -1 && opts && opts.body){
+          var b = JSON.parse(opts.body);
+          var has = JSON.stringify(b.messages || []).indexOf('image_url') > -1;
+          if (has){
+            window.__lastGen = { settings: JSON.parse(JSON.stringify(b.settings || {})),
+                                 meta: b.meta, messages: b.messages };
+            if (S.visModel && b.settings){
+              b.settings.mainApiUrl = S.visUrl || S.apiUrl;
+              b.settings.mainApiKey = S.visKey || S.apiKey;
+              b.settings.mainApiModel = S.visModel;
+              b.settings.apiType = 'openai';
+            }
+          } else window.__lastGen = null;
+          return _api.call(this, path, Object.assign({}, opts, { body: JSON.stringify(b) }));
+        }
+      } catch(e){}
+      return _api.apply(this, arguments);
+    };
+    fa.__vis = true;
+    window.api = fa;
+  }
+
+  /* ---- 模型看不了图时，自动退回纯文字再发一次 ---- */
+  async function degrade(){
+    var g = window.__lastGen; window.__lastGen = null;
+    if (!g) return;
+    var last = CHAT[CHAT.length - 1];
+    if (!last || last.role !== 'assistant' || last.typing) return;
+    if (!/出错了|error|invalid|image|400/i.test(String(last.text || ''))) return;
+
+    var msgs = (g.messages || []).map(function(x){
+      if (x && Array.isArray(x.content)){
+        var t = x.content.filter(function(c){ return c.type === 'text'; })
+                        .map(function(c){ return c.text; }).join(' ').trim();
+        return { role: x.role, content: t || '（我发了张照片）' };
+      }
+      return x;
+    });
+    var rid = 'rv' + Date.now() + Math.random().toString(36).slice(2, 7);
+    SENDING = true;
+    try {
+      await api('/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId: rid, inboxId: S.inbox, messages: msgs,
+                               settings: g.settings, meta: g.meta })
+      });
+      var hit = null;
+      for (var i = 0; i < 20; i++){
+        await sleep(i ? 2000 : 500);
+        try {
+          var j = await api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
+          var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
+          if (f){
+            await api('/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] }) }).catch(function(){});
+            hit = f; break;
+          }
+        } catch(e){}
+      }
+      if (hit && hit.content && CHAT[CHAT.length - 1] === last){
+        var r = parseReply(hit.content);
+        last.text = r.text || last.text;
+        last.think = r.think || last.think;
+        if (S.autoMem) r.mems.forEach(function(m){ addMemAuto(m); });
+      }
+    } catch(e){
+    } finally {
+      SENDING = false; saveChat();
+      if (document.getElementById('msgs')) renderChat(true);
+    }
+  }
+
+  var _send = window.sendChat;
+  if (typeof _send === 'function' && !_send.__vis){
+    var fs = async function(){
+      var r = await _send.apply(this, arguments);
+      try { await degrade(); } catch(e){}
+      return r;
+    };
+    fs.__vis = true;
+    window.sendChat = fs;
+  }
+
+  /* ---- 聊天详情里的视觉设置 ---- */
+  var _oci = window.openChatInfo;
+  if (typeof _oci === 'function' && !_oci.__vis){
+    var fo = function(){
+      _oci.apply(this, arguments);
+      try {
+        var b = document.getElementById('shbody'); if (!b) return;
+        var old = document.getElementById('xmVisCard'); if (old) old.remove();
+        var d = document.createElement('div');
+        d.id = 'xmVisCard';
+        d.className = 'card';
+        d.innerHTML =
+          '<div class="eyebrow">视觉</div>'+
+          '<div class="item"><span>让祁砚看到照片</span><em>'+
+            '<span class="sw ' + (+S.vision ? 'on' : '') + '" id="xmVisSw"><i></i></span></em></div>'+
+          '<div class="field"><span>视觉模型</span>'+
+            '<input id="xmVisModel" value="' + String(S.visModel || '') + '" placeholder="留空就用主模型"></div>'+
+          '<div class="field"><span>地址</span>'+
+            '<input id="xmVisUrl" value="' + String(S.visUrl || '') + '" placeholder="留空就同上"></div>'+
+          '<div class="field"><span>密钥</span>'+
+            '<input id="xmVisKey" type="password" value="' + String(S.visKey || '') + '" placeholder="留空就同上"></div>'+
+          '<div class="sub" style="margin:12px 0 0">开了之后，你发的照片会原样送进模型。'+
+          '主模型（DeepSeek 官方）看不见图，所以这里单独填一个支持看图的模型，'+
+          '只在发照片那一条用它，普通聊天还是走主模型。'+
+          '填了也失败的话会自动退回纯文字，不会卡住。</div>';
+        b.insertBefore(d, b.firstChild);
+
+        d.querySelector('#xmVisSw').onclick = function(){
+          S.vision = +S.vision ? 0 : 1; save();
+          this.classList.toggle('on', !!+S.vision);
+        };
+        var bind = function(id, key){
+          var el = d.querySelector('#' + id);
+          el.oninput = function(){ S[key] = this.value.trim(); save(); };
+        };
+        bind('xmVisModel', 'visModel');
+        bind('xmVisUrl', 'visUrl');
+        bind('xmVisKey', 'visKey');
+      } catch(e){}
+    };
+    fo.__vis = true;
+    window.openChatInfo = fo;
+  }
+})();
