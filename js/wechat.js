@@ -602,8 +602,8 @@
       setTimeout(function(){
         var back = document.querySelector('#wx #wxBack');
         if (back) back.click();
-        var row = document.querySelector('#wx [data-go="moments"]');
-        if (row) row.click();
+        var ft = document.querySelector('#wx .wxT[data-tab="find"]');
+        if (ft) ft.click();
         var nb = body();
         if (!nb || !nb.parentNode){ busy = false; return; }
         nb.parentNode.insertBefore(ind, nb);
