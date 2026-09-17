@@ -1631,7 +1631,7 @@ self.addEventListener('notificationclick', e => {
     arr.forEach(function(t,i){
       s+='<div class="ev"><span>'+txt(t)+'</span><b data-i="'+i+'">×</b></div>';
     });
-    s+='<div class="rw"><input id="calIn" placeholder="加一件事…" maxlength="40"><button id="calBtn">加</button></div>';
+    s+='<div class="rw"><input id="calIn" placeholder="加一件事…" maxlength="40"><button id="calBtn">+</button></div>';
     box.innerHTML=s;
     var btn=document.getElementById('calBtn');
     if(btn) btn.onclick=doAdd;
