@@ -1509,4 +1509,18 @@ true);
 })();
 
 
+(function(){
+  function fix(){
+    var d=document.documentElement;
+    var h=Math.max(window.innerHeight||0,screen.height||0,d.clientHeight||0);
+    d.style.setProperty('height',h+'px','important');
+    d.style.setProperty('min-height',h+'px','important');
+    d.style.setProperty('background-size','cover','important');
+    d.style.setProperty('background-position','center top','important');
+    d.style.setProperty('background-repeat','no-repeat','important');
+    if(typeof window.applyWall==='function')try{window.applyWall();}catch(e){}
+  }
+  fix();addEventListener('resize',fix);addEventListener('orientationchange',fix);
+  setTimeout(fix,300);setTimeout(fix,1200);setInterval(fix,3000);
+})();
 
