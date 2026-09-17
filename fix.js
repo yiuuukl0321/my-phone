@@ -1773,3 +1773,11 @@ document.addEventListener('click',function(e){
   }
 },true);
 
+document.addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')){
+    var n=document.querySelectorAll('button,div,span');
+    for(var i=0;i<n.length;i++){
+      if((n[i].textContent||'').trim()==='Send'){n[i].click();e.preventDefault();return;}
+    }
+  }
+},true);
