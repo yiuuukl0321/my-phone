@@ -1510,3 +1510,246 @@ self.addEventListener('notificationclick', e => {
   hijack();
 })();
 
+/* ===== 14. 聊天：左上角点开是祁砚 + 三点里的「手机数据」 ===== */
+(function(){
+  try {
+    var KEY = 'xm_ctx';
+    var C = Object.assign({ clip: 0, loc: 0, wth: 0, cal: 0, rem: 0, alm: 0 },
+      JSON.parse(localStorage.getItem(KEY) || '{}'));
+    var saveC = function(){ try { localStorage.setItem(KEY, JSON.stringify(C)); } catch(e){} };
+    var SHOW = '';   // 面板里最近一次读到的结果
+    var BLOCK = '';  // 发消息时附给模型的文字
+
+    var SB = 'https://saxgvdcoxuawaslqebmd.supabase.co/rest/v1/';
+    var SBK = 'sb_publishable_120kFKhxe_NMVrcRdN0lwg_DDckWKMk';
+
+    function tip(t){
+      var d = document.createElement('div');
+      d.textContent = t;
+      d.style.cssText = 'position:fixed;left:50%;bottom:130px;transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:14px;z-index:99;max-width:82vw;text-align:center';
+      document.body.appendChild(d);
+      setTimeout(function(){ d.remove(); }, 2200);
+    }
+    function dayN(){ try { return (typeof days === 'function') ? days() : 1; } catch(e){ return 1; } }
+
+    /* ---------- 左上角：祁砚 ---------- */
+    window.kaiCard = function(){
+      var old = document.getElementById('kaiCard');
+      if (old){ old.remove(); return; }
+      var d = document.createElement('div');
+      d.id = 'kaiCard';
+      d.style.cssText = 'position:fixed;inset:0;z-index:88;background:rgba(0,0,0,.32);display:flex;align-items:center;justify-content:center;padding:26px;-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px)';
+      d.onclick = function(e){ if (e.target === d) d.remove(); };
+      d.innerHTML =
+        '<div style="background:#fff;border-radius:26px;padding:26px 22px 22px;width:100%;max-width:320px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.26)">' +
+          '<div style="width:80px;height:80px;border-radius:26px;margin:0 auto;background:linear-gradient(140deg,#92a3d6,#5c6b9b);color:#fff;font-size:34px;display:flex;align-items:center;justify-content:center">砚</div>' +
+          '<div style="font-size:20px;font-weight:600;margin-top:14px">祁砚</div>' +
+          '<div style="font-size:11.5px;color:#a0a09c;letter-spacing:.1em;margin-top:5px">KAI · HE/HIM</div>' +
+          '<div style="font-size:13px;color:#8f8f8b;line-height:1.95;margin-top:16px">代码、歌单、失眠<br>Instagram　@qiyan.kai</div>' +
+          '<div style="height:1px;background:rgba(0,0,0,.08);margin:16px 0 14px"></div>' +
+          '<div style="font-size:12.5px;color:#8f8f8b">和小咩在一起的第 <b style="font-size:16px;color:#0b0b0b">' + dayN() + '</b> 天</div>' +
+          '<button style="margin-top:20px;border:0;background:#111;color:#fff;border-radius:20px;padding:11px 32px;font-size:14px">好</button>' +
+        '</div>';
+      d.querySelector('button').onclick = function(){ d.remove(); };
+      document.body.appendChild(d);
+    };
+
+    function paintTop(){
+      var bar = document.querySelector('#ov .ovtop');
+      var body = document.getElementById('ovbody');
+      if (!bar) return;
+      var chat = body && body.classList.contains('ovchat');
+      var head = bar.querySelector('.kaiHead');
+      if (!chat){ if (head) head.remove(); return; }
+      if (!head){
+        head = document.createElement('div');
+        head.className = 'kaiHead';
+        head.textContent = '砚';
+        head.style.cssText = 'width:30px;height:30px;border-radius:10px;flex:0 0 auto;background:linear-gradient(140deg,#92a3d6,#5c6b9b);color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center';
+        head.onclick = function(e){ e.stopPropagation(); window.kaiCard(); };
+        var back = bar.querySelector('.back');
+        if (back) bar.insertBefore(head, back.nextSibling); else bar.appendChild(head);
+      }
+      var t = bar.querySelector('#ovTitle');
+      if (t && t.getAttribute('data-kai') !== '1'){
+        t.setAttribute('data-kai', '1');
+        t.onclick = function(){ window.kaiCard(); };
+      }
+    }
+
+    /* ---------- 读数据 ---------- */
+    var LOC = null;
+
+    function readClip(){
+      return navigator.clipboard.readText().then(function(t){
+        t = String(t || '').trim();
+        if (!t) throw new Error('剪贴板是空的');
+        return t.length > 600 ? t.slice(0, 600) + '…' : t;
+      });
+    }
+    function readLoc(){
+      return new Promise(function(res, rej){
+        if (!navigator.geolocation) return rej(new Error('这台设备不给定位'));
+        navigator.geolocation.getCurrentPosition(function(p){
+          LOC = { lat: +p.coords.latitude.toFixed(4), lon: +p.coords.longitude.toFixed(4), at: Date.now(), name: '' };
+          res(LOC);
+        }, function(e){ rej(new Error('定位没拿到（' + (e.message || e.code) + '）')); },
+        { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 });
+      });
+    }
+    function revGeo(){
+      if (!LOC || LOC.name) return Promise.resolve(LOC);
+      return fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + LOC.lat + '&longitude=' + LOC.lon + '&localityLanguage=zh')
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          LOC.name = [j.city || j.locality || '', j.principalSubdivision || ''].filter(Boolean).join(' · ');
+          return LOC;
+        })
+        .catch(function(){ return LOC; });
+    }
+
+    var WMO = {0:'晴',1:'晴间多云',2:'多云',3:'阴',45:'有雾',48:'雾凇',51:'毛毛雨',53:'小雨',55:'中雨',
+      56:'冻雨',57:'冻雨',61:'小雨',63:'中雨',65:'大雨',66:'冻雨',67:'冻雨',71:'小雪',73:'中雪',75:'大雪',
+      77:'雪粒',80:'阵雨',81:'强阵雨',82:'暴雨',85:'阵雪',86:'强阵雪',95:'雷阵雨',96:'雷阵雨带冰雹',99:'雷暴冰雹'};
+
+    function readWeather(){
+      if (!LOC) return Promise.reject(new Error('先取到位置'));
+      var u = 'https://api.open-meteo.com/v1/forecast?latitude=' + LOC.lat + '&longitude=' + LOC.lon +
+        '&current=temperature_2m,apparent_temperature,weather_code' +
+        '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
+        '&timezone=Asia%2FHong_Kong&forecast_days=1';
+      return fetch(u).then(function(r){ return r.json(); }).then(function(j){
+        var c = j.current || {}, d = j.daily || {};
+        var lo = (d.temperature_2m_min || [])[0], hi = (d.temperature_2m_max || [])[0], pr = (d.precipitation_probability_max || [])[0];
+        return '现在 ' + Math.round(c.temperature_2m) + '°C，体感 ' + Math.round(c.apparent_temperature) + '°C，' +
+          (WMO[c.weather_code] || '') + '；今天 ' + Math.round(lo) + '~' + Math.round(hi) + '°C，下雨概率 ' +
+          (pr == null ? 0 : pr) + '%';
+      });
+    }
+
+    function sbGet(path){
+      return fetch(SB + path, { headers: { apikey: SBK, Authorization: 'Bearer ' + SBK } })
+        .then(function(r){
+          if (!r.ok) throw new Error(r.status === 404 ? '表还没建（phone_data）' : ('HTTP ' + r.status));
+          return r.json();
+        });
+    }
+    function readPhone(kind, label){
+      return sbGet('phone_data?kind=eq.' + kind + '&order=at.asc&limit=30&select=payload')
+        .then(function(rows){
+          if (!rows.length) return '（' + label + '现在是空的）';
+          return rows.map(function(x){ return '· ' + String(x.payload || '').trim(); }).join('\n');
+        });
+    }
+
+    async function collect(){
+      var lines = [], show = [];
+      if (+C.clip){
+        try { var t = await readClip(); lines.push('【剪贴板】' + t); show.push('剪贴板：' + t.slice(0, 70)); }
+        catch(e){ show.push('剪贴板：读不到（' + e.message + '）'); }
+      }
+      if (+C.loc || +C.wth){
+        try {
+          if (!LOC || Date.now() - LOC.at > 600000) await readLoc();
+          await revGeo();
+          if (+C.loc){
+            var where = LOC.lat + ', ' + LOC.lon + (LOC.name ? '（' + LOC.name + '）' : '');
+            lines.push('【当前位置】' + where); show.push('位置：' + where);
+          }
+        } catch(e){ show.push('位置：' + e.message); }
+        if (+C.wth){
+          try { var w = await readWeather(); lines.push('【天气】' + w); show.push('天气：' + w); }
+          catch(e){ show.push('天气：' + e.message); }
+        }
+      }
+      var cloud = [['cal', '日历'], ['rem', '提醒事项'], ['alm', '闹钟']];
+      for (var i = 0; i < cloud.length; i++){
+        if (!+C[cloud[i][0]]) continue;
+        try {
+          var r = await readPhone(cloud[i][0], cloud[i][1]);
+          lines.push('【' + cloud[i][1] + '】\n' + r);
+          show.push(cloud[i][1] + '：' + r.split('\n')[0]);
+        } catch(e){ show.push(cloud[i][1] + '：' + e.message); }
+      }
+      BLOCK = lines.join('\n');
+      SHOW = show.join('\n');
+      return show;
+    }
+    function anyOn(){
+      return ['clip','loc','wth','cal','rem','alm'].some(function(k){ return +C[k]; });
+    }
+
+    /* ---------- 三点里的面板 ---------- */
+    function row(k, name, note){
+      return '<div class="item"><span>' + name +
+        '<em style="display:block;font-size:10px;color:#a0a09c;margin-top:3px">' + note + '</em></span>' +
+        '<em><span class="sw ' + (+C[k] ? 'on' : '') + '" onclick="ctxTgl(\'' + k + '\')"><i></i></span></em></div>';
+    }
+    window.ctxTgl = function(k){
+      C[k] = +C[k] ? 0 : 1; saveC();
+      window.ctxPanel();
+      if (+C[k]) window.ctxNow();
+    };
+    window.ctxNow = async function(){
+      var m = document.getElementById('ctxMsg');
+      if (m) m.textContent = '读取中…';
+      var s = await collect();
+      m = document.getElementById('ctxMsg');
+      if (m) m.textContent = s.join('\n') || '一项都没打开。';
+    };
+    window.ctxPanel = function(){
+      var b = document.getElementById('shbody'); if (!b) return;
+      b.innerHTML =
+        '<div class="card"><div class="eyebrow">手机数据</div>' +
+          '<div class="sub" style="margin:0 0 2px">打开的那几项，我回你之前会先读一遍，只在这台手机上读。</div>' +
+          row('clip', '剪贴板', '你刚复制的东西') +
+          row('loc', '当前位置', '坐标 + 地名') +
+          row('wth', '天气', '按位置查') +
+          row('cal', '日历', '要用捷径把日历送上来') +
+          row('rem', '提醒事项', '要用捷径把提醒送上来') +
+          row('alm', '闹钟', '要用捷径把闹钟送上来') +
+        '</div>' +
+        '<div class="card"><div class="item" onclick="ctxNow()"><span>现在读一遍</span><em>›</em></div>' +
+          '<div class="st" id="ctxMsg">' + SHOW + '</div></div>' +
+        '<div class="item" onclick="openChatInfo()"><span>返回</span><em>›</em></div>';
+    };
+
+    var _oci = window.openChatInfo;
+    window.openChatInfo = function(){
+      _oci.apply(this, arguments);
+      var b = document.getElementById('shbody'); if (!b) return;
+      var n = ['clip','loc','wth','cal','rem','alm'].filter(function(k){ return +C[k]; }).length;
+      var c = document.createElement('div');
+      c.className = 'card';
+      c.innerHTML = '<div class="item" onclick="ctxPanel()"><span>手机数据</span><em>' +
+        (n ? n + ' 项开着' : '') + '›</em></div>';
+      b.insertBefore(c, b.firstChild);
+    };
+
+    /* ---------- 发消息时带上 ---------- */
+    var _send = window.sendChat;
+    window.sendChat = async function(){
+      try { BLOCK = ''; if (anyOn()) await collect(); } catch(e){ BLOCK = ''; }
+      return _send.apply(this, arguments);
+    };
+
+    var _bm = window.buildMessages;
+    window.buildMessages = function(){
+      var m = _bm.apply(this, arguments);
+      if (BLOCK && Array.isArray(m)){
+        for (var i = m.length - 1; i >= 0; i--){
+          if (m[i] && m[i].role === 'user'){
+            m[i] = { role: 'user', content: m[i].content + '\n\n（下面是小咩手机上的实时数据）\n' + BLOCK };
+            break;
+          }
+        }
+      }
+      return m;
+    };
+
+    new MutationObserver(function(){ setTimeout(paintTop, 60); }).observe(document.body, { childList: true, subtree: true });
+    paintTop();
+  } catch(e){ console.warn('ctx block failed', e); }
+})();
+
+
