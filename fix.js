@@ -1505,9 +1505,6 @@ self.addEventListener('notificationclick', e => {
     if((e.target.textContent||'').trim()==='Send')setTimeout(bottom,400);},true);
 })();
 
-true);
-})();
-
 
 (function(){
   function fix(){
