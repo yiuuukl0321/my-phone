@@ -3603,3 +3603,296 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
   }, true);
   setInterval(sync, 900);
 })();
+
+/* ===== 28. 朋友圈升级：接着你的动态发 + 上网找图 + 自动发 ===== */
+(function(){
+  if (S.momOn === undefined){
+    S.momOn = 1; S.momGap = 8; S.momLast = 0; try { save(); } catch(e){}
+  }
+
+  function ls(k, d){ try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(d)); } catch(e){ return d; } }
+  function ss(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  function getMom(){ return ls('xm_moments', []); }
+  function setMom(a){ ss('xm_moments', a.slice(-60)); }
+  function hhmm(){
+    var d = new Date();
+    return (d.getHours() < 10 ? '0' : '') + d.getHours() + ':' +
+           (d.getMinutes() < 10 ? '0' : '') + d.getMinutes();
+  }
+  function partOfDay(){
+    var h = new Date().getHours();
+    if (h < 5) return '凌晨';
+    if (h < 11) return '早上';
+    if (h < 14) return '中午';
+    if (h < 18) return '下午';
+    if (h < 22) return '晚上';
+    return '深夜';
+  }
+  function ago(t){
+    var s = (Date.now() - t) / 1000;
+    if (s < 60) return '刚刚';
+    if (s < 3600) return Math.floor(s / 60) + '分钟前';
+    if (s < 86400) return Math.floor(s / 3600) + '小时前';
+    return Math.floor(s / 86400) + '天前';
+  }
+
+  var tEl = null, tT = 0;
+  function toast(t){
+    if (!tEl){ tEl = document.createElement('div'); tEl.className = 'xmBar'; document.body.appendChild(tEl); }
+    tEl.textContent = t; tEl.style.display = 'block';
+    clearTimeout(tT);
+    tT = setTimeout(function(){ tEl.style.display = 'none'; }, 2400);
+  }
+
+  async function rawApi(path, opts){
+    var r = await fetch((S.relay || '').replace(/\/+$/, '') + path, Object.assign({}, opts || {}, {
+      headers: Object.assign({ 'Authorization': 'Bearer ' + S.key }, (opts && opts.headers) || {})
+    }));
+    var t = await r.text();
+    try { return JSON.parse(t); } catch(e){ return t; }
+  }
+
+  /* ---- 上下文：人设 + 记忆 + 最近聊天 + 她最近两条朋友圈 ---- */
+  async function askCtx(user, temp){
+    var sys = PERSONA;
+    if (typeof MEM !== 'undefined' && MEM.length){
+      sys += '\n\n【你记得关于她的事】\n' + MEM.slice(-40).map(function(x){ return '· ' + x; }).join('\n');
+    }
+    var msgs = [{ role: 'system', content: sys }];
+    if (typeof CHAT !== 'undefined' && CHAT.length){
+      CHAT.filter(function(m){ return !m.typing && m.text; }).slice(-16).forEach(function(m){
+        msgs.push({ role: m.role === 'user' ? 'user' : 'assistant',
+                    content: String(m.text).slice(0, 300) });
+      });
+    }
+    msgs.push({ role: 'user', content: user });
+
+    var rid = 'mom' + Date.now() + Math.random().toString(36).slice(2, 6);
+    await rawApi('/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestId: rid, inboxId: S.inbox, messages: msgs,
+        settings: { mainApiUrl: S.apiUrl, mainApiKey: S.apiKey, mainApiModel: S.model,
+                    apiType: S.apiType || 'openai', temperature: temp || 0.95 },
+        meta: { charName: '祁砚', charId: 'kai' }
+      })
+    });
+    for (var i = 0; i < 22; i++){
+      await sleep(i ? 2000 : 600);
+      try {
+        var j = await rawApi('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
+        var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
+        if (f){
+          await rawApi('/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] }) }).catch(function(){});
+          return String(f.content || '');
+        }
+      } catch(e){}
+    }
+    return '';
+  }
+
+  /* ---- 上网找图 ---- */
+  async function searchPic(q){
+    var kw = String(q || '').replace(/[\[\]]/g, ' ').trim().slice(0, 40);
+    if (!kw) return '';
+    var api = 'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*' +
+      '&generator=search&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url&iiurlwidth=1000' +
+      '&gsrsearch=' + encodeURIComponent('filetype:bitmap ' + kw);
+    try {
+      var r = await fetch(api);
+      var j = await r.json();
+      var pages = (j && j.query && j.query.pages) || {};
+      var list = Object.keys(pages).map(function(k){ return pages[k]; })
+        .filter(function(p){
+          return p.imageinfo && p.imageinfo[0] && /\.(jpe?g|png)$/i.test(p.imageinfo[0].url || '');
+        });
+      if (!list.length) return '';
+      var p = list[Math.floor(Math.random() * Math.min(list.length, 6))];
+      var url = p.imageinfo[0].thumburl || p.imageinfo[0].url;
+      try {
+        var im = new Image();
+        im.crossOrigin = 'anonymous';
+        await new Promise(function(res, rej){
+          im.onload = res; im.onerror = rej;
+          setTimeout(rej, 8000);
+          im.src = url;
+        });
+        var s = Math.min(1, 1000 / im.naturalWidth);
+        var c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(im.naturalWidth * s));
+        c.height = Math.max(1, Math.round(im.naturalHeight * s));
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        return c.toDataURL('image/jpeg', .72);
+      } catch(e){
+        return url;
+      }
+    } catch(e){ return ''; }
+  }
+
+  function makePic(){
+    var c = document.createElement('canvas');
+    c.width = 900; c.height = 700;
+    var g = c.getContext('2d');
+    var h = Math.floor(20 + Math.random() * 60);
+    var gr = g.createLinearGradient(0, 0, 900, 700);
+    gr.addColorStop(0, 'hsl(' + h + ',30%,90%)');
+    gr.addColorStop(1, 'hsl(' + ((h + 40) % 360) + ',26%,70%)');
+    g.fillStyle = gr; g.fillRect(0, 0, 900, 700);
+    for (var i = 0; i < 8; i++){
+      g.beginPath();
+      g.strokeStyle = 'rgba(255,255,255,' + (0.1 + Math.random() * 0.32) + ')';
+      g.lineWidth = 1 + Math.random() * 3;
+      g.moveTo(Math.random() * 900, Math.random() * 700);
+      g.bezierCurveTo(Math.random()*900, Math.random()*700, Math.random()*900, Math.random()*700,
+                      Math.random()*900, Math.random()*700);
+      g.stroke();
+    }
+    return c.toDataURL('image/jpeg', .68);
+  }
+
+  /* ---- 重绘朋友圈（正停在那页才动） ---- */
+  function refreshWx(){
+    var box = document.getElementById('wx');
+    if (!box || !box.classList.contains('on')) return;
+    var back = box.querySelector('#wxBack');
+    if (!back) return;
+    back.click();
+    var row = box.querySelector('[data-go="moments"]');
+    if (row) row.click();
+  }
+
+  function popWx(title, body){
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 10px);'+
+      'z-index:130;background:rgba(255,255,255,.92);backdrop-filter:blur(24px) saturate(180%);'+
+      '-webkit-backdrop-filter:blur(24px) saturate(180%);border-radius:18px;padding:13px 16px;'+
+      'box-shadow:0 8px 30px rgba(0,0,0,.16);transition:transform .3s,opacity .3s;'+
+      'transform:translateY(-140%);opacity:0';
+    d.innerHTML = '<div style="font-size:12px;color:#8f8f8b;margin-bottom:3px">' + esc(title) + '</div>' +
+      '<div style="font-size:14.5px;line-height:1.5">' + esc(body) + '</div>';
+    document.body.appendChild(d);
+    requestAnimationFrame(function(){ d.style.transform = 'translateY(0)'; d.style.opacity = '1'; });
+    var kill = function(){
+      d.style.transform = 'translateY(-140%)'; d.style.opacity = '0';
+      setTimeout(function(){ d.remove(); }, 320);
+    };
+    d.onclick = function(){
+      kill();
+      try { if (typeof window.openWx === 'function') window.openWx(); } catch(e){}
+      var box = document.getElementById('wx');
+      if (box){
+        var row = box.querySelector('[data-go="moments"]');
+        if (row) row.click();
+      }
+    };
+    setTimeout(kill, 6500);
+    try {
+      if ('Notification' in window && Notification.permission === 'granted'){
+        navigator.serviceWorker.ready.then(function(r){
+          r.showNotification(title, { body: body, tag: 'kai-mom' });
+        }).catch(function(){});
+      }
+    } catch(e){}
+  }
+
+  /* ---- 他发一条 ---- */
+  var posting = false;
+  async function post(silent){
+    if (posting) return;
+    if (!S.key){ if (!silent) toast('先去设置填中继密钥'); return; }
+    posting = true;
+    if (!silent) toast('他在写…');
+    try {
+      var mine = getMom().filter(function(m){ return m.who === 'me'; }).slice(-2);
+      var ctxLine = mine.length
+        ? '小咩最近发的朋友圈：\n' + mine.map(function(m, i){
+            return (i + 1) + '. 「' + String(m.text || '（图片）').slice(0, 60) + '」（' + ago(m.t) + '）';
+          }).join('\n') + '\n你可以接着她这条说，也可以完全写你自己的事。'
+        : '小咩还没发过朋友圈。';
+
+      var raw = await askCtx('现在是 ' + hhmm() + '，' + partOfDay() + '。\n' + ctxLine + '\n\n' +
+        '发一条朋友圈。第一行只写正文，30 字内，写你此刻真的在想的事。不要引号，不要解释。\n' +
+        '第二行写 [[图]] 加一个具体的搜索词，你一般都应该配一张图。' +
+        '词越具体越好，中英文都行，例如 [[图]]香港夜景、[[图]]coffee on desk。\n' +
+        '确实不想配图就不写第二行。');
+
+      if (!raw){ if (!silent) toast('没写出来，再试一次'); return; }
+      var lines = String(raw).split('\n').map(function(x){ return x.trim(); }).filter(Boolean);
+      var txt = '', kw = '', pic = '';
+      lines.forEach(function(l){
+        var mm = l.match(/^\[\[\s*图\s*\]\]\s*(.*)$/);
+        if (mm){ kw = mm[1].trim(); return; }
+        if (!txt) txt = l.replace(/^\[\[\s*文\s*\]\]/, '').trim();
+      });
+      if (kw){ pic = await searchPic(kw); if (!pic) pic = makePic(); }
+
+      var all = getMom();
+      all.push({ who: 'kai', text: txt, img: pic, t: Date.now(), likes: [], cms: [] });
+      setMom(all);
+      S.momLast = Date.now();
+      try { save(); } catch(e){}
+      refreshWx();
+      if (!silent) toast('他发了朋友圈');
+      else popWx('祁砚发了朋友圈', txt);
+    } finally {
+      posting = false;
+    }
+  }
+  window.kaiPostNow = function(){ post(false); };
+
+  /* ---- 接管「让祁砚发一条」 ---- */
+  document.addEventListener('click', function(e){
+    var el = e.target && e.target.closest ? e.target.closest('#wx [data-kai]') : null;
+    if (!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    post(false);
+  }, true);
+
+  /* ---- 自动发 ---- */
+  setInterval(function(){
+    if (!+S.momOn) return;
+    if (posting || SENDING) return;
+    if (document.hidden) return;
+    if (+S.asleep) return;
+    var h = new Date().getHours();
+    if (h < 8 || h > 22) return;
+    var gap = Math.max(1, +S.momGap || 8) * 3600e3;
+    var all = getMom();
+    var last = all.length ? all[all.length - 1].t : 0;
+    if (Date.now() - last < gap) return;
+    if (Date.now() - (+S.momLast || 0) < gap) return;
+    post(true);
+  }, 60000);
+
+  /* ---- 设置里的卡片 ---- */
+  setInterval(function(){
+    var b = document.getElementById('ovbody');
+    if (!b || b.querySelector('#xmMomCard')) return;
+    if (!/壁纸|暗度|中继/.test(b.textContent || '')) return;
+    var d = document.createElement('div');
+    d.id = 'xmMomCard';
+    d.className = 'card';
+    d.innerHTML =
+      '<div class="eyebrow">朋友圈</div>' +
+      '<div class="item"><span>他自己发朋友圈</span><em><span class="sw ' + (+S.momOn ? 'on' : '') +
+        '" id="xmMomSw"><i></i></span></em></div>' +
+      '<div class="item"><span>隔几小时发一条</span><em><input id="xmMomGap" value="' + (+S.momGap || 8) +
+        '" style="width:44px;text-align:right;border:0;background:transparent;font-size:14px"></em></div>' +
+      '<div class="item" id="xmMomNow"><span>让他现在发一条</span><em>点一下</em></div>' +
+      '<div class="sub" style="margin:10px 0 0">打开后他会在 8 点到 22 点之间自己发，隔多久由上面那个数决定。' +
+      '他会先看你最近两条朋友圈，再决定是接着你说还是写自己的事。' +
+      '配图去 Wikimedia Commons 搜真实照片，搜不到才退回抽象图。</div>';
+    b.insertBefore(d, b.firstChild);
+    d.querySelector('#xmMomSw').onclick = function(){
+      S.momOn = +S.momOn ? 0 : 1; save(); this.classList.toggle('on', !!+S.momOn);
+    };
+    d.querySelector('#xmMomGap').oninput = function(){
+      S.momGap = Math.max(1, Math.min(72, parseInt(this.value, 10) || 8)); save();
+    };
+    d.querySelector('#xmMomNow').onclick = function(){
+      if (typeof window.kaiPostNow === 'function') window.kaiPostNow();
+    };
+  }, 1200);
+})();
