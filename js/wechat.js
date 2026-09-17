@@ -605,9 +605,7 @@
       ind.textContent = '刷新中…';
       b.style.transform = 'translateY(56px)';
       setTimeout(function(){
-        var back = document.querySelector('#wx #wxBack');
-        if (back) back.click();
-        var ft = document.querySelector('#wx .wxT[data-tab="find"]');
+        if (typeof window.wxRefresh === 'function') window.wxRefresh();
         if (ft) ft.click();
         var nb = body();
         if (!nb || !nb.parentNode){ busy = false; return; }
