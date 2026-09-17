@@ -1561,6 +1561,7 @@ self.addEventListener('notificationclick', e => {
       e.style.backgroundImage = u;
       e.style.backgroundSize = 'cover';
       e.style.backgroundPosition = 'center';
+      e.style.opacity = '1';
     });
   }
   go();
@@ -1852,4 +1853,36 @@ var st=document.createElement('style');
   }
   sync();
   setInterval(sync, 800);
+})();
+
+/* ===== 12. 周六日淡枣红：日历 app ===== */
+(function(){
+  var WK = '#B87C7C';
+
+  var st = document.createElement('style');
+  st.textContent =
+    '.cal .wd.we{color:'+WK+' !important}'+
+    '.cal .d.we{color:'+WK+' !important}'+
+    '.cal .d.now{color:#fff !important}';
+  document.head.appendChild(st);
+
+  function nv(){
+    var d = new Date(), y = d.getFullYear(), m = d.getMonth();
+    var first = new Date(y, m, 1).getDay(), n = new Date(y, m+1, 0).getDate();
+    var c = '日一二三四五六'.split('').map(function(w, i){
+      return '<div class="wd' + (i === 0 || i === 6 ? ' we' : '') + '">' + w + '</div>';
+    }).join('');
+    for (var i = 0; i < first; i++) c += '<div></div>';
+    for (var j = 1; j <= n; j++){
+      var g = (first + j - 1) % 7;
+      c += '<div class="d' + (j === d.getDate() ? ' now' : '') +
+           (g === 0 || g === 6 ? ' we' : '') + '">' + j + '</div>';
+    }
+    return '<div class="card"><div class="eyebrow">' + y + '</div>' +
+      '<div class="big" style="margin-bottom:16px">' + (m + 1) + ' 月</div>' +
+      '<div class="cal">' + c + '</div></div>';
+  }
+
+  window.vCal = nv;
+  try { if (typeof APPS !== 'undefined' && APPS.cal) APPS.cal.v = nv; } catch(e){}
 })();
