@@ -113,7 +113,7 @@
   fit();
 })();
 
-/* ===== 锁死根滚动：键盘不再顶整页 ===== */
+/* ===== 锁死根滚动 + 禁缩放 + 键盘只压内容区 ===== */
 (function(){
   var st = document.createElement('style');
   st.textContent =
@@ -121,4 +121,36 @@
     'width:100%!important;height:100%!important;overflow:hidden!important;' +
     'overscroll-behavior:none!important}' +
     'html{-webkit-text-size-adjust:100%!important}' +
-    'input,textarea{font-size:16px!important}';
+    'input,textarea{font-size:16px!important}' +
+    '*{touch-action:manipulation}';
+  document.head.appendChild(st);
+
+  document.addEventListener('gesturestart', function(e){ e.preventDefault(); }, { passive: false });
+  document.addEventListener('gesturechange', function(e){ e.preventDefault(); }, { passive: false });
+  document.addEventListener('gestureend', function(e){ e.preventDefault(); }, { passive: false });
+  document.addEventListener('dblclick', function(e){ e.preventDefault(); }, { passive: false });
+
+  var vv = window.visualViewport;
+  function fit(){
+    var o = document.getElementById('ov');
+    if (!o || !vv) return;
+    var up = window.innerHeight - vv.height > 120;
+    if (up){
+      o.style.top = '0px';
+      o.style.bottom = 'auto';
+      o.style.height = vv.height + 'px';
+    } else {
+      o.style.top = '';
+      o.style.bottom = '';
+      o.style.height = '';
+    }
+  }
+  if (vv){
+    vv.addEventListener('resize', fit);
+    vv.addEventListener('scroll', fit);
+  }
+  document.addEventListener('focusout', function(){ setTimeout(fit, 80); });
+  window.addEventListener('orientationchange', function(){ setTimeout(fit, 120); });
+  setInterval(fit, 500);
+  fit();
+})();
