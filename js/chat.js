@@ -730,6 +730,10 @@
     bar.innerHTML = '';
 
     inp.placeholder = '在想什么...';
+    inp.autocomplete = 'off';
+    inp.autocorrect = 'off';
+    inp.autocapitalize = 'off';
+    inp.spellcheck = false;
     inp.setAttribute('autocapitalize', 'off');
     inp.setAttribute('autocorrect', 'off');
 
