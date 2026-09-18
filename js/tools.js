@@ -928,43 +928,47 @@
   function toast(t){
     var d = document.createElement('div');
     d.textContent = t;
-    d.style.cssText = 'position:fixed;left:12px;right:12px;bottom:110px;z-index:9999;'+
-      'background:rgba(0,0,0,.9);color:#fff;font-size:12px;line-height:1.7;'+
-      'padding:12px 14px;border-radius:14px;white-space:pre-wrap';
+    d.style.cssText = 'position:fixed;left:10px;right:10px;bottom:96px;z-index:99999;'+
+      'background:rgba(0,0,0,.93);color:#fff;font-size:11.5px;line-height:1.7;'+
+      'padding:12px 14px;border-radius:14px;white-space:pre-wrap;max-height:62vh;overflow-y:auto';
+    d.onclick = function(){ d.remove(); };
     document.body.appendChild(d);
-    setTimeout(function(){ d.remove(); }, 15000);
   }
   async function reg(){
     var o = [];
-    o.push('权限：' + (('Notification' in window) ? Notification.permission : '不支持'));
-    if (!('serviceWorker' in navigator)){ o.push('没有 serviceWorker'); toast(o.join('\n')); return; }
+    o.push('通知支持：' + (('Notification' in window) ? '是' : '否'));
+    o.push('权限：' + (('Notification' in window) ? Notification.permission : '-'));
+    if (!('serviceWorker' in navigator)){ o.push('无 serviceWorker'); toast(o.join('\n')); return; }
     var r = await navigator.serviceWorker.ready;
-    o.push('SW：' + (r && r.active ? '已激活' : '没激活'));
-    var sub = await r.pushManager.getSubscription();
-    o.push('订阅：' + (sub ? '有' : '没有'));
+    o.push('SW：' + (r && r.active ? '已激活' : '未激活'));
+    var sub = null;
+    try { sub = await r.pushManager.getSubscription(); } catch(e){ o.push('查订阅失败：' + e.message); }
+    o.push('已有订阅：' + (sub ? '有' : '没有'));
     if (!sub){
       try {
-        var base = S.relay.replace(/\/+$/, '');
+        var base = String(S.relay || '').replace(/\/+$/, '');
+        if (!base) throw new Error('中继地址为空');
         var pk = await (await fetch(base + '/api/push/vapid-key')).json();
-        o.push('VAPID：' + (pk && pk.publicKey ? '拿到' : '没拿到'));
+        o.push('VAPID：' + (pk && pk.publicKey ? '已取得' : '取不到'));
         sub = await r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(pk.publicKey) });
-        o.push('订阅：新建成功');
-      } catch(e){ o.push('订阅失败：' + ((e && e.message) || e)); }
+        o.push('新建订阅：成功');
+      } catch(e){ o.push('新建订阅：失败 → ' + ((e && e.message) || e)); }
     }
     if (sub){
       try {
-        await api('/api/push/subscribe', { method:'POST',
+        await api('/api/push/subscribe', { method: 'POST',
           body: JSON.stringify({ inboxId: S.inbox, subscription: sub }) });
-        o.push('上传后端：OK');
-      } catch(e){ o.push('上传失败：' + ((e && e.message) || e)); }
+        o.push('上传后端：成功');
+      } catch(e){ o.push('上传后端：失败 → ' + ((e && e.message) || e)); }
     }
     toast(o.join('\n'));
   }
   document.addEventListener('click', function once(){
     document.removeEventListener('click', once, true);
     setTimeout(function(){
-      try { Notification.requestPermission().then(function(){ setTimeout(reg, 800); }); }
-      catch(e){ setTimeout(reg, 800); }
-    }, 200);
+      try {
+        Notification.requestPermission().then(function(){ setTimeout(reg, 900); });
+      } catch(e){ setTimeout(reg, 900); }
+    }, 250);
   }, true);
 })();
