@@ -76,7 +76,7 @@ body.dragging .tile{animation:none!important}
 #doneBtn{position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:16px;z-index:35;
 background:#111;color:#fff;border:0;border-radius:18px;padding:7px 18px;font-size:13px;display:none}
 body.edit #doneBtn{display:block}
-.overlay{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex;flex-direction:column;
+.overlay{position:fixed;inset:0;background:var(--bg);z-index:20;display:flex;flex-direction:column;overflow:hidden;
 transition:transform .32s cubic-bezier(.4,0,.2,1)}
 .overlay.hide{transform:translateX(100%)}
 #sh{z-index:30}
@@ -89,7 +89,7 @@ border-bottom:1px solid var(--line);flex:0 0 auto}
 #ovbody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
 padding:18px 16px calc(env(safe-area-inset-bottom) + 20px)}
 #ovbody.ovchat{display:flex;flex-direction:column;overflow:hidden;padding:0}
-#msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;padding:18px 16px}
+#msgs{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;padding:18px 16px}
 .bub{padding:11px 15px;border-radius:18px;font-size:15px;line-height:1.55;
 white-space:pre-wrap;word-break:break-word;-webkit-user-select:text;user-select:text}
 .me{align-self:flex-end;background:#111;color:#fff;border-bottom-right-radius:5px;max-width:82%}
