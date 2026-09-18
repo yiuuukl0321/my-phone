@@ -915,3 +915,56 @@
   setInterval(sync, 120000);
 })();
 
+
+/* ===== 推送诊断 ===== */
+(function(){
+  function b64(s){
+    s = s.replace(/-/g,'+').replace(/_/g,'/');
+    var p = s.length % 4; if (p) s += '===='.slice(p);
+    var b = atob(s), a = new Uint8Array(b.length);
+    for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i);
+    return a;
+  }
+  function toast(t){
+    var d = document.createElement('div');
+    d.textContent = t;
+    d.style.cssText = 'position:fixed;left:12px;right:12px;bottom:110px;z-index:9999;'+
+      'background:rgba(0,0,0,.9);color:#fff;font-size:12px;line-height:1.7;'+
+      'padding:12px 14px;border-radius:14px;white-space:pre-wrap';
+    document.body.appendChild(d);
+    setTimeout(function(){ d.remove(); }, 15000);
+  }
+  async function reg(){
+    var o = [];
+    o.push('权限：' + (('Notification' in window) ? Notification.permission : '不支持'));
+    if (!('serviceWorker' in navigator)){ o.push('没有 serviceWorker'); toast(o.join('\n')); return; }
+    var r = await navigator.serviceWorker.ready;
+    o.push('SW：' + (r && r.active ? '已激活' : '没激活'));
+    var sub = await r.pushManager.getSubscription();
+    o.push('订阅：' + (sub ? '有' : '没有'));
+    if (!sub){
+      try {
+        var base = S.relay.replace(/\/+$/, '');
+        var pk = await (await fetch(base + '/api/push/vapid-key')).json();
+        o.push('VAPID：' + (pk && pk.publicKey ? '拿到' : '没拿到'));
+        sub = await r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(pk.publicKey) });
+        o.push('订阅：新建成功');
+      } catch(e){ o.push('订阅失败：' + ((e && e.message) || e)); }
+    }
+    if (sub){
+      try {
+        await api('/api/push/subscribe', { method:'POST',
+          body: JSON.stringify({ inboxId: S.inbox, subscription: sub }) });
+        o.push('上传后端：OK');
+      } catch(e){ o.push('上传失败：' + ((e && e.message) || e)); }
+    }
+    toast(o.join('\n'));
+  }
+  document.addEventListener('click', function once(){
+    document.removeEventListener('click', once, true);
+    setTimeout(function(){
+      try { Notification.requestPermission().then(function(){ setTimeout(reg, 800); }); }
+      catch(e){ setTimeout(reg, 800); }
+    }, 200);
+  }, true);
+})();
