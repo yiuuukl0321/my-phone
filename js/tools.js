@@ -836,3 +836,81 @@
     };
   }, 1200);
 })();
+
+
+/* ===== 主动消息：向中继登记 ===== */
+(function(){
+  if (typeof S === 'undefined') return;
+  var BASE = String(S.relay || '').replace(/\/+$/, '');
+  if (!BASE || !S.key) return;
+  var USER = 'me', CHAR = 'kai';
+
+  function api(path, opt){
+    return fetch(BASE + path, Object.assign({
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + S.key }
+    }, opt || {})).then(function(r){ return r.text(); }).then(function(t){
+      try { return JSON.parse(t); } catch(e){ return t; }
+    }).catch(function(){ return null; });
+  }
+
+  async function subPush(){
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      var j = await api('/api/push/vapid-key');
+      var pk = j && j.publicKey;
+      if (!pk) return;
+      var reg = await navigator.serviceWorker.ready;
+      var s = await reg.pushManager.getSubscription();
+      if (!s){
+        var pad = '='.repeat((4 - pk.length % 4) % 4);
+        var raw = atob((pk + pad).replace(/-/g, '+').replace(/_/g, '/'));
+        var u8 = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i++) u8[i] = raw.charCodeAt(i);
+        s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8 });
+      }
+      await api('/api/push/subscribe', { method: 'POST', body: JSON.stringify({
+        inboxId: S.inbox, subscription: s.toJSON()
+      })});
+    } catch(e){}
+  }
+
+  function tpl(){
+    var p = (typeof PERSONA !== 'undefined' ? PERSONA : '') || '';
+    return p + '\n\n【最近聊天】\n{{RECENT_MESSAGES}}\n\n【你记得的事】\n{{MEMORY_CONTEXT}}\n\n' +
+      '【此刻】{{IMPULSE_REASON}}\n\n' +
+      '你忽然想找她。写一条发过去，40 字内，口语，不要 markdown，别问「在吗」。';
+  }
+
+  function reg(){
+    return api('/proactive/register', { method: 'POST', body: JSON.stringify({
+      inboxId: S.inbox, userId: USER, charId: CHAR,
+      promptTemplate: tpl(),
+      aiSettings: { mainApiUrl: S.apiUrl, mainApiKey: S.apiKey,
+                    mainApiModel: S.model, apiType: S.apiType || 'openai', temperature: 0.95 },
+      proactiveProfile: { threshold: 0.3, silenceSaturationHours: 5, quietHours: [23, 8] },
+      quietHours: [23, 8],
+      charUtcOffsetSeconds: 28800,
+      recentMessages: [],
+      lastInteractionAt: Date.now(),
+      proactiveEnabledAt: Date.now(),
+      enabled: true
+    })});
+  }
+
+  var n = -1;
+  function sync(){
+    var msgs = (typeof CHAT !== 'undefined' && Array.isArray(CHAT) ? CHAT : [])
+      .filter(function(m){ return !m.typing && m.text; }).slice(-20)
+      .map(function(m){ return { sender: m.role === 'user' ? 'me' : 'char',
+                                 text: String(m.text).slice(0, 300) }; });
+    if (msgs.length === n) return;
+    n = msgs.length;
+    api('/proactive/sync-messages', { method: 'POST', body: JSON.stringify({
+      inboxId: S.inbox, userId: USER, charId: CHAR,
+      recentMessages: msgs, lastInteractionAt: Date.now()
+    })});
+  }
+
+  setTimeout(function(){ subPush().then(reg); }, 8000);
+  setInterval(sync, 120000);
+})();
