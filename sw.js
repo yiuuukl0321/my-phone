@@ -69,17 +69,3 @@ self.addEventListener('fetch', e => {
 });
 
 
-self.addEventListener('push', function(e){
-  var d = {};
-  try { d = e.data.json(); } catch(err){}
-  e.waitUntil(self.registration.showNotification(d.title || '祁砚', {
-    body: d.body || '', tag: 'kai-proactive', data: { url: './' }
-  }));
-});
-self.addEventListener('notificationclick', function(e){
-  e.notification.close();
-  e.waitUntil(clients.matchAll({ type: 'window' }).then(function(l){
-    for (var i = 0; i < l.length; i++) if ('focus' in l[i]) return l[i].focus();
-    if (clients.openWindow) return clients.openWindow('./');
-  }));
-});
