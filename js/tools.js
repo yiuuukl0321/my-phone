@@ -915,12 +915,3 @@
   setInterval(sync, 120000);
 })();
 
-/* ===== 锁死根滚动：键盘不再顶整页 ===== */
-(function(){
-  var st = document.createElement('style');
-  st.textContent =
-    'html,body{position:fixed!important;top:0!important;left:0!important;' +
-    'width:100%!important;height:100%!important;overflow:hidden!important;' +
-    'overscroll-behavior:none!important}';
-  document.head.appendChild(st);
-})();
