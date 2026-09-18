@@ -886,9 +886,18 @@
       '<div class="card"><div class="eyebrow">朋友圈</div>' +
         '<div class="item"><span>他自己发朋友圈</span><em><span class="sw ' + (+S.momOn ? 'on' : '') +
           '" id="meSetMom"><i></i></span></em></div>' +
-        '<div class="item"><span>隔几小时发一条</span><em><input id="meSetGap" value="' +
-          (+S.momGap || 8) + '" style="width:44px;text-align:right;border:0;' +
-          'background:transparent;font-size:14px"></em></div>' +
+        '<div class="item" style="pointer-events:auto">' +
+          '<span>隔几小时发一条</span>' +
+          '<input id="meSetGap" type="number" inputmode="numeric" min="1" max="72" ' +
+            'value="' + (+S.momGap || 8) + '" ' +
+            'style="margin-left:auto;flex:0 0 auto;width:66px;height:34px;' +
+            'border:1px solid rgba(0,0,0,.14);border-radius:10px;background:#fff;' +
+            'color:#0b0b0b;font-size:15px;font-family:inherit;text-align:center;' +
+            'padding:0;box-sizing:border-box;opacity:1;visibility:visible;' +
+            'pointer-events:auto;-webkit-user-select:text;user-select:text;' +
+            '-webkit-appearance:none;appearance:none;outline:none">' +
+        '</div>' +
+
         '<div class="item" id="meSetNow"><span>让他现在发一条</span><em>›</em></div>' +
         '<div class="item" id="meSetClr"><span style="color:#ff3b30">清空我的朋友圈</span><em>' +
           (bak && bak.items ? bak.items.length + ' 条备份' : '') + '</em></div>' +
