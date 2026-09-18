@@ -751,6 +751,8 @@
     plus.onclick = function(e){ e.preventDefault(); sendChat(); };
 
     field.appendChild(w);
+    inp.autocomplete = 'off';
+    inp.name = 'xm-msg';
     field.appendChild(inp);
     field.appendChild(plus);
 
