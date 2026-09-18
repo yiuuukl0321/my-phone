@@ -764,20 +764,31 @@
     });
   }
 
+function toBottom(){
+    var m = document.getElementById('msgs');
+    if (!m) return;
+    m.scrollTop = m.scrollHeight;
+    var p = m.parentNode;
+    if (p && p.scrollHeight > p.clientHeight) p.scrollTop = p.scrollHeight;
+  }
   build();
   var _oa = window.openApp;
   if (typeof _oa === 'function' && !_oa.__ib){
-    var fo = function(){
+    var fo = function(k){
       var r = _oa.apply(this, arguments);
       try { build(); } catch(e){}
+      if (k === 'chat'){
+        toBottom();
+        setTimeout(toBottom, 60);
+        setTimeout(toBottom, 260);
+        setTimeout(toBottom, 700);
+      }
       return r;
     };
     fo.__ib = true;
     window.openApp = fo;
   }
   setInterval(build, 50);
-})();
-
 
 
 
