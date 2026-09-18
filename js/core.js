@@ -112,3 +112,13 @@
   vv.addEventListener('scroll', fit);
   fit();
 })();
+
+/* ===== 锁死根滚动：键盘不再顶整页 ===== */
+(function(){
+  var st = document.createElement('style');
+  st.textContent =
+    'html,body{position:fixed!important;top:0!important;left:0!important;' +
+    'width:100%!important;height:100%!important;overflow:hidden!important;' +
+    'overscroll-behavior:none!important}' +
+    'html{-webkit-text-size-adjust:100%!important}' +
+    'input,textarea{font-size:16px!important}';
