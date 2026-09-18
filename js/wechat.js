@@ -1335,16 +1335,27 @@
       '<div class="eyebrow">朋友圈</div>' +
       '<div class="item"><span>他自己发朋友圈</span><em><span class="sw ' + (+S.momOn ? 'on' : '') +
         '" id="xmMomSw"><i></i></span></em></div>' +
-      '<div class="item"><span>隔几小时发一条</span><em><input id="xmMomGap" value="' + (+S.momGap || 8) +
-        '" style="width:44px;text-align:right;border:0;background:transparent;font-size:14px"></em></div>' +
+      '<div class="item" style="pointer-events:auto">' +
+        '<span>隔几小时发一条</span>' +
+        '<input id="xmMomGap" type="number" inputmode="numeric" min="1" max="72" ' +
+          'value="' + (+S.momGap || 8) + '" ' +
+          'style="margin-left:auto;flex:0 0 auto;width:66px;height:34px;' +
+          'border:1px solid rgba(0,0,0,.14);border-radius:10px;background:#fff;' +
+          'color:#0b0b0b;font-size:15px;font-family:inherit;text-align:center;' +
+          'padding:0;box-sizing:border-box;opacity:1;visibility:visible;' +
+          'pointer-events:auto;-webkit-user-select:text;user-select:text;' +
+          '-webkit-appearance:none;appearance:none;outline:none">' +
+      '</div>' +
       '<div class="item" id="xmMomNow"><span>让他现在发一条</span><em>点一下</em></div>' +
       '<div class="sub" style="margin:10px 0 0">打开后他会在 8 点到 22 点之间自己发，隔多久由上面那个数决定。' +
       '他会先看你最近两条朋友圈，再决定是接着你说还是写自己的事。' +
       '配图去 Wikimedia Commons 搜真实照片，搜不到才退回抽象图。</div>';
     b.insertBefore(d, b.firstChild);
-    d.querySelector('#xmMomSw').onclick = function(){
-      S.momOn = +S.momOn ? 0 : 1; save(); this.classList.toggle('on', !!+S.momOn);
+    var g2 = d.querySelector('#xmMomGap');
+    g2.oninput = function(){
+      S.momGap = Math.max(1, Math.min(72, parseInt(this.value, 10) || 8)); save();
     };
+    g2.onblur = function(){ this.value = (+S.momGap || 8); };
     d.querySelector('#xmMomGap').oninput = function(){
       S.momGap = Math.max(1, Math.min(72, parseInt(this.value, 10) || 8)); save();
     };
