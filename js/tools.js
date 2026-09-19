@@ -974,75 +974,18 @@
 })();
 
 
-/* ===== 键盘：抹掉底部异色边 + 去白边 ===== */
+/* ===== 键盘 + 输入框 统一处理 ===== */
 (function(){
   var st = document.createElement('style');
   st.textContent =
-    'html.kb{background-color:#f4f4f2!important;background-image:none!important}' +
-    'html.kb .inputbar{padding-bottom:10px!important}' +
-    'html.kb #ovbody{padding-bottom:0!important}';
-  document.head.appendChild(st);
-
-  var vv = window.visualViewport;
-  if (!vv) return;
-  var base = Math.max(window.innerHeight || 0, vv.height || 0);
-
-  function upd(){
-    var h = Math.max(window.innerHeight || 0, vv.height || 0);
-    if (h > base) base = h;
-    var open = h < base - 120;
-    document.documentElement.classList.toggle('kb', open);
-    if (open && (window.scrollY || window.pageYOffset)) window.scrollTo(0, 0);
-  }
-
-  vv.addEventListener('resize', upd);
-  vv.addEventListener('scroll', function(){
-    if (window.scrollY || window.pageYOffset) window.scrollTo(0, 0);
-    upd();
-  });
-  setInterval(upd, 200);
-  upd();
-})();
-
-
-/* ===== 键盘：异色边 + 白边 ===== */
-(function(){
-  var st = document.createElement('style');
-  st.textContent =
-    '.overlay{bottom:-260px!important;padding-bottom:260px!important}' +
-    'html.kb .inputbar{padding-bottom:10px!important}' +
-    'html.kb #ovbody{padding-bottom:0!important}';
-  document.head.appendChild(st);
-
-  var vv = window.visualViewport;
-
-  function isOpen(){
-    var a = document.activeElement;
-    var focused = !!(a && (a.id === 'mIn' || a.id === 'mInCE' ||
-                    a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA'));
-    var h = vv ? vv.height : window.innerHeight;
-    return focused && h < (window.screen.height || 9999) - 120;
-  }
-
-  function upd(){
-    document.documentElement.classList.toggle('kb', isOpen());
-    if (window.scrollY || window.pageYOffset) window.scrollTo(0, 0);
-  }
-
-  if (vv){
-    vv.addEventListener('resize', upd);
-    vv.addEventListener('scroll', upd);
-  }
-  document.addEventListener('focusin', upd);
-  document.addEventListener('focusout', function(){ setTimeout(upd, 150); });
-  setInterval(upd, 250);
-  upd();
-})();
-
-/* ===== 键盘：聊天页跟随视觉视口 ===== */
-(function(){
-  var st = document.createElement('style');
-  st.textContent =
+    '#mIn{position:fixed!important;left:-9999px!important;top:0!important;' +
+      'width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important}' +
+    '#mInCE{flex:1;min-width:0;max-height:104px;overflow-y:auto;padding:12px 16px;' +
+      'font:400 16px/1.45 -apple-system,"PingFang SC",system-ui,sans-serif;' +
+      'color:var(--ink);white-space:pre-wrap;word-break:break-word;outline:none;' +
+      'background:#fff;border:1px solid var(--line);border-radius:22px;' +
+      '-webkit-user-select:text;user-select:text}' +
+    '#mInCE:empty:before{content:attr(data-ph);color:#c9c9c5;pointer-events:none}' +
     '.overlay{top:var(--vvt,0px)!important;height:var(--vvh,100%)!important;' +
       'bottom:auto!important;padding-bottom:0!important}' +
     'html.kb{background-color:#f4f4f2!important;background-image:none!important}' +
@@ -1050,16 +993,51 @@
     'html.kb #ovbody{padding-bottom:0!important}';
   document.head.appendChild(st);
 
+  /* ① 输入框换成 contenteditable —— 一直等到它出现 */
+  var swapped = false;
+  function swap(){
+    if (swapped) return true;
+    var inp = document.getElementById('mIn');
+    if (!inp) return false;
+    swapped = true;
+    var d = document.createElement('div');
+    d.id = 'mInCE';
+    d.setAttribute('contenteditable', 'true');
+    d.setAttribute('data-ph', '在想什么...');
+    d.setAttribute('autocapitalize', 'sentences');
+    d.setAttribute('spellcheck', 'false');
+    inp.parentNode.insertBefore(d, inp);
+    d.addEventListener('input', function(){ inp.value = d.innerText.replace(/\n$/, ''); });
+    var desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    Object.defineProperty(inp, 'value', {
+      get: function(){ return desc.get.call(inp); },
+      set: function(v){
+        desc.set.call(inp, v);
+        var s = String(v == null ? '' : v);
+        if (d.innerText !== s) d.innerText = s;
+      }
+    });
+    inp.focus = function(){ try { d.focus(); } catch(e){} };
+    d.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' && !e.shiftKey){
+        e.preventDefault();
+        inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      }
+    });
+    return true;
+  }
+  var t = setInterval(function(){ if (swap()) clearInterval(t); }, 400);
+  swap();
+
+  /* ② 聊天页钉死在视觉视口上 */
   var vv = window.visualViewport;
   if (!vv) return;
-
   function upd(){
     var r = document.documentElement;
     r.style.setProperty('--vvt', vv.offsetTop + 'px');
     r.style.setProperty('--vvh', vv.height + 'px');
-    r.classList.toggle('kb', vv.height < window.screen.height - 120);
+    r.classList.toggle('kb', vv.height < (window.screen.height || 9999) - 120);
   }
-
   vv.addEventListener('resize', upd);
   vv.addEventListener('scroll', upd);
   setInterval(upd, 120);
