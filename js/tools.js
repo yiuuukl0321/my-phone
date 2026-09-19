@@ -974,25 +974,33 @@
 })();
 
 
-/* ===== 键盘弹起：去掉底部白边 ===== */
+/* ===== 键盘：抹掉底部异色边 + 去白边 ===== */
 (function(){
   var st = document.createElement('style');
   st.textContent =
+    'html.kb{background-color:#f4f4f2!important;background-image:none!important}' +
     'html.kb .inputbar{padding-bottom:10px!important}' +
     'html.kb #ovbody{padding-bottom:0!important}';
   document.head.appendChild(st);
 
   var vv = window.visualViewport;
-  var base = Math.max(window.innerHeight || 0, vv ? vv.height : 0);
+  if (!vv) return;
+  var base = Math.max(window.innerHeight || 0, vv.height || 0);
+
   function upd(){
-    var h = Math.max(window.innerHeight || 0, vv ? vv.height : 0);
+    var h = Math.max(window.innerHeight || 0, vv.height || 0);
     if (h > base) base = h;
-    document.documentElement.classList.toggle('kb', h < base - 120);
+    var open = h < base - 120;
+    document.documentElement.classList.toggle('kb', open);
+    if (open && (window.scrollY || window.pageYOffset)) window.scrollTo(0, 0);
   }
-  if (vv){ vv.addEventListener('resize', upd); vv.addEventListener('scroll', upd); }
-  window.addEventListener('resize', upd);
-  window.addEventListener('orientationchange', function(){ base = 0; setTimeout(upd, 400); });
-  setInterval(upd, 250);
+
+  vv.addEventListener('resize', upd);
+  vv.addEventListener('scroll', function(){
+    if (window.scrollY || window.pageYOffset) window.scrollTo(0, 0);
+    upd();
+  });
+  setInterval(upd, 200);
   upd();
 })();
 
