@@ -1038,3 +1038,30 @@
   setInterval(upd, 250);
   upd();
 })();
+
+/* ===== 键盘：聊天页跟随视觉视口 ===== */
+(function(){
+  var st = document.createElement('style');
+  st.textContent =
+    '.overlay{top:var(--vvt,0px)!important;height:var(--vvh,100%)!important;' +
+      'bottom:auto!important;padding-bottom:0!important}' +
+    'html.kb{background-color:#f4f4f2!important;background-image:none!important}' +
+    'html.kb .inputbar{padding-bottom:10px!important}' +
+    'html.kb #ovbody{padding-bottom:0!important}';
+  document.head.appendChild(st);
+
+  var vv = window.visualViewport;
+  if (!vv) return;
+
+  function upd(){
+    var r = document.documentElement;
+    r.style.setProperty('--vvt', vv.offsetTop + 'px');
+    r.style.setProperty('--vvh', vv.height + 'px');
+    r.classList.toggle('kb', vv.height < window.screen.height - 120);
+  }
+
+  vv.addEventListener('resize', upd);
+  vv.addEventListener('scroll', upd);
+  setInterval(upd, 120);
+  upd();
+})();
