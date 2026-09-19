@@ -974,7 +974,7 @@
 })();
 
 
-/* ===== 键盘 + 输入框 统一处理 ===== */
+/* ===== 键盘 + 输入框 v3：持续修复 ===== */
 (function(){
   var st = document.createElement('style');
   st.textContent =
@@ -985,28 +985,12 @@
       'color:var(--ink);white-space:pre-wrap;word-break:break-word;outline:none;' +
       'background:#fff;border:1px solid var(--line);border-radius:22px;' +
       '-webkit-user-select:text;user-select:text}' +
-    '#mInCE:empty:before{content:attr(data-ph);color:#c9c9c5;pointer-events:none}' +
-    '.overlay{top:var(--vvt,0px)!important;height:var(--vvh,100%)!important;' +
-      'bottom:auto!important;padding-bottom:0!important}' +
-    'html.kb{background-color:#f4f4f2!important;background-image:none!important}' +
-    'html.kb .inputbar{padding-bottom:10px!important}' +
-    'html.kb #ovbody{padding-bottom:0!important}';
+    '#mInCE:empty:before{content:attr(data-ph);color:#c9c9c5;pointer-events:none}';
   document.head.appendChild(st);
 
-  /* ① 输入框换成 contenteditable —— 一直等到它出现 */
-  var swapped = false;
-  function swap(){
-    if (swapped) return true;
-    var inp = document.getElementById('mIn');
-    if (!inp) return false;
-    swapped = true;
-    var d = document.createElement('div');
-    d.id = 'mInCE';
-    d.setAttribute('contenteditable', 'true');
-    d.setAttribute('data-ph', '在想什么...');
-    d.setAttribute('autocapitalize', 'sentences');
-    d.setAttribute('spellcheck', 'false');
-    inp.parentNode.insertBefore(d, inp);
+  function hook(inp, d){
+    if (inp.__ceHooked) return;
+    inp.__ceHooked = 1;
     d.addEventListener('input', function(){ inp.value = d.innerText.replace(/\n$/, ''); });
     var desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
     Object.defineProperty(inp, 'value', {
@@ -1024,22 +1008,47 @@
         inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
       }
     });
-    return true;
   }
-  var t = setInterval(function(){ if (swap()) clearInterval(t); }, 400);
-  swap();
 
-  /* ② 聊天页钉死在视觉视口上 */
-  var vv = window.visualViewport;
-  if (!vv) return;
-  function upd(){
-    var r = document.documentElement;
-    r.style.setProperty('--vvt', vv.offsetTop + 'px');
-    r.style.setProperty('--vvh', vv.height + 'px');
-    r.classList.toggle('kb', vv.height < (window.screen.height || 9999) - 120);
+  function fix(){
+    var inp = document.getElementById('mIn');
+    if (!inp) return;
+    var d = document.getElementById('mInCE');
+    if (!d){
+      d = document.createElement('div');
+      d.id = 'mInCE';
+      d.setAttribute('contenteditable', 'true');
+      d.setAttribute('data-ph', '在想什么...');
+      d.setAttribute('autocapitalize', 'sentences');
+      d.setAttribute('spellcheck', 'false');
+    }
+    if (inp.parentNode && d.parentNode !== inp.parentNode){
+      try { inp.parentNode.insertBefore(d, inp); } catch(e){}
+    }
+    hook(inp, d);
+    if (document.activeElement === inp){ try { inp.blur(); } catch(e){} }
   }
-  vv.addEventListener('resize', upd);
-  vv.addEventListener('scroll', upd);
-  setInterval(upd, 120);
-  upd();
+  setInterval(fix, 300);
+  fix();
+
+  /* 自检：点屏幕任意处 → 把现场状态打出来 */
+  document.addEventListener('click', function(){
+    var inp = document.getElementById('mIn');
+    var d = document.getElementById('mInCE');
+    var ov = document.getElementById('ov');
+    var t = document.createElement('div');
+    t.textContent =
+      '#mIn: ' + (inp ? '有' : '无') +
+      '   #mInCE: ' + (d ? '有' : '无') +
+      '   同级: ' + (inp && d && inp.parentNode === d.parentNode ? '是' : '否') + '\n' +
+      '#mIn 所在: ' + (inp && inp.parentNode ? (inp.parentNode.className || inp.parentNode.id) : '-') + '\n' +
+      '#ov top/height: ' + (ov ? getComputedStyle(ov).top + ' / ' + getComputedStyle(ov).height : '-') + '\n' +
+      'vv: ' + (window.visualViewport ? window.visualViewport.offsetTop + ' / ' + window.visualViewport.height : '-') +
+      '   innerH: ' + window.innerHeight;
+    t.style.cssText = 'position:fixed;left:10px;right:10px;bottom:110px;z-index:99999;'+
+      'background:rgba(0,0,0,.93);color:#fff;font-size:11.5px;line-height:1.7;'+
+      'padding:12px 14px;border-radius:14px;white-space:pre-wrap';
+    t.onclick = function(){ t.remove(); };
+    document.body.appendChild(t);
+  }, true);
 })();
