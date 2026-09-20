@@ -88,31 +88,6 @@
 })();
 
 
-/* ===== 键盘弹出时只压内容区，顶栏不动 ===== */
-(function(){
-  var vv = window.visualViewport;
-  if (!vv) return;
-  function fit(){
-    var ov = document.getElementById('ov');
-    if (!ov) return;
-    var up = window.innerHeight - vv.height > 80;
-    if (up){
-      ov.style.transition = 'none';
-      ov.style.height = vv.height + 'px';
-      ov.style.transform = 'translateY(' + vv.offsetTop + 'px)';
-    } else {
-      ov.style.transition = '';
-      ov.style.height = '';
-      ov.style.transform = '';
-    }
-    var m = document.getElementById('msgs');
-    if (m && up) m.scrollTop = m.scrollHeight;
-  }
-  vv.addEventListener('resize', fit);
-  vv.addEventListener('scroll', fit);
-  fit();
-})();
-
 /* ===== 禁缩放 ===== */
 (function(){
   var st = document.createElement('style');
