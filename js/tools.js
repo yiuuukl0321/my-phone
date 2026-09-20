@@ -1031,62 +1031,79 @@
   setInterval(fix, 300);
   fix();
 
-  /* 自检：点屏幕任意处 → 把现场状态打出来 */
-  document.addEventListener('click', function(){
-    var inp = document.getElementById('mIn');
-    var d = document.getElementById('mInCE');
-    var ov = document.getElementById('ov');
-    var t = document.createElement('div');
-    t.textContent =
-      '#mIn: ' + (inp ? '有' : '无') +
-      '   #mInCE: ' + (d ? '有' : '无') +
-      '   同级: ' + (inp && d && inp.parentNode === d.parentNode ? '是' : '否') + '\n' +
-      '#mIn 所在: ' + (inp && inp.parentNode ? (inp.parentNode.className || inp.parentNode.id) : '-') + '\n' +
-      '#ov top/height: ' + (ov ? getComputedStyle(ov).top + ' / ' + getComputedStyle(ov).height : '-') + '\n' +
-      'vv: ' + (window.visualViewport ? window.visualViewport.offsetTop + ' / ' + window.visualViewport.height : '-') +
-      '   innerH: ' + window.innerHeight;
-    t.style.cssText = 'position:fixed;left:10px;right:10px;bottom:110px;z-index:99999;'+
-      'background:rgba(0,0,0,.93);color:#fff;font-size:11.5px;line-height:1.7;'+
-      'padding:12px 14px;border-radius:14px;white-space:pre-wrap';
-    t.onclick = function(){ t.remove(); };
-    document.body.appendChild(t);
-  }, true);
-})();
 
 
-/* ===== 顶栏钉死：打字时名字栏永远在屏幕最上面 ===== */
+/* ===== 顶栏钉死 v2：名字栏本身钉死在屏幕最上面 ===== */
 (function(){
   var vv = window.visualViewport;
+  if (!vv) return;
 
-  function list(){
-    var a = [];
-    ['ov','sh','wx','meSet'].forEach(function(id){
-      var el = document.getElementById(id);
-      if (el) a.push(el);
-    });
-    return a;
+  var box = document.createElement('div');
+  box.textContent = '顶栏补丁 v2 已加载';
+  box.style.cssText = 'position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 10px);' +
+    'transform:translateX(-50%);z-index:99999;background:rgba(0,0,0,.85);color:#fff;' +
+    'font-size:12px;padding:8px 14px;border-radius:12px';
+  document.body.appendChild(box);
+  setTimeout(function(){ box.remove(); }, 2600);
+
+  var hud = null;
+  function say(t){
+    if (!hud){
+      hud = document.createElement('div');
+      hud.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;' +
+        'background:rgba(0,0,0,.86);color:#fff;font-size:11px;line-height:1.65;' +
+        'padding:8px 10px;border-radius:12px;white-space:pre-wrap';
+      hud.onclick = function(){ hud.remove(); hud = null; };
+      document.body.appendChild(hud);
+    }
+    hud.textContent = t;
+  }
+
+  function heads(){
+    return document.querySelectorAll('#ov .ovtop, #sh .ovtop, #wx .wxTop, #meSet .mtop');
   }
 
   function pin(){
-    var off = vv ? Math.round(vv.offsetTop) : 0;
-    var h   = vv ? Math.round(vv.height)    : window.innerHeight;
+    var off = Math.round(vv.offsetTop);
+    var h   = Math.round(vv.height);
     var kb  = Math.max(0, window.innerHeight - h - off);
     var up  = kb > 60;
+    var log = [];
 
-    list().forEach(function(el){
+    ['ov','sh','wx','meSet'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (!el) return;
       var hidden = el.classList.contains('hide') ||
                    (el.id === 'wx'    && !el.classList.contains('on')) ||
                    (el.id === 'meSet' && !el.classList.contains('on'));
       if (up && !hidden){
         el.style.transition = 'none';
+        el.style.top = off + 'px';
+        el.style.bottom = 'auto';
         el.style.height = h + 'px';
-        el.style.transform = 'translateY(' + off + 'px)';
-      } else if (el.style.height || /translateY/.test(el.style.transform || '')){
+        el.style.transform = String(el.style.transform || '').replace(/translateY\([^)]\)\s/g, '');
+        log.push(el.id + ': ' + el.style.top + ' / ' + el.style.height);
+      } else {
         el.style.transition = '';
+        el.style.top = '';
+        el.style.bottom = '';
         el.style.height = '';
-        el.style.transform = '';
       }
     });
+
+    Array.prototype.forEach.call(heads(), function(hd){
+      if (!hd.offsetHeight) return;
+      hd.style.position = 'fixed';
+      hd.style.left = '0';
+      hd.style.right = '0';
+      hd.style.top = off + 'px';
+      hd.style.zIndex = '80';
+      var host = hd.parentNode;
+      if (host) host.style.paddingTop = hd.offsetHeight + 'px';
+    });
+
+    say('kb=' + kb + '  vvOff=' + off + '  vvH=' + h + '  innerH=' + window.innerHeight +
+        '\n' + log.join('\n'));
   }
 
   function keep(){
@@ -1099,13 +1116,14 @@
     }
   }
 
-  if (vv){ vv.addEventListener('resize', keep); vv.addEventListener('scroll', keep); }
+  vv.addEventListener('resize', keep);
+  vv.addEventListener('scroll', keep);
   addEventListener('resize', keep);
   addEventListener('orientationchange', keep);
   document.addEventListener('focusin', function(){
-    keep(); setTimeout(keep,50); setTimeout(keep,150); setTimeout(keep,320);
+    keep(); setTimeout(keep,60); setTimeout(keep,200); setTimeout(keep,450);
   }, true);
-  document.addEventListener('focusout', function(){ setTimeout(keep,120); }, true);
-  setInterval(keep, 300);
+  document.addEventListener('focusout', function(){ setTimeout(keep,150); }, true);
+  setInterval(keep, 250);
   keep();
 })();
