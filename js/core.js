@@ -115,3 +115,31 @@
     document.addEventListener(t, function(e){ e.preventDefault(); }, { passive: false });
   });
 })();
+
+
+/* ---------- 全站：关掉 iOS 长按选取文字 ---------- */
+
+
+(function(){
+  var st = document.createElement('style');
+  st.textContent =
+    'html,body,*{-webkit-user-select:none!important;user-select:none!important;' +
+      '-webkit-touch-callout:none!important}' +
+    'input,textarea,[contenteditable]{-webkit-user-select:text!important;user-select:text!important}';
+  document.head.appendChild(st);
+
+  function typing(t){
+    return !!(t && t.closest && (t.closest('input') || t.closest('textarea') || t.closest('[contenteditable]')));
+  }
+
+  /* 长按弹出来的「拷贝 / 查询 / 翻译」全按掉 */
+  document.addEventListener('contextmenu', function(e){
+    if (!typing(e.target)) e.preventDefault();
+  }, true);
+
+  document.addEventListener('selectstart', function(e){
+    if (!typing(e.target)) e.preventDefault();
+  }, true);
+
+  document.addEventListener('dragstart', function(e){ e.preventDefault(); });
+})();
