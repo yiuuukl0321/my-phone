@@ -1052,3 +1052,60 @@
     document.body.appendChild(t);
   }, true);
 })();
+
+
+/* ===== 顶栏钉死：打字时名字栏永远在屏幕最上面 ===== */
+(function(){
+  var vv = window.visualViewport;
+
+  function list(){
+    var a = [];
+    ['ov','sh','wx','meSet'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) a.push(el);
+    });
+    return a;
+  }
+
+  function pin(){
+    var off = vv ? Math.round(vv.offsetTop) : 0;
+    var h   = vv ? Math.round(vv.height)    : window.innerHeight;
+    var kb  = Math.max(0, window.innerHeight - h - off);
+    var up  = kb > 60;
+
+    list().forEach(function(el){
+      var hidden = el.classList.contains('hide') ||
+                   (el.id === 'wx'    && !el.classList.contains('on')) ||
+                   (el.id === 'meSet' && !el.classList.contains('on'));
+      if (up && !hidden){
+        el.style.transition = 'none';
+        el.style.height = h + 'px';
+        el.style.transform = 'translateY(' + off + 'px)';
+      } else if (el.style.height || /translateY/.test(el.style.transform || '')){
+        el.style.transition = '';
+        el.style.height = '';
+        el.style.transform = '';
+      }
+    });
+  }
+
+  function keep(){
+    var a = document.activeElement;
+    if (a && a.closest && a.closest('#ov')){ try { window.scrollTo(0,0); } catch(e){} }
+    pin();
+    var m = document.getElementById('msgs');
+    if (m && a && a.id === 'mInCE' && m.scrollHeight - m.scrollTop - m.clientHeight > 4){
+      m.scrollTop = m.scrollHeight;
+    }
+  }
+
+  if (vv){ vv.addEventListener('resize', keep); vv.addEventListener('scroll', keep); }
+  addEventListener('resize', keep);
+  addEventListener('orientationchange', keep);
+  document.addEventListener('focusin', function(){
+    keep(); setTimeout(keep,50); setTimeout(keep,150); setTimeout(keep,320);
+  }, true);
+  document.addEventListener('focusout', function(){ setTimeout(keep,120); }, true);
+  setInterval(keep, 300);
+  keep();
+})();
