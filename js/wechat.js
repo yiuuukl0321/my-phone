@@ -1787,3 +1787,30 @@
   setInterval(pin, 300);
   pin();
 })();
+
+
+/* ---------- 4. 打字时顶栏跟着可视区走，永远贴在屏幕最上面 ---------- */
+(function(){
+  var vv = window.visualViewport;
+  if (!vv) return;
+
+  function move(){
+    var off = Math.round(vv.offsetTop);
+    var heads = document.querySelectorAll('#ov .ovtop, #sh .ovtop');
+    for (var i = 0; i < heads.length; i++){
+      heads[i].style.transform = off > 0 ? 'translateY(' + off + 'px)' : '';
+    }
+  }
+
+  vv.addEventListener('scroll', move);
+  vv.addEventListener('resize', move);
+  addEventListener('resize', move);
+  document.addEventListener('focusin', function(){
+    move();
+    var n = 0;
+    (function step(){ move(); if (++n < 60) requestAnimationFrame(step); })();
+  }, true);
+  document.addEventListener('focusout', function(){ setTimeout(move, 80); setTimeout(move, 260); }, true);
+  setInterval(move, 200);
+  move();
+})();
