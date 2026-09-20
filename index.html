@@ -2175,57 +2175,7 @@ var V = '47';
   document.body.appendChild(s);
 });
 </script>
-<script>
-/* 消息贴底 + 键盘开合后自动回到最新一条 */
-(function(){
-  var st = document.createElement('style');
-  st.textContent = '#msgs::before{content:"";margin-top:auto}';
-  document.head.appendChild(st);
 
-  function box(){ return document.getElementById('msgs'); }
-  function near(b){ return b.scrollHeight - b.scrollTop - b.clientHeight < 140; }
-  function toEnd(b){ b.scrollTop = b.scrollHeight; }
-
-  var lastH = 0, wasNear = true;
-
-  document.addEventListener('scroll', function(e){
-    if (e.target && e.target.id === 'msgs') wasNear = near(e.target);
-  }, true);
-
-  function fix(){
-    var b = box(); if (!b) return;
-    var h = b.clientHeight;
-    if (h !== lastH){
-      if (!lastH || wasNear) toEnd(b);
-      lastH = h;
-    }
-    wasNear = near(b);
-  }
-
-  var vv = window.visualViewport;
-  if (vv) vv.addEventListener('resize', function(){
-    fix(); setTimeout(fix,40); setTimeout(fix,160); setTimeout(fix,420);
-  });
-  addEventListener('resize', fix);
-  document.addEventListener('focusin', function(){
-    setTimeout(fix,60); setTimeout(fix,260); setTimeout(fix,520);
-  }, true);
-
-  var _rc = window.renderChat;
-  if (typeof _rc === 'function' && !_rc.__pad){
-    var fr = function(){
-      var r = _rc.apply(this, arguments);
-      setTimeout(fix, 30);
-      return r;
-    };
-    fr.__pad = true;
-    window.renderChat = fr;
-  }
-
-  setInterval(fix, 500);
-  fix();
-})();
-</script>
 <script>
 /* 顶栏钉死 v3：名字栏永远在屏幕最上面 */
 (function(){
@@ -2319,5 +2269,58 @@ var V = '47';
   keep();
 })();
 </script>
+
+<script>
+/* 消息贴底 + 键盘开合后自动回到最新一条 */
+(function(){
+  var st = document.createElement('style');
+  st.textContent = '#msgs::before{content:"";margin-top:auto}';
+  document.head.appendChild(st);
+
+  function box(){ return document.getElementById('msgs'); }
+  function near(b){ return b.scrollHeight - b.scrollTop - b.clientHeight < 140; }
+  function toEnd(b){ b.scrollTop = b.scrollHeight; }
+
+  var lastH = 0, wasNear = true;
+
+  document.addEventListener('scroll', function(e){
+    if (e.target && e.target.id === 'msgs') wasNear = near(e.target);
+  }, true);
+
+  function fix(){
+    var b = box(); if (!b) return;
+    var h = b.clientHeight;
+    if (h !== lastH){
+      if (!lastH || wasNear) toEnd(b);
+      lastH = h;
+    }
+    wasNear = near(b);
+  }
+
+  var vv = window.visualViewport;
+  if (vv) vv.addEventListener('resize', function(){
+    fix(); setTimeout(fix,40); setTimeout(fix,160); setTimeout(fix,420);
+  });
+  addEventListener('resize', fix);
+  document.addEventListener('focusin', function(){
+    setTimeout(fix,60); setTimeout(fix,260); setTimeout(fix,520);
+  }, true);
+
+  var _rc = window.renderChat;
+  if (typeof _rc === 'function' && !_rc.__pad){
+    var fr = function(){
+      var r = _rc.apply(this, arguments);
+      setTimeout(fix, 30);
+      return r;
+    };
+    fr.__pad = true;
+    window.renderChat = fr;
+  }
+
+  setInterval(fix, 500);
+  fix();
+})();
+</script>
+  
 </body>
 </html>
