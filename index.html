@@ -2177,52 +2177,50 @@ var V = '47';
 </script>
 
 <script>
-/* 键盘：页面不动、顶栏不动，只把输入栏抬到键盘上沿 */
+/* 键盘：只抬输入栏，页面与顶栏一动不动 */
 (function(){
   var vv = window.visualViewport;
   if (!vv) return;
+  var lastK = 0;
 
-  function kb(){
+  function kbNow(){
     return Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
   }
 
-  function pin(){
-    var k = kb();
-    var off = Math.round(vv.offsetTop);
-    var ov  = document.getElementById('ov');
+  function apply(k){
     var bar = document.querySelector('#ov .inputbar');
     var pan = document.querySelector('#ov .xmPanel');
     var m   = document.getElementById('msgs');
     var dn  = document.getElementById('xmDown');
-
-    if (ov && !ov.classList.contains('hide')) ov.style.top = off ? off + 'px' : '';
-
-    if (bar) bar.style.transform = k ? 'translateY(-' + k + 'px)' : '';
-    if (pan) pan.style.transform = k ? 'translateY(-' + k + 'px)' : '';
-    if (m)   m.style.paddingBottom = k ? (k + 18) + 'px' : '';
-    if (dn)  dn.style.bottom = k ? (k + 76) + 'px' : '';
-
-    if (k){
-      try { window.scrollTo(0,0); } catch(e){}
-      document.documentElement.scrollTop = 0;
-    }
+    var t   = k > 0 ? 'translateY(-' + k + 'px)' : '';
+    if (bar) bar.style.transform = t;
+    if (pan) pan.style.transform = t;
+    if (m)   m.style.paddingBottom = k > 0 ? (k + 18) + 'px' : '';
+    if (dn)  dn.style.bottom = k > 0 ? (k + 76) + 'px' : '';
   }
 
+  function sync(){
+    var k = kbNow();
+    if (k) lastK = k;
+    apply(k);
+  }
   function burst(){
     var n = 0;
-    (function step(){
-      pin();
-      if (++n < 50) requestAnimationFrame(step);
-    })();
+    (function step(){ sync(); if (++n < 60) requestAnimationFrame(step); })();
   }
 
-  vv.addEventListener('resize', function(){ pin(); burst(); });
-  vv.addEventListener('scroll', pin);
-  addEventListener('resize', pin);
-  document.addEventListener('focusin', function(){ pin(); burst(); }, true);
-  document.addEventListener('focusout', function(){ pin(); setTimeout(pin,100); setTimeout(pin,300); }, true);
-  setInterval(pin, 200);
-  pin();
+  vv.addEventListener('resize', function(){ sync(); burst(); });
+  vv.addEventListener('scroll', sync);
+  addEventListener('resize', sync);
+  document.addEventListener('focusin', function(){
+    if (lastK) apply(lastK);      // 先拿上次的键盘高度顶上，iOS 就不会去滚页面
+    burst();
+  }, true);
+  document.addEventListener('focusout', function(){
+    setTimeout(sync, 80); setTimeout(sync, 260);
+  }, true);
+  setInterval(sync, 200);
+  sync();
 })();
 </script>
 
