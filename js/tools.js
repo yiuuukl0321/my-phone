@@ -1,4 +1,12 @@
+/* ============================================================
+   咩&砚 · js/tools.js
+   记忆档案 · 抓网页 · MCP · 主动消息 · token 统计
+   ============================================================ */
+
+
 /* ===== 1. 记忆档案 导出 / 导入 ===== */
+
+
 (function(){
   function mem(){ try { return MEM; } catch(e){ return null; } }
   function save(){ try { if (typeof saveMem === 'function') saveMem(); } catch(e){} }
@@ -71,6 +79,8 @@
 })();
 
 /* ===== 2. 抓网页（消息里带链接时自动读正文） ===== */
+
+
 (function(){
   var CACHE = {}, LAST = [];
 
@@ -143,6 +153,8 @@
 })();
 
 /* ===== 3. MCP 工具（清单在这里拉，真正调用由中继执行） ===== */
+
+
 (function(){
   var MCPID = 100;
   function mcp(){ try { if (!Array.isArray(S.mcp)) S.mcp = []; } catch(e){ return []; } return S.mcp; }
@@ -316,6 +328,8 @@
 
 
 /* ===== 26. 主动消息（带人设 + 记忆 + 最近聊天） ===== */
+
+
 (function(){
   if (S.lastAct === undefined){
     S.lastAct = Date.now(); S.asleep = 0; S.wakeH = 7; S.proOn = 1; S.lastPro = '';
@@ -531,6 +545,8 @@
 
 
 /* ===== 32. token 统计 ===== */
+
+
 (function(){
   var K = 'xm_tok';
   function blank(){ return { total:0, inp:0, out:0, n:0, by:{}, since:Date.now() }; }
@@ -642,6 +658,8 @@
 
 
 /* ===== 33. 记忆整理：每加 30 条自动合并精简 ===== */
+
+
 (function(){
   if (S.memNew === undefined){ S.memNew = 0; S.memLastAt = 0; try { save(); } catch(e){} }
 
@@ -839,6 +857,8 @@
 
 
 /* ===== 主动消息：向中继登记 ===== */
+
+
 (function(){
   if (typeof S === 'undefined') return;
   var BASE = String(S.relay || '').replace(/\/+$/, '');

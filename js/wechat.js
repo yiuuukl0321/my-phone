@@ -1,4 +1,12 @@
+/* ============================================================
+   咩&砚 · js/wechat.js
+   微信 · 朋友圈 · 我页面 · 键盘与消息贴底
+   ============================================================ */
+
+
 /* ===== 底部栏毛玻璃 ===== */
+
+
 (function(){
   var st = document.createElement('style');
   st.textContent =
@@ -12,6 +20,8 @@
 
 
 /* =====  微信主页 / 通讯录 / 朋友圈 ===== */
+
+
 (function(){
   var W = 'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"';
   function sv(p, s){ return '<svg width="'+(s||24)+'" height="'+(s||24)+'" viewBox="0 0 24 24" '+W+'>'+p+'</svg>'; }
@@ -527,6 +537,8 @@
 
 
 /* ===== 4. 朋友圈：下拉刷新 + 他评论/点赞了发通知 ===== */
+
+
 (function(){
   function ls(k, d){ try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(d)); } catch(e){ return d; } }
   function ME(){ return S.name || '小咩'; }
@@ -589,8 +601,6 @@
   }
 
 
-
-
   document.addEventListener('touchstart', function(e){
     if (!onMoments() || busy) return;
     if (e.target && e.target.closest && e.target.closest('input,textarea')) return;
@@ -648,6 +658,8 @@
 })();
 
 /* ===== 5. 「我」页面改版 + 清空我的朋友圈（留备份 + 分析） ===== */
+
+
 (function(){
   if (S.sign === undefined){ S.sign = ''; try { save(); } catch(e){} }
 
@@ -1062,6 +1074,8 @@
 
 
 /* ===== 28. 朋友圈升级：接着你的动态发 + 上网找图 + 自动发 ===== */
+
+
 (function(){
   if (S.momOn === undefined){
     S.momOn = 1; S.momGap = 8; S.momLast = 0; try { save(); } catch(e){}
@@ -1367,6 +1381,8 @@
 
 
 /* ===== 34. 右滑时挡住后面的壁纸 ===== */
+
+
 (function(){
   var p = document.createElement('div');
   p.id = 'wxPad';
@@ -1380,6 +1396,8 @@
 
 
 /* ===== 35. 「我的」页面：头像居中 + 帖子流 + Edit Profile ===== */
+
+
 (function(){
   var st = document.createElement('style');
   st.textContent =
@@ -1657,6 +1675,8 @@
 
 
 /* ---------- 1. 键盘弹出：只把输入栏和 + 面板抬到键盘上沿 ---------- */
+
+
 (function(){
   var vv = window.visualViewport;
   if (!vv) return;
@@ -1709,6 +1729,8 @@
 
 
 /* ---------- 2. 消息贴底：少了压在底部，多了跟着最新一条 ---------- */
+
+
 (function(){
   var st = document.createElement('style');
   st.textContent = '#msgs::before{content:"";margin-top:auto}';
@@ -1759,6 +1781,8 @@
 
 
 /* ---------- 3. 微信那一层：打字时整块贴住可见区域 ---------- */
+
+
 (function(){
   var vv = window.visualViewport;
   if (!vv) return;
@@ -1790,6 +1814,8 @@
 
 
 /* ---------- 4. 打字时顶栏跟着可视区走，永远贴在屏幕最上面 ---------- */
+
+
 (function(){
   var vv = window.visualViewport;
   if (!vv) return;

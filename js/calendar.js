@@ -1,4 +1,12 @@
+/* ============================================================
+   咩&砚 · js/calendar.js
+   日历 · 日程进聊天上下文 · 周末配色
+   ============================================================ */
+
+
 /* ===== 1. 桌面日历：iOS 列表式，点日期进当天详情 ===== */
+
+
 (function(){
   var CREAM='#F0EBE2', INK='#35322E', CLAY='#BE7F60', MUTE='#A79E90', LINE='#E4DCCE';
   var MNAME=['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
@@ -205,6 +213,8 @@ var st=document.createElement('style');
 
 
 /* ===== 2. 让聊天能看到日历里的事项 ===== */
+
+
 (function(){
   function data(){
     try { return JSON.parse(localStorage.getItem('xm_evts') || '{}') || {}; } catch(e){ return {}; }
@@ -258,6 +268,8 @@ var st=document.createElement('style');
 })();
 
 /* ===== 3. 周六日淡枣红（大日历 + 桌面日期块） ===== */
+
+
 (function(){
   var WK = '#B87C7C';
 
@@ -286,6 +298,8 @@ var st=document.createElement('style');
 })();
 
 /* ===== 4. 周六日淡枣红：日历 app ===== */
+
+
 (function(){
   var WK = '#B87C7C';
 
@@ -319,6 +333,8 @@ var st=document.createElement('style');
 
 
 /* ===== 18. 去描边 · 星期栏半透明 · 顶栏喇叭图标 · 日历 app 同步大日历 ===== */
+
+
 (function(){
   var SAY = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
     'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+

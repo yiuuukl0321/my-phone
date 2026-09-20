@@ -1,4 +1,12 @@
+/* ============================================================
+   咩&砚 · js/chat.js
+   聊天页 · 深度思考 · 操作栏 · 后台生成 · 输入栏 · + 面板 · 收藏
+   ============================================================ */
+
+
 /* ===== 1. 深度思考：浅军蓝圆角折叠框（收起时显示三行预览） ===== */
+
+
 (function(){
   var st = document.createElement('style');
   st.textContent =
@@ -43,6 +51,8 @@
 
 
 /* ===== 2. 每条回复下面的操作栏：复制 / 重新生成 / 播放语音 / 翻译 ===== */
+
+
 (function(){
   try {
     var KEY = 'xm_tts';
@@ -291,6 +301,8 @@
 
 
 /* ===== 3. 操作栏补丁：每次重绘后直接插 + 加载自检 ===== */
+
+
 (function(){
   function tip(t){
     var d = document.createElement('div');
@@ -347,6 +359,8 @@
 
 
 /* ===== 4. 后台生成：切后台也照样把回复收回来 ===== */
+
+
 (function(){
   // ① 清掉僵尸「···」。SENDING 为真说明是正在等的那个，别动
   function cleanTyping(){
@@ -418,6 +432,8 @@
 })();
 
 /* ===== 7. 计算器：不用算就一趟，要算才两趟 ===== */
+
+
 (function(){
   var TAG = /\[\[\s*(?:算|calc)\s*\]\]([\s\S]?)\[\[\s\/\s*(?:算|calc)\s*\]\]/g;
 
@@ -597,6 +613,8 @@
 })();
 
 /* ===== 5. 暂停思考 ===== */
+
+
 (function(){
   var ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
     'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+
@@ -695,6 +713,8 @@
 })();
 
 /* ===== 6. 输入栏改造：贴/说/🔍 删掉，+ 当发送 ===== */
+
+
 (function(){
   var WAVE = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
     'stroke-width="1.8" stroke-linecap="round"><path d="M4 10.5v3"/><path d="M8 7.5v9"/>'+
@@ -770,6 +790,7 @@
     });
   }
 
+
 function toBottom(){
     var m = document.getElementById('msgs');
     if (!m) return;
@@ -797,8 +818,9 @@ function toBottom(){
   setInterval(build, 50);
 
 
-
  /* ===== 7. 聊天 + 面板：图片 / 拍摄 / 收藏 / 位置（照片真送进模型） ===== */
+
+
 (function(){
   if (S.vision === undefined){ S.vision = 1; try { save(); } catch(e){} }
 
@@ -1228,6 +1250,8 @@ if (+S.dim !== 0){ S.dim = 0; save(); }
 setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400);
 
 /* ===== 25. 输入栏微调：加号贴右、发送改上箭头、placeholder 锁住 ===== */
+
+
 (function(){
   var UP = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
     'stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">'+
@@ -1257,6 +1281,8 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
 })();
 
 /* ===== 9. 回到底部按钮（不在底部时才出现） ===== */
+
+
 (function(){
   var DOWN = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
     'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">'+
@@ -1327,6 +1353,8 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
 
 
 /* ===== 8. 回复下面的星标 = 收藏 ===== */
+
+
 (function(){
   var STAR = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
     'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'+

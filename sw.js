@@ -1,3 +1,9 @@
+/* ============================================================
+   咩&砚 · sw.js
+   Service Worker · 缓存与推送
+   ============================================================ */
+
+
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 

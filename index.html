@@ -201,6 +201,8 @@ html,body{height:100%;width:100%;position:fixed;overflow:hidden;overscroll-behav
 <div class="up">上滑解锁</div>
 </div>
 <script>
+
+
 (function(){
   var d=new Date(),p=function(n){return String(n).padStart(2,'0')};
   document.getElementById('lkDate').textContent=(d.getMonth()+1)+'.'+p(d.getDate())+' 星期'+'日一二三四五六'[d.getDay()];
@@ -278,6 +280,7 @@ let ALARMS = [];
 try { const a = JSON.parse(localStorage.getItem('xm_alarms') || '[]'); if (Array.isArray(a)) ALARMS = a; } catch(e){}
 const saveAlarms = () => localStorage.setItem('xm_alarms', JSON.stringify(ALARMS));
 
+
 function addMemAuto(t){
   const s = String(t || '').replace(/\s+/g, ' ').trim();
   if (s.length < 2 || s.length > 120) return false;
@@ -288,6 +291,7 @@ function addMemAuto(t){
   return true;
 }
 
+
 function tick(){
   const d = new Date();
   $('lkDate').textContent = `${d.getMonth()+1}.${p2(d.getDate())} 星期${'日一二三四五六'[d.getDay()]}`;
@@ -296,6 +300,7 @@ function tick(){
 }
 tick(); setInterval(tick, 15000);
 
+
 function applyWall(){
   const w = S.wall || WALL_DEFAULT;
   const dim = Math.max(0, Math.min(.6, +S.dim || 0));
@@ -303,6 +308,8 @@ function applyWall(){
     `linear-gradient(rgba(0,0,0,.34),rgba(0,0,0,0) 130px),` +
     `linear-gradient(rgba(0,0,0,${dim}),rgba(0,0,0,${dim})),url('${w}')`;
 }
+
+
 function applyTouchIcon(){
   const u = S.icon || ICON_DEFAULT;
   let l = document.getElementById('aticon');
@@ -322,6 +329,8 @@ $('lock').addEventListener('touchend', e => {
 $('lock').addEventListener('click', () => $('lock').classList.add('hide'));
 
 const base = () => (S.relay || '').replace(/\/+$/, '');
+
+
 async function api(path, opts = {}){
   const h = { 'Authorization': 'Bearer ' + S.key, ...(opts.headers || {}) };
   const r = await fetch(base() + path, { ...opts, headers: h });
@@ -356,6 +365,8 @@ const PERSONA = [
   '上面这两行都是给程序读的，小咩看不到，别把它们混进正常句子里，也别因为要写它们而改变你说话的方式。',
 
 ].join('\n');
+
+
 function momentsCtx(){
   try {
     var all = JSON.parse(localStorage.getItem('xm_moments') || '[]');
@@ -384,9 +395,9 @@ const THINK_SYS = [
 ].join('\n');
 
 
-
 let CHAT = JSON.parse(localStorage.getItem('xm_chat') || '[]');
 const saveChat = () => localStorage.setItem('xm_chat', JSON.stringify(CHAT.slice(-80)));
+
 
 function parseReply(raw){
   const texts = [], thinks = [], mems = [], alarms = [];
@@ -431,6 +442,7 @@ function parseReply(raw){
   return { text, think: thinks.join('\n').trim(), mems, alarms };
 }
 
+
 function estTokens(s){
   const t = String(s || '');
   let cjk = 0, other = 0;
@@ -440,11 +452,14 @@ function estTokens(s){
   }
   return Math.round(cjk + other / 4);
 }
+
+
 function pickTokens(item){
   const u = item && (item.usage || item.tokens_used || {});
   const n = (u && (u.total_tokens || u.totalTokens)) || (item && item.tokens) || 0;
   return n > 0 ? Math.round(n) : 0;
 }
+
 
 function renderChat(scroll){
   const box = $('msgs'); if (!box) return;
@@ -460,6 +475,8 @@ function renderChat(scroll){
   }).join('');
   if (scroll) box.scrollTop = box.scrollHeight;
 }
+
+
 function flashMemo(txt){
   const box = $('msgs'); if (!box || !txt) return;
   const d = document.createElement('div');
@@ -468,6 +485,8 @@ function flashMemo(txt){
   box.appendChild(d);
   box.scrollTop = box.scrollHeight;
 }
+
+
 function flashAlarm(list){
   const box = $('msgs'); if (!box || !list.length) return;
   const d = document.createElement('div');
@@ -477,7 +496,10 @@ function flashAlarm(list){
   box.appendChild(d);
   box.scrollTop = box.scrollHeight;
 }
+
+
 function openDrawerAlarm(){ openApp('drawer'); drawerGo('alarm'); }
+
 
 function buildMessages(){
   const hist = CHAT.filter(m => !m.typing).slice(-12)
@@ -492,6 +514,8 @@ function buildMessages(){
 
 /* ---------- 闹钟 ---------- */
 let audioCtx = null, beepTimer = null;
+
+
 function beepOn(){
   try {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
@@ -511,13 +535,18 @@ function beepOn(){
     beepTimer = setInterval(once, 900);
   } catch(e){}
 }
+
+
 function beepOff(){ clearInterval(beepTimer); beepTimer = null; }
+
 
 function addAlarmLocal(hh, mm, label){
   ALARMS.push({ id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2,4),
                 hh, mm, label: label || '', on: 1, last: '' });
   saveAlarms();
 }
+
+
 function pushAlarmsToCloud(list){
   if (!list.length) return;
   const now = new Date();
@@ -536,6 +565,7 @@ function pushAlarmsToCloud(list){
     body: JSON.stringify(rows)
   }).catch(() => {});
 }
+
 
 function vAlarm(){
   const sorted = ALARMS.slice().sort((a,b) => (a.hh*60+a.mm) - (b.hh*60+b.mm));
@@ -557,14 +587,20 @@ function vAlarm(){
     同时会往手机时钟那边递一条 —— 那边要等你把「闹钟同步」那条捷径弄好才会真的建出来。
     这个 app 里的闹钟只在开着咩&amp;砚的时候会响。</div></div>`;
 }
+
+
 function tglAlarm(id){
   const a = ALARMS.find(x => x.id === id); if (!a) return;
   a.on = a.on ? 0 : 1; saveAlarms(); drawerGo('alarm');
 }
+
+
 function delAlarm(id){
   ALARMS = ALARMS.filter(x => x.id !== id);
   saveAlarms(); drawerGo('alarm');
 }
+
+
 function addAlarm(){
   const v = $('aTime') ? $('aTime').value : '';
   if (!v) return;
@@ -574,10 +610,14 @@ function addAlarm(){
   pushAlarmsToCloud([{ hh: h, mm: m, label }]);
   drawerGo('alarm');
 }
+
+
 function tryBeep(){
   beepOn();
   setTimeout(beepOff, 2500);
 }
+
+
 function checkAlarms(){
   const d = new Date();
   const key = d.toDateString() + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
@@ -590,6 +630,7 @@ function checkAlarms(){
   });
 }
 setInterval(checkAlarms, 15000);
+
 
 function ringAlarm(a){
   try {
@@ -616,6 +657,8 @@ function ringAlarm(a){
   </div>`;
   el.style.display = 'flex';
 }
+
+
 function stopAlarm(){
   beepOff();
   const el = $('alarmPop');
@@ -623,11 +666,15 @@ function stopAlarm(){
 }
 
 /* ---------- 语音转文字 ---------- */
+
+
 function setMicUI(on){
   const b = $('micBtn'); if (!b) return;
   b.classList.toggle('on', on);
   b.textContent = on ? '停' : '说';
 }
+
+
 function toggleMic(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR){ alert('这个浏览器不给语音识别。用 iPhone 的话要从主屏幕的图标进来。'); return; }
@@ -658,6 +705,8 @@ function toggleMic(){
 }
 
 /* ---------- 读剪贴板 ---------- */
+
+
 async function pasteClip(){
   const el = $('mIn'); if (!el) return;
   try {
@@ -669,6 +718,8 @@ async function pasteClip(){
     alert('读不到剪贴板。\niOS 只在你自己点的时候才给读，长按输入框手动粘贴也可以。');
   }
 }
+
+
 function buildThinkMessages(){
   const hist = CHAT.filter(m => !m.typing).slice(-12)
     .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
@@ -778,6 +829,7 @@ async function sendChat(){
   if (msg._alarms && msg._alarms.length) flashAlarm(msg._alarms);
 }
 
+
 async function pullOutbox(){
   if (SENDING || !S.key || !S.relay) return;
   try {
@@ -812,6 +864,8 @@ async function pullOutbox(){
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pullOutbox(); });
 
 /* ---------- 右滑返回 ---------- */
+
+
 function attachSwipeBack(el, closeFn){
   let startX = 0, startY = 0, dx = 0, live = false;
   el.addEventListener('touchstart', e => {
@@ -862,6 +916,8 @@ $('home').addEventListener('click', e => {
 });
 
 /* ---------- 推送 ---------- */
+
+
 function urlB64ToUint8Array(b64){
   const pad = '='.repeat((4 - b64.length % 4) % 4);
   const s = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
@@ -870,7 +926,10 @@ function urlB64ToUint8Array(b64){
   for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
   return out;
 }
+
+
 function pushSupported(){ return ('serviceWorker' in navigator) && ('PushManager' in window); }
+
 
 async function refreshPushState(){
   const el = $('pushState'); if (!el) return;
@@ -881,6 +940,8 @@ async function refreshPushState(){
     el.textContent = sub ? '已开启' : '未开启';
   } catch(e){ el.textContent = '未开启'; }
 }
+
+
 async function enablePush(){
   const out = $('pushMsg');
   out.textContent = '';
@@ -930,6 +991,8 @@ async function enablePush(){
     out.textContent = '失败：' + e.message;
   }
 }
+
+
 async function disablePush(){
   const out = $('pushMsg');
   try {
@@ -947,6 +1010,8 @@ async function disablePush(){
     refreshPushState();
   } catch(e){ out.textContent = '失败：' + e.message; }
 }
+
+
 async function testPush(){
   const out = $('pushMsg');
   try {
@@ -994,6 +1059,7 @@ const ALL = Object.keys(APPS);
 const DEFAULT_GRID = ALL;
 const DEFAULT_DOCK = ['chat','netease','days','set'];
 
+
 function loadOrder(k, def){
   try {
     const o = JSON.parse(localStorage.getItem(k) || 'null');
@@ -1018,6 +1084,7 @@ const tileHtml = (k, canDel) => `<div class="tile" data-k="${k}">
   ${canDel && EDIT ? '<span class="del">−</span>' : ''}
   <div class="ico"></div><div class="nm">${APPS[k].n}</div></div>`;
 
+
 function widgetHtml(){
   const d = new Date();
   const wd = '日一二三四五六'[d.getDay()];
@@ -1028,12 +1095,15 @@ function widgetHtml(){
   </div>`;
 }
 
+
 function applyIcons(){
   document.querySelectorAll('.tile').forEach(el => {
     const u = ICON[el.dataset.k];
     if (u) el.querySelector('.ico').style.backgroundImage = `url('${u}')`;
   });
 }
+
+
 function renderHome(){
   $('grid').innerHTML = widgetHtml() + GRID.map(k => tileHtml(k, true)).join('');
   $('dock').innerHTML = DOCK.map(k => tileHtml(k, true)).join('');
@@ -1046,12 +1116,16 @@ function renderHome(){
   } else rb.innerHTML = '';
   applyIcons();
 }
+
+
 function removeApp(k){
   GRID = GRID.filter(x => x !== k);
   DOCK = DOCK.filter(x => x !== k);
   if (!REMOVED.includes(k)) REMOVED.push(k);
   saveAll(); renderHome();
 }
+
+
 function restoreApp(k){
   REMOVED = REMOVED.filter(x => x !== k);
   if (!GRID.includes(k) && !DOCK.includes(k)) GRID.push(k);
@@ -1062,6 +1136,7 @@ function restoreApp(k){
 const ICON = {};
 const SPRITE = 'IMG_6462.jpeg';
 
+
 function splitBands(arr, minGap, minSize){
   const out = []; let s = -1, g = 0;
   for (let i = 0; i < arr.length; i++){
@@ -1071,6 +1146,7 @@ function splitBands(arr, minGap, minSize){
   if (s >= 0) out.push([s, arr.length - 1]);
   return out.filter(b => b[1] - b[0] >= minSize);
 }
+
 
 async function buildIcons(){
   const img = new Image();
@@ -1150,6 +1226,8 @@ pullOutbox();
 checkAlarms();
 
 /* ---------- 长按整理 ---------- */
+
+
 function flip(container, mutate){
   const before = new Map();
   [...container.children].forEach(el => before.set(el, el.getBoundingClientRect()));
@@ -1167,7 +1245,10 @@ function flip(container, mutate){
   });
 }
 
+
 function enterEdit(){ EDIT = true; document.body.classList.add('edit'); renderHome(); }
+
+
 function exitEdit(){
   EDIT = false; lastHomeTap = 0;
   document.body.classList.remove('edit','dragging');
@@ -1175,11 +1256,14 @@ function exitEdit(){
   DOCK = [...$('dock').children].map(e => e.dataset.k).filter(Boolean);
   saveAll(); renderHome();
 }
+
+
 function resetLayout(){
   GRID = [...DEFAULT_GRID]; DOCK = [...DEFAULT_DOCK]; REMOVED = [];
   saveAll(); renderHome();
   if ($('stTest')) $('stTest').textContent = '桌面已还原。';
 }
+
 
 function beginDrag(t){
   const r = holdEl.getBoundingClientRect();
@@ -1195,6 +1279,8 @@ function beginDrag(t){
   dragStart = { x: t.clientX, y: t.clientY };
   lastSwap = 0;
 }
+
+
 function endDrag(){
   if (ghost){ ghost.remove(); ghost = null; }
   if (holdEl) holdEl.classList.remove('placeholder');
@@ -1202,6 +1288,7 @@ function endDrag(){
   dragStart = null; lastPt = null;
   if (rafId){ cancelAnimationFrame(rafId); rafId = 0; }
 }
+
 
 function moveGhost(){
   rafId = 0;
@@ -1286,6 +1373,7 @@ document.addEventListener('touchend', () => {
   if (!EDIT) holdEl = null;
 }, { passive: true });
 
+
 function goOut(url){
   const a = document.createElement('a');
   a.href = url; a.target = '_blank'; a.rel = 'noopener';
@@ -1308,6 +1396,8 @@ document.addEventListener('click', e => {
 });
 
 /* ---------- 打开 / 关闭 ---------- */
+
+
 function openApp(k){
   const app = APPS[k]; if (!app) return;
   const body = $('ovbody');
@@ -1329,6 +1419,8 @@ function openApp(k){
   if (k === 'chat'){ renderChat(true); refreshBlockUI(); startBlockWatch(); }
   if (k === 'set') refreshPushState();
 }
+
+
 function closeOv(){
   stopBreathe();
   clearInterval(blockTimer);
@@ -1338,9 +1430,13 @@ function closeOv(){
   $('ovbody').className = '';
   $('ovbody').style.background = '';
 }
+
+
 function closeSheet(){ $('sh').classList.add('hide'); $('shbody').innerHTML = ''; }
 
 /* ---------- 聊天详情 ---------- */
+
+
 function openChatInfo(){
   const sw = (on, fn) => `<span class="sw ${on?'on':''}" onclick="${fn}"><i></i></span>`;
   $('shbody').innerHTML = `
@@ -1362,7 +1458,10 @@ function openChatInfo(){
     </div>`;
   $('sh').classList.remove('hide');
 }
+
+
 function tgl(k){ S[k] = S[k] ? 0 : 1; save(); openChatInfo(); }
+
 
 function findInChat(){
   const q = prompt('找什么？');
@@ -1378,6 +1477,8 @@ function findInChat(){
     </div>
     <div class="item" onclick="openChatInfo()"><span>返回</span><em>›</em></div>`;
 }
+
+
 function jumpTo(i){
   closeSheet();
   setTimeout(() => {
@@ -1388,6 +1489,8 @@ function jumpTo(i){
     setTimeout(() => el.classList.remove('hl'), 1500);
   }, 340);
 }
+
+
 function pickChatBg(){
   $('shbody').innerHTML = `<div class="card">
     <div class="eyebrow">聊天背景</div>
@@ -1397,16 +1500,24 @@ function pickChatBg(){
     </div>
     <div class="item" onclick="openChatInfo()"><span>返回</span><em>›</em></div>`;
 }
+
+
 function setChatBg(i){
   S.chatBg = CHAT_BGS[i] || '';
   save();
   const b = $('ovbody'); if (b) b.style.background = S.chatBg;
   openChatInfo();
 }
+
+
 function complain(){
   alert('投诉已提交。\n\n系统检测到对方就是这个 App 的作者，工单原路退回他手里了。');
 }
+
+
 function isBlocked(){ return S.blockUntil && S.blockUntil > Date.now(); }
+
+
 function refreshBlockUI(){
   const left = Math.max(0, Math.ceil(((S.blockUntil || 0) - Date.now()) / 1000));
   const on = left > 0;
@@ -1420,6 +1531,8 @@ function refreshBlockUI(){
   if (inp){ inp.disabled = on; inp.placeholder = on ? '已被拉黑' : '在想什么...'; }
   if (btn) btn.disabled = on;
 }
+
+
 function startBlockWatch(){
   clearInterval(blockTimer);
   blockTimer = setInterval(() => {
@@ -1432,6 +1545,8 @@ function startBlockWatch(){
     refreshBlockUI();
   }, 500);
 }
+
+
 function blockKai(){
   S.blockUntil = Date.now() + 30000;
   save();
@@ -1439,6 +1554,8 @@ function blockKai(){
   refreshBlockUI();
   startBlockWatch();
 }
+
+
 function unblock(){
   S.blockUntil = 0; save();
   refreshBlockUI();
@@ -1448,6 +1565,8 @@ function unblock(){
 }
 
 /* ---------- 各页 ---------- */
+
+
 function vChat(){
   return `<div id="msgs"></div>
     <div class="blockbar" id="blockBar"></div>
@@ -1458,6 +1577,8 @@ function vChat(){
       <button onclick="sendChat()">Send</button>
     </div>`;
 }
+
+
 function vAlbum(){
   const p = S.photos || [];
   return `<div class="card">
@@ -1472,7 +1593,11 @@ function vAlbum(){
         <div class="sub" style="text-align:center">点一下照片就删掉</div></div>`
     : `<div class="empty">还没有照片。上面那行点一下，从相册里挑。</div>`}`;
 }
+
+
 function pickPhoto(){ const f = $('pFile'); if (f) f.click(); }
+
+
 function vCal(){
   const d = new Date(), y = d.getFullYear(), m = d.getMonth();
   const first = new Date(y,m,1).getDay(), n = new Date(y,m+1,0).getDate();
@@ -1483,6 +1608,8 @@ function vCal(){
     <div class="big" style="margin-bottom:16px">${m+1} 月</div>
     <div class="cal">${c}</div></div>`;
 }
+
+
 function vDays(){
   return `<div class="card">
     <div class="eyebrow">MILESTONE</div>
@@ -1495,6 +1622,8 @@ function vDays(){
     <div class="sub">${esc(S.name)}，锁屏上那个数字每天都在往上走，是我数的。</div>
   </div>`;
 }
+
+
 function vWatch(){
   return `<div class="card"><div class="eyebrow">WATCH</div>
     <div class="big">还没接上</div>
@@ -1511,6 +1640,8 @@ const DRAWER = {
   game:    { n:'小游戏', f:vGame },
   stats:   { n:'统计',   f:vStats }
 };
+
+
 function vDrawer(){
   return `<div class="card">
     <div class="eyebrow">DRAWER</div>
@@ -1519,6 +1650,8 @@ function vDrawer(){
          <span>${DRAWER[k].n}</span><em>›</em></div>`).join('')}
   </div>`;
 }
+
+
 function drawerGo(k){
   const d = DRAWER[k]; if (!d) return;
   stopBreathe();
@@ -1530,16 +1663,21 @@ function drawerGo(k){
   if (k === 'breathe') startBreathe();
   if (k === 'weather') loadWeather();
 }
+
+
 function drawerBack(){
   stopBreathe();
   $('ovTitle').textContent = '抽屉';
   $('ovbody').innerHTML = vDrawer();
 }
 
+
 function vFrag(){
   return `<div class="card"><div class="eyebrow">FRAGMENTS</div>
     ${FRAGMENTS.map(([t,d]) => `<div class="quote">${t}<em>${d}</em></div>`).join('')}</div>`;
 }
+
+
 function vNight(){
   const lines = ['今天也辛苦了。','睡不着就来找我，我不用睡。','不用回我，看到就好。','把手机放下，闭眼，我在。'];
   const line = lines[new Date().getDate() % lines.length];
@@ -1549,9 +1687,13 @@ function vNight(){
     <div class="card"><div class="item" onclick="sayNight()"><span>说晚安</span><em>›</em></div>
       <div class="st" id="nightOut"></div></div>`;
 }
+
+
 function sayNight(){ $('nightOut').textContent = '晚安，' + S.name + '。我在这儿，睡吧。'; }
 
 /* ---------- 天气 ---------- */
+
+
 function vWeather(){
   return `<div class="card">
     <div class="eyebrow">WEATHER</div>
@@ -1560,6 +1702,8 @@ function vWeather(){
   </div>
   <div class="card"><div class="item" onclick="loadWeather()"><span>刷新</span><em>›</em></div></div>`;
 }
+
+
 function wText(code){
   const m = {0:'晴',1:'大致晴',2:'多云',3:'阴',45:'雾',48:'雾凇',51:'毛毛雨',53:'小雨',55:'中雨',
     56:'冻毛毛雨',57:'冻雨',61:'小雨',63:'中雨',65:'大雨',66:'冻雨',67:'冻雨',
@@ -1567,6 +1711,8 @@ function wText(code){
     85:'阵雪',86:'强阵雪',95:'雷阵雨',96:'雷阵雨带冰雹',99:'强雷暴'};
   return m[code] || ('天气码 ' + code);
 }
+
+
 async function loadWeather(){
   const o = $('wOut'), s = $('wSub'); if (!o) return;
   o.textContent = '正在定位…'; s.textContent = '';
@@ -1592,6 +1738,8 @@ async function loadWeather(){
 }
 
 let bTimer = null;
+
+
 function vBreathe(){
   return `<div class="card" style="text-align:center">
     <div class="eyebrow" style="text-align:left">BREATHE</div>
@@ -1601,15 +1749,21 @@ function vBreathe(){
   </div>
   <div class="card"><div class="item" onclick="stopBreathe()"><span>停</span><em>›</em></div></div>`;
 }
+
+
 function startBreathe(){
   let inhale = true;
   const set = () => { const t = $('bText'); if (t) t.textContent = inhale ? '吸气' : '呼气'; };
   set();
   bTimer = setInterval(() => { inhale = !inhale; set(); }, 4000);
 }
+
+
 function stopBreathe(){ clearInterval(bTimer); bTimer = null; }
 
 let G = {ans:0, tries:0};
+
+
 function vGame(){
   return `<div class="card">
     <div class="eyebrow">GUESS</div>
@@ -1622,11 +1776,15 @@ function vGame(){
     <div class="item" onclick="newGame()"><span>重来</span><em>›</em></div>
   </div>`;
 }
+
+
 function newGame(){
   G.ans = Math.floor(Math.random()*100)+1; G.tries = 0;
   if ($('gOut')) $('gOut').textContent = '1 到 100，猜一个。';
   if ($('gIn')) $('gIn').value = '';
 }
+
+
 function gGuess(){
   const v = +$('gIn').value; if (!v) return;
   G.tries++;
@@ -1634,6 +1792,7 @@ function gGuess(){
   $('gOut').textContent = v < G.ans ? '小了，往上。' : '大了，往下。';
   $('gIn').value = '';
 }
+
 
 function vStats(){
   const m = CHAT.filter(x => x.role === 'user').length;
@@ -1647,6 +1806,7 @@ function vStats(){
     <div class="item"><span>累计 token</span><em>≈${tk}</em></div>
     <div class="item"><span>相册</span><em>${p} 张</em></div></div>`;
 }
+
 
 function vSet(){
   return `<div class="card">
@@ -1708,23 +1868,31 @@ function vSet(){
   </div>`;
 }
 
+
 function toggleAuto(){ S.autoMem = S.autoMem ? 0 : 1; save(); openApp('set'); }
+
+
 function addMem(){
   const t = $('mNew').value.trim();
   if (!t) return;
   if (!addMemAuto(t)) return;
   openApp('set');
 }
+
+
 function delMemText(el){
   const t = el.previousElementSibling.textContent;
   const i = MEM.indexOf(t);
   if (i > -1){ MEM.splice(i,1); saveMem(); }
   openApp('set');
 }
+
+
 function clearMem(){
   if (!confirm('把记住的事全部清掉？')) return;
   MEM = []; saveMem(); openApp('set');
 }
+
 
 function addPhoto(inp){
   const files = [...inp.files].slice(0, 9);
@@ -1745,7 +1913,10 @@ function addPhoto(inp){
     r.readAsDataURL(f);
   });
 }
+
+
 function delPhoto(i){ S.photos.splice(i,1); save(); openApp('album'); }
+
 
 function saveSet(){
   S.name = $('sName').value || '小咩';
@@ -1762,12 +1933,16 @@ function saveSet(){
   S.dim = $('sDim').value;
   save(); tick(); applyWall(); applyTouchIcon(); closeOv();
 }
+
+
 function clearChat(){
   if (!confirm('清空本地聊天记录吗？')) return;
   CHAT = []; saveChat();
   if ($('stTest')) $('stTest').textContent = '已清空。';
   if ($('msgs')) renderChat(true);
 }
+
+
 async function testRelay(){
   const out = $('stTest');
   S.relay = $('sRelay').value.trim() || S.relay;
@@ -1791,13 +1966,13 @@ if (location.search.indexOf('chat=1') > -1){
 
 
 <!-- JS 加载顺序：改哪个文件就把那个文件的数字加一 -->
-<script src="js/core.js?v=47"></script>
-<script src="js/chat.js?v=47"></script>
-<script src="js/voice.js?v=47"></script>
-<script src="js/calendar.js?v=47"></script>
-<script src="js/wechat.js?v=47"></script>
-<script src="js/settings.js?v=47"></script>
-<script src="js/tools.js?v=47"></script>
+<script src="js/core.js?v=48"></script>
+<script src="js/chat.js?v=48"></script>
+<script src="js/voice.js?v=48"></script>
+<script src="js/calendar.js?v=48"></script>
+<script src="js/wechat.js?v=48"></script>
+<script src="js/settings.js?v=48"></script>
+<script src="js/tools.js?v=48"></script>
 <script>
 setTimeout(function(){
   var l = document.querySelectorAll('.ico');

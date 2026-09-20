@@ -1,4 +1,12 @@
+/* ============================================================
+   咩&砚 · js/core.js
+   壁纸 · 锁屏比例 · 桌面图标 · 禁用缩放
+   ============================================================ */
+
+
 /* ===== 1. 壁纸修复（底部白边） ===== */
+
+
 (function(){
   var st = document.createElement('style');
   st.textContent = 'html{overflow:hidden;background-color:#000;background-repeat:no-repeat;background-position:center top;background-size:cover}body{height:100%;overflow:hidden;background:transparent}';
@@ -40,6 +48,8 @@
 })();
 
 /* ===== 2. 锁住比例：键盘弹出不放大、双指不缩放 ===== */
+
+
 (function(){
   var vp = document.querySelector('meta[name="viewport"]');
   if (vp) vp.setAttribute('content',
@@ -53,6 +63,8 @@
 })();
 
 /* ===== 3. 桌面图标：极简几何 v2 ===== */
+
+
 (function(){
   var BG='#F0EBE2', IN='#35322E', CL='#BE7F60', MA='#A9839A', BL='#7E93A6', OL='#8E9A72', YE='#C3A05C';
   var I = {
@@ -89,6 +101,8 @@
 
 
 /* ===== 禁缩放 ===== */
+
+
 (function(){
   var st = document.createElement('style');
   st.textContent =
