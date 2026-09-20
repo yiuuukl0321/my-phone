@@ -4,7 +4,7 @@
    ============================================================ */
 
 
-/* ===== 1. 深度思考：浅军蓝圆角折叠框（收起时显示三行预览） ===== */
+/* ---------- 深度思考：浅军蓝圆角折叠框（收起时显示三行预览） ---------- */
 
 
 (function(){
@@ -50,7 +50,7 @@
 })();
 
 
-/* ===== 2. 每条回复下面的操作栏：复制 / 重新生成 / 播放语音 / 翻译 ===== */
+/* ---------- 每条回复下面的操作栏：复制 / 重新生成 / 播放语音 / 翻译 ---------- */
 
 
 (function(){
@@ -300,7 +300,7 @@
 })();
 
 
-/* ===== 3. 操作栏补丁：每次重绘后直接插 + 加载自检 ===== */
+/* ---------- 操作栏补丁：每次重绘后直接插 + 加载自检 ---------- */
 
 
 (function(){
@@ -358,7 +358,7 @@
 })();
 
 
-/* ===== 4. 后台生成：切后台也照样把回复收回来 ===== */
+/* ---------- 后台生成：切后台也照样把回复收回来 ---------- */
 
 
 (function(){
@@ -431,7 +431,7 @@
   }
 })();
 
-/* ===== 7. 计算器：不用算就一趟，要算才两趟 ===== */
+/* ---------- 计算器：不用算就一趟，要算才两趟 ---------- */
 
 
 (function(){
@@ -612,7 +612,7 @@
   }
 })();
 
-/* ===== 5. 暂停思考 ===== */
+/* ---------- 暂停思考 ---------- */
 
 
 (function(){
@@ -712,7 +712,7 @@
   try { if (document.getElementById('msgs')) decorate(); } catch(e){}
 })();
 
-/* ===== 6. 输入栏改造：贴/说/🔍 删掉，+ 当发送 ===== */
+/* ---------- 输入栏改造：贴/说/🔍 删掉，+ 当发送 ---------- */
 
 
 (function(){
@@ -818,7 +818,7 @@ function toBottom(){
   setInterval(build, 50);
 
 
- /* ===== 7. 聊天 + 面板：图片 / 拍摄 / 收藏 / 位置（照片真送进模型） ===== */
+ /* ---------- 聊天 + 面板：图片 / 拍摄 / 收藏 / 位置（照片真送进模型） ---------- */
 
 
 (function(){
@@ -859,7 +859,7 @@ function toBottom(){
   }
   function closePanel(){ var p = document.querySelector('.xmPanel'); if (p) p.classList.remove('on'); }
 
-  /* ---- 附件库：IndexedDB，不占 localStorage ---- */
+  /* ---------- 附件库：IndexedDB，不占 localStorage ---------- */
   var DB = null, IMGC = {};
   function idb(){
     return new Promise(function(res, rej){
@@ -885,7 +885,7 @@ function toBottom(){
     }); }).catch(function(){ return null; });
   }
 
-  /* ---- 选图 / 拍照 ---- */
+  /* ---------- 选图 / 拍照 ---------- */
   var fPic = document.createElement('input');
   fPic.type = 'file'; fPic.accept = 'image/*'; fPic.multiple = true; fPic.style.display = 'none';
   var fCam = document.createElement('input');
@@ -942,7 +942,7 @@ function toBottom(){
   fPic.onchange = function(){ handleFiles(fPic.files); fPic.value = ''; };
   fCam.onchange = function(){ handleFiles(fCam.files); fCam.value = ''; };
 
-  /* ---- 全屏看 ---- */
+  /* ---------- 全屏看 ---------- */
   function view(m){
     var d = document.createElement('div');
     d.style.cssText = 'position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.94);'+
@@ -958,7 +958,7 @@ function toBottom(){
     }
   }
 
-  /* ---- 收藏 ---- */
+  /* ---------- 收藏 ---------- */
   function favs(){ try { return JSON.parse(localStorage.getItem('xm_favs') || '[]'); } catch(e){ return []; } }
   function saveFavs(a){ try { localStorage.setItem('xm_favs', JSON.stringify(a)); } catch(e){} }
   function favSheet(){
@@ -1000,7 +1000,7 @@ function toBottom(){
     closePanel();
   }
 
-  /* ---- 位置 ---- */
+  /* ---------- 位置 ---------- */
   function doLoc(){
     if (!navigator.geolocation){ toast('这台设备不给定位'); return; }
     toast('定位中…');
@@ -1026,7 +1026,7 @@ function toBottom(){
     }, { timeout: 9000, enableHighAccuracy: true });
   }
 
-  /* ---- 挂到输入栏 ---- */
+  /* ---------- 挂到输入栏 ---------- */
   function build(){
     var bar = document.querySelector('.inputbar');
     if (!bar) return;
@@ -1056,7 +1056,7 @@ function toBottom(){
   build();
   setInterval(build, 50);
 
-  /* ---- 渲染缩略图 ---- */
+  /* ---------- 渲染缩略图 ---------- */
   var _rc = window.renderChat;
   if (typeof _rc === 'function' && !_rc.__pic){
     var fr = function(){
@@ -1081,7 +1081,7 @@ function toBottom(){
     window.renderChat = fr;
   }
 
-  /* ---- 启动时把最近的图预读进内存 ---- */
+  /* ---------- 启动时把最近的图预读进内存 ---------- */
   function preload(){
     var ids = [];
     for (var i = CHAT.length - 1; i >= 0 && ids.length < 6; i--){
@@ -1093,7 +1093,7 @@ function toBottom(){
   setTimeout(preload, 1200);
   setInterval(preload, 60000);
 
-  /* ---- 带图的消息改成 OpenAI content 数组 ---- */
+  /* ---------- 带图的消息改成 OpenAI content 数组 ---------- */
   var _bm = window.buildMessages;
   if (typeof _bm === 'function' && !_bm.__vis){
     var fb = function(){
@@ -1118,7 +1118,7 @@ function toBottom(){
     window.buildMessages = fb;
   }
 
-  /* ---- 发带图的请求时，临时换成视觉模型 ---- */
+  /* ---------- 发带图的请求时，临时换成视觉模型 ---------- */
   var _api = window.api;
   if (typeof _api === 'function' && !_api.__vis){
     var fa = function(path, opts){
@@ -1144,7 +1144,7 @@ function toBottom(){
     window.api = fa;
   }
 
-  /* ---- 模型看不了图时，自动退回纯文字再发一次 ---- */
+  /* ---------- 模型看不了图时，自动退回纯文字再发一次 ---------- */
   async function degrade(){
     var g = window.__lastGen; window.__lastGen = null;
     if (!g) return;
@@ -1203,7 +1203,7 @@ function toBottom(){
     window.sendChat = fs;
   }
 
-  /* ---- 聊天详情里的视觉设置 ---- */
+  /* ---------- 聊天详情里的视觉设置 ---------- */
   var _oci = window.openChatInfo;
   if (typeof _oci === 'function' && !_oci.__vis){
     var fo = function(){
@@ -1249,7 +1249,7 @@ function toBottom(){
 if (+S.dim !== 0){ S.dim = 0; save(); }
 setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400);
 
-/* ===== 25. 输入栏微调：加号贴右、发送改上箭头、placeholder 锁住 ===== */
+/* ---------- 输入栏微调：加号贴右、发送改上箭头、placeholder 锁住 ---------- */
 
 
 (function(){
@@ -1280,7 +1280,7 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
   setInterval(fix, 700);
 })();
 
-/* ===== 9. 回到底部按钮（不在底部时才出现） ===== */
+/* ---------- 回到底部按钮（不在底部时才出现） ---------- */
 
 
 (function(){
@@ -1352,7 +1352,7 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
 })();
 
 
-/* ===== 8. 回复下面的星标 = 收藏 ===== */
+/* ---------- 回复下面的星标 = 收藏 ---------- */
 
 
 (function(){

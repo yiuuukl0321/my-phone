@@ -265,7 +265,7 @@ const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
 const p2 = n => String(n).padStart(2,'0');
 const days = () => Math.floor((new Date(new Date().toDateString()) - new Date(S.anniv)) / 864e5) + 1;
 
-/* ---- 全局状态 ---- */
+/* ---------- 全局状态 ---------- */
 let EDIT = false, holdEl = null, lpTimer = null, sx = 0, sy = 0, moved = false, swallow = false;
 let ghost = null, dragStart = null, rafId = 0, lastPt = null, lastSwap = 0;
 let blockTimer = null;
@@ -1966,13 +1966,13 @@ if (location.search.indexOf('chat=1') > -1){
 
 
 <!-- JS 加载顺序：改哪个文件就把那个文件的数字加一 -->
-<script src="js/core.js?v=48"></script>
-<script src="js/chat.js?v=48"></script>
-<script src="js/voice.js?v=48"></script>
-<script src="js/calendar.js?v=48"></script>
-<script src="js/wechat.js?v=48"></script>
-<script src="js/settings.js?v=48"></script>
-<script src="js/tools.js?v=48"></script>
+<script src="js/core.js?v=49"></script>
+<script src="js/chat.js?v=49"></script>
+<script src="js/voice.js?v=49"></script>
+<script src="js/calendar.js?v=49"></script>
+<script src="js/wechat.js?v=49"></script>
+<script src="js/settings.js?v=49"></script>
+<script src="js/tools.js?v=49"></script>
 <script>
 setTimeout(function(){
   var l = document.querySelectorAll('.ico');

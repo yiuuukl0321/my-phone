@@ -7,7 +7,7 @@
 (function(){
   'use strict';
 
-  /* ---------------- 小工具 ---------------- */
+  /* ---------- 小工具 ---------- */
   var $ = function(id){ return document.getElementById(id); };
   var V = function(id){ var e = $(id); return e ? String(e.value || '').trim() : ''; };
 
@@ -27,7 +27,7 @@
            ' value="' + esc(value || '') + '" placeholder="' + (ph || '') + '">';
   }
 
-  /* ---------------- 页面 ---------------- */
+  /* ---------- 页面 ---------- */
   function vSet(){
     var mem = (typeof MEM !== 'undefined' && MEM && MEM.length) ? MEM : [];
 
@@ -90,7 +90,7 @@
            card('', actions);
   }
 
-  /* ---------------- 保存 / 中继 / 清空 ---------------- */
+  /* ---------- 保存 / 中继 / 清空 ---------- */
   function saveSet(){
     S.name    = V('sName') || '小咩';
     S.anniv   = V('sAnniv') || S.anniv;
@@ -131,7 +131,7 @@
     }
   }
 
-  /* ---------------- 推送 ---------------- */
+  /* ---------- 推送 ---------- */
   function urlB64ToUint8Array(b64){
     var pad = '='.repeat((4 - b64.length % 4) % 4);
     var s = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
@@ -234,7 +234,7 @@
     } catch(e){ if (out) out.textContent = '失败：' + e.message; }
   }
 
-  /* ---------------- 记忆 ---------------- */
+  /* ---------- 记忆 ---------- */
   function toggleAuto(){ S.autoMem = S.autoMem ? 0 : 1; save(); openApp('set'); }
 
   function addMem(){
@@ -256,7 +256,7 @@
     openApp('set');
   }
 
-  /* ---------------- 挂上去（覆盖 index.html 里的旧版） ---------------- */
+  /* ---------- 挂上去（覆盖 index.html 里的旧版） ---------- */
   window.vSet = vSet;
   window.saveSet = saveSet;
   window.clearChat = clearChat;

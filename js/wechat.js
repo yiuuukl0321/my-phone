@@ -4,7 +4,7 @@
    ============================================================ */
 
 
-/* ===== 底部栏毛玻璃 ===== */
+/* ---------- 底部栏毛玻璃 ---------- */
 
 
 (function(){
@@ -19,7 +19,7 @@
 })();
 
 
-/* =====  微信主页 / 通讯录 / 朋友圈 ===== */
+/* ---------- 微信主页 / 通讯录 / 朋友圈 ---------- */
 
 
 (function(){
@@ -97,7 +97,7 @@
     '.momBox .pv{width:38px;height:38px;border-radius:11px;background:center/cover;border:1px solid var(--line)}';
   document.head.appendChild(st);
 
-  /* ---- 存储 ---- */
+  /* ---------- 存储 ---------- */
   function ls(k, d){ try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(d)); } catch(e){ return d; } }
   function ss(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
   var MOM = ls('xm_moments', []);
@@ -125,7 +125,7 @@
     return Math.floor(s / 86400) + '天前';
   }
 
-  /* ---- 中继调用（用 raw，避免和聊天 outbox 抢） ---- */
+  /* ---------- 中继调用（用 raw，避免和聊天 outbox 抢） ---------- */
   async function rawApi(path, opts){
     var r = await fetch((S.relay || '').replace(/\/+$/, '') + path, Object.assign({}, opts || {}, {
       headers: Object.assign({ 'Authorization': 'Bearer ' + S.key }, (opts && opts.headers) || {})
@@ -199,7 +199,7 @@
     return c.toDataURL('image/jpeg', .68);
   }
 
-  /* ---- 他发一条 ---- */
+  /* ---------- 他发一条 ---------- */
   async function kaiPost(){
     if (!S.key){ toastWx('先去设置填中继密钥'); return; }
     toastWx('他在写…');
@@ -215,7 +215,7 @@
     toastWx('他发了朋友圈');
   }
 
-  /* ---- 他看我的 ---- */
+  /* ---------- 他看我的 ---------- */
   async function kaiSee(m){
     if (!S.key) return;
     var raw = await ask('小咩刚发了一条朋友圈：\n「' + String(m.text || '（图片）') + '」\n\n'+
@@ -252,7 +252,7 @@
     } catch(e){}
   }
 
-  /* ---- 界面 ---- */
+  /* ---------- 界面 ---------- */
   var wx = document.createElement('div');
   wx.id = 'wx';
   document.body.appendChild(wx);
@@ -343,7 +343,7 @@
     bind();
   }
 
-  /* ---- 发朋友圈 ---- */
+  /* ---------- 发朋友圈 ---------- */
   var fPost = document.createElement('input');
   fPost.type = 'file'; fPost.accept = 'image/*'; fPost.style.display = 'none';
   document.body.appendChild(fPost);
@@ -402,7 +402,7 @@
     };
   }
 
-  /* ---- 交互 ---- */
+  /* ---------- 交互 ---------- */
   function bind(){
     wx.querySelectorAll('[data-tab]').forEach(function(el){
     el.onclick = function(){
@@ -479,7 +479,7 @@
     });
   };
 
-  /* ---- 接管聊天入口 ---- */
+  /* ---------- 接管聊天入口 ---------- */
   var _oa = window.openApp;
   function openChatReal(){ if (typeof _oa === 'function') _oa.call(window, 'chat'); }
   if (typeof _oa === 'function' && !_oa.__wx){
@@ -493,7 +493,7 @@
   function openWx(){ wx.classList.add('on'); TAB = 'wx'; SUB = ''; render(); }
   window.openWx = openWx;
 
-  /* ---- 左边缘滑回 ---- */
+  /* ---------- 左边缘滑回 ---------- */
   (function(){
     var live = false, x0 = 0, y0 = 0, dx = 0;
     wx.addEventListener('touchstart', function(e){
@@ -536,7 +536,7 @@
 })();
 
 
-/* ===== 4. 朋友圈：下拉刷新 + 他评论/点赞了发通知 ===== */
+/* ---------- 朋友圈：下拉刷新 + 他评论/点赞了发通知 ---------- */
 
 
 (function(){
@@ -657,7 +657,7 @@
   }, { passive: true });
 })();
 
-/* ===== 5. 「我」页面改版 + 清空我的朋友圈（留备份 + 分析） ===== */
+/* ---------- 「我」页面改版 + 清空我的朋友圈（留备份 + 分析） ---------- */
 
 
 (function(){
@@ -719,7 +719,7 @@
     return '深夜';
   }
 
-  /* ---- 自己问一次模型 ---- */
+  /* ---------- 自己问一次模型 ---------- */
   async function rawApi(path, opts){
     var r = await fetch((S.relay || '').replace(/\/+$/, '') + path, Object.assign({}, opts || {}, {
       headers: Object.assign({ 'Authorization': 'Bearer ' + S.key }, (opts && opts.headers) || {})
@@ -766,7 +766,7 @@
     return '';
   }
 
-  /* ---- 我 页面 ---- */
+  /* ---------- 我 页面 ---------- */
   function meHtml(){
     var ava = localStorage.getItem('xm_ava') || '';
     var sign = String(S.sign || '').trim();
@@ -806,7 +806,7 @@
     inp.onkeydown = function(e){ if (e.key === 'Enter'){ e.preventDefault(); inp.blur(); } };
   }
 
-  /* ---- 分析弹窗 ---- */
+  /* ---------- 分析弹窗 ---------- */
   function showPop(text, canBak){
     var old = document.getElementById('momPop'); if (old) old.remove();
     var d = document.createElement('div');
@@ -839,7 +839,7 @@
     };
   }
 
-  /* ---- 清空我的朋友圈 ---- */
+  /* ---------- 清空我的朋友圈 ---------- */
   async function clearMine(){
     var all = ls('xm_moments', []);
     var mine = all.filter(function(m){ return m.who === 'me'; });
@@ -870,7 +870,7 @@
     showPop(raw ? String(raw).trim() : '没连上中继，分析不了。备份还在。', 1);
   }
 
-  /* ---- 我 的设置页 ---- */
+  /* ---------- 我 的设置页 ---------- */
   var set = document.createElement('div');
   set.id = 'meSet';
   document.body.appendChild(set);
@@ -994,7 +994,7 @@
     if (q('meSetClr')) q('meSetClr').onclick = function(){ clearMine(); };
   }
 
-  /* ---- 收藏 ---- */
+  /* ---------- 收藏 ---------- */
   function favSheet(){
     var old = document.getElementById('meFav'); if (old) old.remove();
     var list = ls('xm_favs', []);
@@ -1028,7 +1028,7 @@
     document.body.appendChild(d);
   }
 
-  /* ---- 接管 我 页面 ---- */
+  /* ---------- 接管 我 页面 ---------- */
   function goMoments(){
     var box = document.getElementById('wx');
     if (!box) return;
@@ -1073,7 +1073,7 @@
 })();
 
 
-/* ===== 28. 朋友圈升级：接着你的动态发 + 上网找图 + 自动发 ===== */
+/* ---------- 朋友圈升级：接着你的动态发 + 上网找图 + 自动发 ---------- */
 
 
 (function(){
@@ -1123,7 +1123,7 @@
     try { return JSON.parse(t); } catch(e){ return t; }
   }
 
-  /* ---- 上下文：人设 + 记忆 + 最近聊天 + 她最近两条朋友圈 ---- */
+  /* ---------- 上下文：人设 + 记忆 + 最近聊天 + 她最近两条朋友圈 ---------- */
   async function askCtx(user, temp){
     var sys = PERSONA;
     if (typeof MEM !== 'undefined' && MEM.length){
@@ -1163,7 +1163,7 @@
     return '';
   }
 
-  /* ---- 上网找图 ---- */
+  /* ---------- 上网找图 ---------- */
   async function searchPic(q){
     var kw = String(q || '').replace(/[\[\]]/g, ' ').trim().slice(0, 40);
     if (!kw) return '';
@@ -1222,7 +1222,7 @@
     return c.toDataURL('image/jpeg', .68);
   }
 
-  /* ---- 重绘朋友圈（正停在那页才动） ---- */
+  /* ---------- 重绘朋友圈（正停在那页才动） ---------- */
   function refreshWx(){
     var box = document.getElementById('wx');
     if (!box || !box.classList.contains('on')) return;
@@ -1267,7 +1267,7 @@
     } catch(e){}
   }
 
-  /* ---- 他发一条 ---- */
+  /* ---------- 他发一条 ---------- */
   var posting = false;
   async function post(silent){
     if (posting) return;
@@ -1312,7 +1312,7 @@
   }
   window.kaiPostNow = function(){ post(false); };
 
-  /* ---- 接管「让祁砚发一条」 ---- */
+  /* ---------- 接管「让祁砚发一条」 ---------- */
   document.addEventListener('click', function(e){
     var el = e.target && e.target.closest ? e.target.closest('#wx [data-kai]') : null;
     if (!el) return;
@@ -1321,7 +1321,7 @@
     post(false);
   }, true);
 
-  /* ---- 自动发 ---- */
+  /* ---------- 自动发 ---------- */
   setInterval(function(){
     if (!+S.momOn) return;
     if (posting || SENDING) return;
@@ -1337,7 +1337,7 @@
     post(true);
   }, 60000);
 
-  /* ---- 设置里的卡片 ---- */
+  /* ---------- 设置里的卡片 ---------- */
   setInterval(function(){
     var b = document.getElementById('ovbody');
     if (!b || b.querySelector('#xmMomCard')) return;
@@ -1380,7 +1380,7 @@
 })();
 
 
-/* ===== 34. 右滑时挡住后面的壁纸 ===== */
+/* ---------- 右滑时挡住后面的壁纸 ---------- */
 
 
 (function(){
@@ -1395,7 +1395,7 @@
 })();
 
 
-/* ===== 35. 「我的」页面：头像居中 + 帖子流 + Edit Profile ===== */
+/* ---------- 「我的」页面：头像居中 + 帖子流 + Edit Profile ---------- */
 
 
 (function(){
@@ -1520,7 +1520,7 @@
     '</div>';
   }
 
-  /* ---- Edit Profile ---- */
+  /* ---------- Edit Profile ---------- */
   function editProfile(){
     var old = document.getElementById('meEditBox'); if (old) old.remove();
     var ava = MYAVA();
@@ -1589,7 +1589,7 @@
     };
   }
 
-  /* ---- 收藏 ---- */
+  /* ---------- 收藏 ---------- */
   function favSheet(){
     var old = document.getElementById('meFav2'); if (old) old.remove();
     var list = ls('xm_favs', []);
@@ -1620,7 +1620,7 @@
     document.body.appendChild(d);
   }
 
-  /* ---- 接管 ---- */
+  /* ---------- 接管 ---------- */
   function repaint(force){
     var box = document.getElementById('wx');
     if (!box || !box.classList.contains('on')) return;
@@ -1674,7 +1674,7 @@
 })();
 
 
-/* ---------- 1. 键盘弹出：只把输入栏和 + 面板抬到键盘上沿 ---------- */
+/* ---------- 键盘弹出：只把输入栏和 + 面板抬到键盘上沿 ---------- */
 
 
 (function(){
@@ -1728,7 +1728,7 @@
 })();
 
 
-/* ---------- 2. 消息贴底：少了压在底部，多了跟着最新一条 ---------- */
+/* ---------- 消息贴底：少了压在底部，多了跟着最新一条 ---------- */
 
 
 (function(){
@@ -1780,7 +1780,7 @@
 })();
 
 
-/* ---------- 3. 微信那一层：打字时整块贴住可见区域 ---------- */
+/* ---------- 微信那一层：打字时整块贴住可见区域 ---------- */
 
 
 (function(){
@@ -1813,7 +1813,7 @@
 })();
 
 
-/* ---------- 4. 打字时顶栏跟着可视区走，永远贴在屏幕最上面 ---------- */
+/* ---------- 打字时顶栏跟着可视区走，永远贴在屏幕最上面 ---------- */
 
 
 (function(){
