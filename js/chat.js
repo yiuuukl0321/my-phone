@@ -1399,3 +1399,473 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
   setInterval(add, 700);
   add();
 })();
+
+
+/* ---------- 长按消息：复制 / 引用 / 朗读 / 翻译 / 思考（心声）/ 收藏 / 重新生成 / 删除 ---------- */
+   
+(function(){
+  'use strict';
+
+  var st = document.createElement('style');
+  st.textContent =
+    '#msgs .think{display:none!important}' +
+    '#msgs .acts button{display:none!important}' +
+
+    /* 长按菜单 */
+    '#xmMenu{position:fixed;z-index:126;background:#2c2c2e;border-radius:17px;padding:13px 8px 11px;' +
+      'box-shadow:0 16px 44px rgba(0,0,0,.34);display:grid;grid-template-columns:repeat(4,70px);' +
+      'transform-origin:center bottom;animation:xmIn .14s ease-out}' +
+    '@keyframes xmIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}' +
+    '#xmMenu .mi{display:flex;flex-direction:column;align-items:center;gap:7px;color:#fff;' +
+      'font-size:11.5px;line-height:1;padding:8px 0;border-radius:12px}' +
+    '#xmMenu .mi:active{background:rgba(255,255,255,.14)}' +
+    '#xmMenu .mi svg{width:21px;height:21px}' +
+    '#xmMask{position:fixed;inset:0;z-index:125;background:transparent}' +
+
+    /* 引用：贴在消息下面 */
+    '#msgs .xmQ{margin-top:7px;border:1px solid rgba(0,0,0,.15);border-radius:14px;' +
+      'padding:8px 13px;font-size:12.5px;line-height:1.65;color:#90908c;' +
+      'background:rgba(255,255,255,.45);word-break:break-word}' +
+
+    /* 输入框上面的引用条 */
+    '#xmQuoteBar{display:flex;align-items:center;gap:10px;margin:0 12px 7px;padding:9px 13px;' +
+      'border:1px solid rgba(0,0,0,.13);border-radius:13px;background:#fff;' +
+      'font-size:12.5px;line-height:1.5;color:#6f6f6b}' +
+    '#xmQuoteBar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}' +
+    '#xmQuoteBar b{font-weight:400;font-size:17px;line-height:1;color:#b6b6b2}' +
+
+    /* 心声面板 */
+    '#xmHeart{position:fixed;left:0;right:0;bottom:0;z-index:127;background:#fff;' +
+      'border-radius:22px 22px 0 0;padding:19px 22px calc(env(safe-area-inset-bottom) + 26px);' +
+      'box-shadow:0 -10px 40px rgba(0,0,0,.18);animation:xmUp .22s ease-out}' +
+    '@keyframes xmUp{from{transform:translateY(34px);opacity:0}to{transform:translateY(0);opacity:1}}' +
+    '#xmHeart .vh{display:flex;align-items:center;gap:7px;font-size:11.5px;letter-spacing:.16em;' +
+      'color:#a8a8a4}' +
+    '#xmHeart .vt{margin-top:15px;font-size:14.5px;line-height:1.98;color:#4a4a47;' +
+      'white-space:pre-wrap;word-break:break-word;max-height:54vh;overflow-y:auto}' +
+    '#xmHeart .vt.ph{color:#bdbdb9}' +
+    '#xmHeart .vf{margin-top:17px;display:flex;align-items:center;font-size:11.5px;color:#bcbcb8}' +
+    '#xmHeart .vf b{margin-left:auto;font-weight:400;font-size:13px;color:#8f8f8b}' +
+    '#xmHeart .vbar{width:38px;height:4px;border-radius:3px;background:#e2e2de;margin:-6px auto 14px}';
+  document.head.appendChild(st);
+
+  var I = {
+    copy:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="9.2" y="9.2" width="11.3" height="11.3" rx="2.6"/><path d="M6.6 15.2H5.7A2.7 2.7 0 0 1 3 12.5v-7A2.7 2.7 0 0 1 5.7 2.8h7a2.7 2.7 0 0 1 2.7 2.7v.9"/></svg>',
+    quote: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.6 6.6L5 11.2l4.6 4.6"/><path d="M5 11.2h9.4a5.2 5.2 0 0 1 0 10.4h-3"/></svg>',
+    play:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.4h3.3L12.2 5v14l-4.9-4.4H4z"/><path d="M15.9 9.2a4.1 4.1 0 0 1 0 5.6"/><path d="M18.3 6.8a7.5 7.5 0 0 1 0 10.4"/></svg>',
+    trans: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.2h8.2M7.1 4v2.2c0 4.2-1.7 7.4-4.1 9.6"/><path d="M4.6 12.4c1.6 2.7 3.9 4.6 6.2 5.2"/><path d="M13.2 20.4l4-10.4 4 10.4"/><path d="M14.7 16.9h5"/></svg>',
+    think: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3.4l1.6 4.3 4.3 1.6-4.3 1.6L11 15.2 9.4 10.9 5.1 9.3l4.3-1.6z"/><path d="M18.2 14.8l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>',
+    star:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.4l2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8z"/></svg>',
+    regen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20.2 12a8.2 8.2 0 1 1-2.5-5.9"/><path d="M20.2 4.3v5.9h-5.9"/></svg>',
+    del:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 7h15"/><path d="M9.6 7V4.8h4.8V7"/><path d="M6.6 7l.9 12.2h9l.9-12.2"/></svg>'
+  };
+
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+
+  function tip(t){
+    var d = document.createElement('div');
+    d.textContent = t;
+    d.style.cssText = 'position:fixed;left:50%;bottom:140px;transform:translateX(-50%);background:rgba(0,0,0,.84);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:14px;z-index:130;max-width:82vw;text-align:center';
+    document.body.appendChild(d);
+    setTimeout(function(){ d.remove(); }, 2200);
+  }
+
+  function bubble(w){ return w.querySelector('.bub.kai') || w.querySelector('.bub') || w; }
+  function isKai(w){ return !!w.querySelector('.bub.kai'); }
+  function idx(w){ return +w.getAttribute('data-i'); }
+  function txtOf(w){ return bubble(w).textContent.replace(/\s+/g, ' ').trim(); }
+  function whoOf(w){ return isKai(w) ? '祁砚' : '小咩'; }
+
+  /* ---------- 复制 ---------- */
+  function doCopy(t){
+    if (!t) return;
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(function(){ tip('复制好了'); }, function(){ fb(t); });
+    } else fb(t);
+  }
+  function fb(t){
+    var a = document.createElement('textarea');
+    a.value = t; a.style.cssText = 'position:fixed;top:-200px;opacity:0';
+    document.body.appendChild(a); a.select();
+    try { document.execCommand('copy'); tip('复制好了'); } catch(e){ tip('复制失败'); }
+    a.remove();
+  }
+
+  /* ---------- 引用 ---------- */
+  var quote = null;
+
+  function quoteBar(){
+    var old = document.getElementById('xmQuoteBar');
+    if (old) old.remove();
+    if (!quote) return;
+    var bar = document.querySelector('#ov .inputbar');
+    if (!bar || !bar.parentNode) return;
+    var d = document.createElement('div');
+    d.id = 'xmQuoteBar';
+    d.innerHTML = '<span>引用 ' + esc(quote.who) + '：' + esc(quote.text) + '</span><b>×</b>';
+    d.querySelector('b').onclick = function(){ quote = null; quoteBar(); };
+    bar.parentNode.insertBefore(d, bar);
+  }
+
+  function doQuote(w){
+    var t = txtOf(w);
+    if (!t) return;
+    quote = { who: whoOf(w), text: t.length > 120 ? t.slice(0, 120) + '…' : t };
+    quoteBar();
+    var inp = document.getElementById('mIn');
+    if (inp) inp.focus();
+    tip('引用上了，说你想说的');
+  }
+
+  function paintQuotes(){
+    var box = document.getElementById('msgs');
+    if (!box || !Array.isArray(CHAT)) return;
+    var wraps = box.querySelectorAll('[data-i]');
+    for (var i = 0; i < wraps.length; i++){
+      var w = wraps[i];
+      var m = CHAT[+w.getAttribute('data-i')];
+      if (!m || !m.quote || w.querySelector('.xmQ')) continue;
+      var d = document.createElement('div');
+      d.className = 'xmQ';
+      d.textContent = m.quote.who + '：' + m.quote.text;
+      w.appendChild(d);
+    }
+  }
+
+  /* 发出去的时候把引用挂到这条消息上 */
+  var _send = window.sendChat;
+  if (typeof _send === 'function' && !_send.__xmq){
+    var fs = async function(){
+      var inp = document.getElementById('mIn');
+      var had = inp && String(inp.value || '').trim();
+      var q = quote;
+      if (q && had){ quote = null; quoteBar(); }
+      var p = _send.apply(this, arguments);
+      if (q && had){
+        try {
+          for (var i = CHAT.length - 1; i >= 0; i--){
+            if (CHAT[i] && CHAT[i].role === 'user'){ CHAT[i].quote = q; break; }
+          }
+          saveChat();
+        } catch(e){}
+      }
+      return await p;
+    };
+    fs.__xmq = 1;
+    window.sendChat = fs;
+  }
+
+  /* 让他知道你在接哪一句 */
+  var _bm = window.buildMessages;
+  if (typeof _bm === 'function' && !_bm.__xmq){
+    var fb2 = function(){
+      var m = _bm.apply(this, arguments);
+      try {
+        var q = null;
+        for (var i = CHAT.length - 1; i >= 0; i--){
+          if (CHAT[i] && CHAT[i].role === 'user'){ q = CHAT[i].quote; break; }
+        }
+        if (q && m && m.length){
+          var last = m[m.length - 1];
+          if (last && last.role === 'user'){
+            last.content = '（我在引用' + q.who + '说过的一句：「' + q.text + '」）\n' + last.content;
+          }
+        }
+      } catch(e){}
+      return m;
+    };
+    fb2.__xmq = 1;
+    window.buildMessages = fb2;
+  }
+
+  /* ---------- 朗读 ---------- */
+  var audio = null;
+  function speak(text){
+    text = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    try { if (audio){ audio.pause(); audio = null; } } catch(e){}
+    try { window.speechSynthesis && speechSynthesis.cancel(); } catch(e){}
+    var c = {};
+    try { c = JSON.parse(localStorage.getItem('xm_tts') || '{}') || {}; } catch(e){}
+    if (c.on === 0 || c.on === '0') return;
+    var sp = Math.max(.5, Math.min(2, +c.speed || 1));
+    var prov = c.provider || 'system';
+    if (prov === 'system'){
+      try {
+        var u = new SpeechSynthesisUtterance(text.slice(0, 900));
+        u.rate = sp;
+        u.lang = /[\u4e00-\u9fff]/.test(text) ? 'zh-CN' : 'en-US';
+        var list = speechSynthesis.getVoices() || [], v = null;
+        if (c.voice) v = list.filter(function(x){ return x.name === c.voice; })[0];
+        if (!v) v = list.filter(function(x){ return /zh[-_]|Chinese|中文|粤|Yue/i.test(x.lang + ' ' + x.name); })[0];
+        if (v) u.voice = v;
+        speechSynthesis.speak(u);
+      } catch(e){ tip('这台设备的系统语音用不了'); }
+      return;
+    }
+    var url = String(c.url || '').replace(/\/+$/, '');
+    if (!url || !c.key){ tip('先去语音设置填地址和 Key'); return; }
+    var req;
+    if (prov === 'elevenlabs'){
+      req = fetch(url + '/v1/text-to-speech/' + encodeURIComponent(c.voice || '21m00Tcm4TlvDq8ikWAM'), {
+        method: 'POST',
+        headers: { 'xi-api-key': c.key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text.slice(0, 2500), model_id: c.model || 'eleven_multilingual_v2' })
+      });
+    } else {
+      var ep = /\/v\d+$/.test(url) ? url : url + '/v1';
+      req = fetch(ep + '/audio/speech', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + c.key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: c.model || 'gpt-4o-mini-tts', input: text.slice(0, 1500), voice: c.voice || 'alloy', response_format: 'mp3' })
+      });
+    }
+    tip('合成中…');
+    req.then(function(r){
+      if (!r.ok) return r.text().then(function(t){ throw new Error(r.status + ' ' + String(t).slice(0, 120)); });
+      return r.blob();
+    }).then(function(b){
+      var ou = URL.createObjectURL(b);
+      audio = new Audio(ou);
+      audio.playbackRate = sp;
+      audio.onended = function(){ try { URL.revokeObjectURL(ou); } catch(e){} audio = null; };
+      return audio.play();
+    }).catch(function(e){ tip('朗读失败：' + ((e && e.message) || e)); });
+  }
+
+  /* ---------- 走一趟中继（翻译 / 心声共用） ---------- */
+  function ask(sys, user, done){
+    if (!S.key || !S.apiUrl || !S.apiKey){ done('先去设置把参数填好'); return; }
+    var rid = 'x' + Date.now() + Math.random().toString(36).slice(2, 6);
+    api('/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestId: rid, inboxId: S.inbox,
+        messages: [{ role: 'system', content: sys }, { role: 'user', content: user }],
+        settings: { mainApiUrl: S.apiUrl, mainApiKey: S.apiKey, mainApiModel: S.model,
+                    apiType: S.apiType || 'openai', temperature: 0.9 },
+        meta: { charName: '祁砚', charId: 'kai' }
+      })
+    }).then(function(){
+      var n = 0;
+      var t = setInterval(function(){
+        n++;
+        if (n > 20){ clearInterval(t); done('等太久了，再点一次'); return; }
+        api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0').then(function(j){
+          var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
+          if (!f) return;
+          clearInterval(t);
+          api('/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] }) }).catch(function(){});
+          if (f.error){ done('失败：' + f.error); return; }
+          var r = parseReply(f.content);
+          done(null, r.text || '（空）');
+        }).catch(function(){});
+      }, 2000);
+    }).catch(function(e){ done('失败：' + e.message); });
+  }
+
+  /* ---------- 翻译 ---------- */
+  function card(txt){
+    var d = document.getElementById('xmTransCard');
+    if (!d){
+      d = document.createElement('div');
+      d.id = 'xmTransCard';
+      d.style.cssText = 'position:fixed;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + 120px);z-index:118;background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:18px;padding:14px 16px;font-size:13.5px;line-height:1.75;box-shadow:0 10px 30px rgba(0,0,0,.16);max-height:46vh;overflow-y:auto';
+      d.onclick = function(){ d.remove(); };
+      document.body.appendChild(d);
+    }
+    d.textContent = txt;
+  }
+  function doTrans(t){
+    t = String(t || '').trim();
+    if (!t) return;
+    card('翻译中…');
+    ask('你是翻译。把用户发来的文本翻译成中文；如果本来就是中文，就翻译成英文。只输出译文，不要解释，不要加引号。', t, function(err, out){
+      card(err || out);
+    });
+  }
+
+  /* ---------- 思考（心声） ---------- */
+  function closeAll(){
+    ['xmMenu', 'xmMask', 'xmHeart', 'xmHeartMask'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) el.remove();
+    });
+  }
+
+  function heartPanel(){
+    var old = document.getElementById('xmHeart'); if (old) old.remove();
+    var mask = document.getElementById('xmHeartMask');
+    if (!mask){
+      mask = document.createElement('div');
+      mask.id = 'xmHeartMask';
+      mask.style.cssText = 'position:fixed;inset:0;z-index:126;background:transparent';
+      mask.onclick = closeAll;
+      document.body.appendChild(mask);
+    }
+    var d = document.createElement('div');
+    d.id = 'xmHeart';
+    d.innerHTML =
+      '<div class="vbar"></div>' +
+      '<div class="vh">✦　心声</div>' +
+      '<div class="vt ph"></div>' +
+      '<div class="vf"><span></span><b>收起</b></div>';
+    d.querySelector('.vf b').onclick = closeAll;
+    document.body.appendChild(d);
+    return d;
+  }
+
+  function showThink(w){
+    var m = (Array.isArray(CHAT) && CHAT[idx(w)]) ? CHAT[idx(w)] : null;
+    if (!m) { tip('这条找不到了'); return; }
+    var d = heartPanel();
+    var t = d.querySelector('.vt');
+    var f = d.querySelector('.vf span');
+    var when = m.t ? new Date(m.t) : new Date();
+    var hh = ('0' + when.getHours()).slice(-2) + ':' + ('0' + when.getMinutes()).slice(-2);
+    f.textContent = '祁砚 · ' + hh;
+
+    var think = String(m.think || '').trim();
+    if (think){
+      t.className = 'vt';
+      t.textContent = think;
+      return;
+    }
+    t.textContent = '他在想…';
+    ask('你是祁砚。下面是小咩发来的一句，和你要回的那句。用第一人称写你此刻没说出口的心声，' +
+        '两三句，40 字以内，口语，不要引号，不要解释，不要括号。',
+        '小咩说：「' + String(m.quote && m.quote.text || '').slice(0, 200) + '」\n' +
+        '我回的是：「' + String(m.text || '').slice(0, 300) + '」',
+        function(err, out){
+          var box = document.getElementById('xmHeart');
+          if (!box) return;
+          var tt = box.querySelector('.vt');
+          tt.className = 'vt';
+          tt.textContent = err ? ('没写出来：' + err) : out;
+        });
+  }
+
+  /* ---------- 重新生成 ---------- */
+  function doRegen(i){
+    if (typeof SENDING !== 'undefined' && SENDING){ tip('还在生成中，等这条出来'); return; }
+    if (!(i >= 0) || i >= CHAT.length){ tip('这条找不到了'); return; }
+    var u = -1;
+    for (var k = i; k >= 0; k--){ if (CHAT[k].role === 'user'){ u = k; break; } }
+    if (u < 0){ tip('这条前面没有你说的话'); return; }
+    if (i < CHAT.length - 1 && !confirm('从这条重生成？它后面的都会一起去掉。')) return;
+    var text = CHAT[u].text;
+    CHAT.splice(u);
+    saveChat();
+    renderChat(true);
+    var inp = document.getElementById('mIn');
+    if (!inp){ tip('聊天没开着'); return; }
+    inp.value = text;
+    tip('重新生成中…');
+    sendChat();
+  }
+
+  /* ---------- 收藏 ---------- */
+  function doFav(t){
+    try {
+      var a = JSON.parse(localStorage.getItem('xm_favs') || '[]');
+      if (!Array.isArray(a)) a = [];
+      var d = new Date();
+      var ds = d.getFullYear() + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + ('0' + d.getDate()).slice(-2);
+      if (a.length && typeof a[0] === 'object') a.push({ t: t, d: ds });
+      else a.push(t);
+      localStorage.setItem('xm_favs', JSON.stringify(a));
+      tip('收藏好了');
+    } catch(e){ tip('收藏失败'); }
+  }
+
+  /* ---------- 删除 ---------- */
+  function doDel(i){
+    if (!(i >= 0) || i >= CHAT.length){ tip('这条找不到了'); return; }
+    if (!confirm('删掉这条？')) return;
+    CHAT.splice(i, 1);
+    saveChat();
+    renderChat(true);
+  }
+
+  /* ---------- 菜单 ---------- */
+  function show(w, x, y){
+    closeAll();
+    var t = txtOf(w), kai = isKai(w), i = idx(w);
+
+    var items = [
+      ['copy',  '复制', function(){ doCopy(t); }],
+      ['quote', '引用', function(){ doQuote(w); }],
+      ['play',  '朗读', function(){ speak(t); }],
+      ['trans', '翻译', function(){ doTrans(t); }]
+    ];
+    if (kai) items.push(['think', '思考', function(){ showThink(w); }]);
+    items.push(['star', '收藏', function(){ doFav(t); }]);
+    if (kai) items.push(['regen', '重新生成', function(){ doRegen(i); }]);
+    items.push(['del', '删除', function(){ doDel(i); }]);
+
+    var mask = document.createElement('div');
+    mask.id = 'xmMask';
+    mask.onclick = closeAll;
+    document.body.appendChild(mask);
+
+    var m = document.createElement('div');
+    m.id = 'xmMenu';
+    items.forEach(function(it){
+      var b = document.createElement('div');
+      b.className = 'mi';
+      b.innerHTML = I[it[0]] + '<span>' + it[1] + '</span>';
+      b.onclick = function(ev){ ev.stopPropagation(); closeAll(); it[2](); };
+      m.appendChild(b);
+    });
+    document.body.appendChild(m);
+
+    var W = 4 * 70 + 16;
+    var H = 24 + Math.ceil(items.length / 4) * 62;
+    var left = Math.min(Math.max(10, x - W / 2), innerWidth - W - 10);
+    var top = y - H - 16;
+    if (top < 70) top = Math.min(y + 22, innerHeight - H - 24);
+    m.style.left = Math.round(left) + 'px';
+    m.style.top = Math.round(top) + 'px';
+  }
+
+  /* ---------- 长按 ---------- */
+  var lp = null, sx = 0, sy = 0, tgt = null;
+
+  document.addEventListener('touchstart', function(e){
+    var el = e.target && e.target.closest ? e.target.closest('#msgs [data-i]') : null;
+    if (!el) return;
+    var t = e.touches[0];
+    sx = t.clientX; sy = t.clientY; tgt = el;
+    clearTimeout(lp);
+    lp = setTimeout(function(){ show(el, sx, sy); }, 480);
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function(e){
+    if (!tgt) return;
+    var t = e.touches[0];
+    if (Math.hypot(t.clientX - sx, t.clientY - sy) > 12){ clearTimeout(lp); tgt = null; }
+  }, { passive: true });
+
+  document.addEventListener('touchend', function(){ clearTimeout(lp); tgt = null; }, { passive: true });
+  document.addEventListener('touchcancel', function(){ clearTimeout(lp); tgt = null; }, { passive: true });
+  document.addEventListener('scroll', closeAll, true);
+
+  /* ---------- 每次重绘后补引用框 ---------- */
+  var _rc = window.renderChat;
+  if (typeof _rc === 'function' && !_rc.__xmq){
+    var fr = function(){
+      var r = _rc.apply(this, arguments);
+      try { paintQuotes(); quoteBar(); } catch(e){}
+      return r;
+    };
+    fr.__xmq = 1;
+    window.renderChat = fr;
+  }
+  setTimeout(function(){ try { paintQuotes(); } catch(e){} }, 1200);
+})();
