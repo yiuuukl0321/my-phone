@@ -1869,3 +1869,24 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
   }
   setTimeout(function(){ try { paintQuotes(); } catch(e){} }, 1200);
 })();
+
+ /* ---------- 长按菜单补丁：关掉 iOS 自带的选取文字 ---------- */
+(function(){
+  var st = document.createElement('style');
+  st.textContent =
+    '#msgs,#msgs *{-webkit-touch-callout:none!important}' +
+    '#msgs .bub,#msgs .wrap,#msgs .meta,#msgs .xmQ{' +
+      '-webkit-user-select:none!important;user-select:none!important;-webkit-touch-callout:none!important}';
+  document.head.appendChild(st);
+
+  /* 长按气泡时，iOS 会先弹自己的「拷贝/查询」，把它按掉 */
+  document.addEventListener('contextmenu', function(e){
+    var el = e.target && e.target.closest ? e.target.closest('#msgs') : null;
+    if (el) e.preventDefault();
+  });
+
+  document.addEventListener('selectstart', function(e){
+    var el = e.target && e.target.closest ? e.target.closest('#msgs') : null;
+    if (el) e.preventDefault();
+  });
+})();
