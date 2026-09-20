@@ -1,16 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-咩&砚 · 代码整理脚本（云端版）
+咩&砚 · 代码整理脚本
 =====================================================
-配合 .github/workflows/tidy.yml 在 GitHub Actions 里跑，
-不用在自己电脑上装 Python，也不用下载仓库。
+配合 .github/workflows/tidy.yml 在 GitHub Actions 里跑。
 
-它会做四件事：
-  · 先备份到 _backup_原始/
-  · 删掉已知的废代码块（找不到就跳过，绝不乱删）
-  · 给每个 js 文件加上统一的标题头
-  · 顶层函数之间保证空两行、连续空行最多两行
-  · 顺手把 index.html 里 ?v= 的数字加一
+第一轮做过的：删废块、加统一文件头、函数间空两行、?v= 加一。
+这一轮新增：把小标题也统一成同一种写法
+    /* ---------- 名字 ---------- */
+（编号去掉，===== 和 ---- 混用一律换成 ----------）
 """
 
 import os
@@ -43,6 +40,9 @@ DEAD = {
     'js/tools.js': [('顶栏钉死', '旧顶栏补丁，已被 wechat.js 里的新版取代'),
                     ('自检：点屏幕任意处', '点哪儿都弹黑框的调试代码')],
 }
+
+# 一行式的小标题：前后都是 ==== 或 ----
+SEC = re.compile(r'^(\s*)/\*\s*[=\-]{3,}\s*(.*?)\s*[=\-]{3,}\s*\*/\s*$')
 
 report = []
 
@@ -80,6 +80,24 @@ def cut_script(text, marker, limit=20000):
     return text[:s] + text[e + len('</script>'):], True
 
 
+def unify_sections(text):
+    """把所有一行式小标题统一成 /* ---------- 名字 ---------- */"""
+    out, n = [], 0
+    for ln in text.split('\n'):
+        m = SEC.match(ln)
+        if m:
+            indent, name = m.group(1), m.group(2)
+            name = re.sub(r'^\d+\s*[\.、:：]\s*', '', name)   # 去掉开头编号
+            name = re.sub(r'[=\-]{3,}', '', name)             # 去掉名字里的分隔符
+            name = re.sub(r'\s+', ' ', name).strip()
+            if name:
+                out.append(indent + '/* ---------- ' + name + ' ---------- */')
+                n += 1
+                continue
+        out.append(ln)
+    return '\n'.join(out), n
+
+
 def process(path):
     full = os.path.join(ROOT, path)
     if not os.path.exists(full):
@@ -101,7 +119,12 @@ def process(path):
             out = new
             note('删废块：' + path + '  ←  ' + marker + '（' + why + '）')
 
-    # 2. 统一标题头
+    # 2. 小标题统一
+    out, cnt = unify_sections(out)
+    if cnt:
+        note('统一小标题：' + path + '  共 ' + str(cnt) + ' 处')
+
+    # 3. 统一文件头
     title = TITLES.get(path)
     if title and '咩&砚 ·' not in out[:400]:
         head = ('/* ============================================================\n'
@@ -109,9 +132,9 @@ def process(path):
                 '   ' + title + '\n'
                 '   ============================================================ */\n\n\n')
         out = head + out.lstrip('\n')
-        note('加统一标题：' + path)
+        note('加统一文件头：' + path)
 
-    # 3. 排版：连续空行最多两行，顶层函数前空两行
+    # 4. 排版：连续空行最多两行，顶层函数前空两行
     before = out
     out = re.sub(r'\n{4,}', '\n\n\n', out)
     res = []
@@ -126,18 +149,16 @@ def process(path):
     if out != before:
         note('排版整理：' + path)
 
-    # 4. 清掉指向不存在的 js/keyboard.js 的引用
+    # 5. 清掉指向不存在的 js/keyboard.js 的引用
     if path == 'index.html' and not os.path.exists(os.path.join(ROOT, 'js', 'keyboard.js')):
         new = re.sub(r'\n\s*<script src="js/keyboard\.js[^"]*"></script>', '', out)
         if new != out:
             out = new
-            note('删掉多余引用：js/keyboard.js（文件不存在，代码已在 wechat.js 里）')
+            note('删掉多余引用：js/keyboard.js')
 
-    # 5. 版本号加一
+    # 6. 版本号加一
     if path == 'index.html':
-        def bump(m):
-            return '?v=' + str(int(m.group(1)) + 1)
-        new = re.sub(r'\?v=(\d+)', bump, out)
+        new = re.sub(r'\?v=(\d+)', lambda m: '?v=' + str(int(m.group(1)) + 1), out)
         if new != out:
             out = new
             note('版本号加一：index.html 里的 ?v=')
