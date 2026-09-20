@@ -2175,5 +2175,99 @@ var V = '47';
   document.body.appendChild(s);
 });
 </script>
+
+<script>
+/* 顶栏钉死 v3：名字栏永远在屏幕最上面 */
+(function(){
+  var vv = window.visualViewport;
+
+  var tip = document.createElement('div');
+  tip.textContent = '顶栏补丁 v3 已加载';
+  tip.style.cssText = 'position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 10px);' +
+    'transform:translateX(-50%);z-index:99999;background:rgba(0,0,0,.86);color:#fff;' +
+    'font-size:12px;padding:8px 14px;border-radius:12px;white-space:pre-wrap;max-width:88vw';
+  tip.onclick = function(){ tip.remove(); };
+  document.body.appendChild(tip);
+
+  var hud = null;
+  function say(t){
+    if (!hud){
+      hud = document.createElement('div');
+      hud.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;' +
+        'background:rgba(0,0,0,.86);color:#fff;font-size:11px;line-height:1.65;' +
+        'padding:8px 10px;border-radius:12px;white-space:pre-wrap';
+      hud.onclick = function(){ hud.remove(); hud = null; };
+      document.body.appendChild(hud);
+    }
+    hud.textContent = t;
+  }
+
+  function pin(){
+    if (!vv) return;
+    var off = Math.round(vv.offsetTop);
+    var h   = Math.round(vv.height);
+    var kb  = Math.max(0, window.innerHeight - h - off);
+    var up  = kb > 60;
+    var log = [];
+
+    ['ov','sh','wx','meSet'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (!el) return;
+      var hid = el.classList.contains('hide') ||
+                (id === 'wx'    && !el.classList.contains('on')) ||
+                (id === 'meSet' && !el.classList.contains('on'));
+      if (up && !hid){
+        el.style.transition = 'none';
+        el.style.top = off + 'px';
+        el.style.bottom = 'auto';
+        el.style.height = h + 'px';
+        el.style.transform = String(el.style.transform || '').replace(/translateY\([^)]\)\s/g, '');
+        log.push(id + '  ' + el.style.top + ' / ' + el.style.height);
+      } else if (el.style.top || el.style.height){
+        el.style.transition = '';
+        el.style.top = '';
+        el.style.bottom = '';
+        el.style.height = '';
+      }
+    });
+
+    Array.prototype.forEach.call(
+      document.querySelectorAll('#ov .ovtop, #sh .ovtop, #wx .wxTop, #meSet .mtop'),
+      function(hd){
+        if (!hd.offsetHeight) return;
+        hd.style.position = 'fixed';
+        hd.style.left = '0';
+        hd.style.right = '0';
+        hd.style.top = off + 'px';
+        hd.style.zIndex = '80';
+        var host = hd.parentNode;
+        if (host) host.style.paddingTop = hd.offsetHeight + 'px';
+      }
+    );
+
+    if (up) say('kb=' + kb + '  vvOff=' + off + '  vvH=' + h + '  innerH=' + window.innerHeight +
+                '\n' + log.join('\n'));
+  }
+
+  function keep(){
+    var a = document.activeElement;
+    if (a && a.closest && a.closest('#ov')){ try { window.scrollTo(0,0); } catch(e){} }
+    pin();
+  }
+
+  if (vv){
+    vv.addEventListener('resize', keep);
+    vv.addEventListener('scroll', keep);
+  }
+  addEventListener('resize', keep);
+  addEventListener('orientationchange', keep);
+  document.addEventListener('focusin', function(){
+    keep(); setTimeout(keep,60); setTimeout(keep,200); setTimeout(keep,450);
+  }, true);
+  document.addEventListener('focusout', function(){ setTimeout(keep,150); }, true);
+  setInterval(keep, 250);
+  keep();
+})();
+</script>
 </body>
 </html>
