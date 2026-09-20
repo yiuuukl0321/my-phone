@@ -1656,3 +1656,134 @@
 })();
 
 
+/* ---------- 1. 键盘弹出：只把输入栏和 + 面板抬到键盘上沿 ---------- */
+(function(){
+  var vv = window.visualViewport;
+  if (!vv) return;
+  var lastK = 0;
+
+  function kbNow(){
+    return Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+  }
+
+  function apply(k){
+    var bar = document.querySelector('#ov .inputbar');
+    var pan = document.querySelector('#ov .xmPanel');
+    var m   = document.getElementById('msgs');
+    var dn  = document.getElementById('xmDown');
+    var t   = k > 0 ? 'translateY(-' + k + 'px)' : '';
+    if (bar) bar.style.transform = t;
+    if (pan) pan.style.transform = t;
+    if (dn)  dn.style.transform = t;
+    if (m)   m.style.paddingBottom = k > 0 ? (k + 18) + 'px' : '';
+  }
+
+  function sync(){
+    var k = kbNow();
+    if (k) lastK = k;
+    apply(k);
+  }
+
+  /* 键盘动画那几百毫秒里逐帧校正，肉眼看不出跳 */
+  function burst(){
+    var n = 0;
+    (function step(){
+      sync();
+      if (++n < 60) requestAnimationFrame(step);
+    })();
+  }
+
+  vv.addEventListener('resize', function(){ sync(); burst(); });
+  vv.addEventListener('scroll', sync);
+  addEventListener('resize', sync);
+  document.addEventListener('focusin', function(){
+    if (lastK) apply(lastK);   /* 先用上次量到的高度顶上，iOS 就没理由滚页面 */
+    burst();
+  }, true);
+  document.addEventListener('focusout', function(){
+    setTimeout(sync, 80); setTimeout(sync, 260);
+  }, true);
+  setInterval(sync, 200);
+  sync();
+})();
+
+
+/* ---------- 2. 消息贴底：少了压在底部，多了跟着最新一条 ---------- */
+(function(){
+  var st = document.createElement('style');
+  st.textContent = '#msgs::before{content:"";margin-top:auto}';
+  document.head.appendChild(st);
+
+  function box(){ return document.getElementById('msgs'); }
+  function near(b){ return b.scrollHeight - b.scrollTop - b.clientHeight < 140; }
+
+  var lastH = 0, wasNear = true;
+
+  document.addEventListener('scroll', function(e){
+    if (e.target && e.target.id === 'msgs') wasNear = near(e.target);
+  }, true);
+
+  function fix(){
+    var b = box(); if (!b) return;
+    var h = b.clientHeight;
+    if (h !== lastH){
+      if (!lastH || wasNear) b.scrollTop = b.scrollHeight;
+      lastH = h;
+    }
+    wasNear = near(b);
+  }
+
+  var vv = window.visualViewport;
+  if (vv) vv.addEventListener('resize', function(){
+    fix(); setTimeout(fix, 40); setTimeout(fix, 160); setTimeout(fix, 420);
+  });
+  addEventListener('resize', fix);
+  document.addEventListener('focusin', function(){
+    setTimeout(fix, 60); setTimeout(fix, 260); setTimeout(fix, 520);
+  }, true);
+
+  var _rc = window.renderChat;
+  if (typeof _rc === 'function' && !_rc.__pad){
+    var fr = function(){
+      var r = _rc.apply(this, arguments);
+      setTimeout(fix, 30);
+      return r;
+    };
+    fr.__pad = true;
+    window.renderChat = fr;
+  }
+
+  setInterval(fix, 500);
+  fix();
+})();
+
+
+/* ---------- 3. 微信那一层：打字时整块贴住可见区域 ---------- */
+(function(){
+  var vv = window.visualViewport;
+  if (!vv) return;
+
+  function pin(){
+    var off = Math.round(vv.offsetTop);
+    var h   = Math.round(vv.height);
+    var kb  = Math.max(0, window.innerHeight - h - off);
+    ['wx','meSet'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (!el) return;
+      var on = el.classList.contains('on');
+      if (kb > 60 && on){
+        el.style.top = off + 'px';
+        el.style.height = h + 'px';
+      } else if (el.style.top || el.style.height){
+        el.style.top = '';
+        el.style.height = '';
+      }
+    });
+  }
+
+  vv.addEventListener('resize', pin);
+  vv.addEventListener('scroll', pin);
+  addEventListener('resize', pin);
+  setInterval(pin, 300);
+  pin();
+})();
