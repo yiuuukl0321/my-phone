@@ -2027,7 +2027,7 @@ function xmOv(id, html){
 /* 四、钱包（块10 抢红包时会调 XM_DC.tx）*/
 
 
-Var XM_DC = (function(){
+var XM_DC = (function(){
   async function getWallet(){
     return (await XDB.get('wallet','me')) || { id:'me', balance:0, log:[] };
   }
@@ -2435,12 +2435,12 @@ window.xmAsk = xmAsk;
 
 (function(){
   function panel(title, body){
-    var old = document.querySelectorAll('.xmPanel');
+    var old = document.querySelectorAll('.xmToast');
     for(var i = 0; i < old.length; i++) old[i].remove();
     var d = document.createElement('div');
-    d.className = 'xmPanel';
-    d.innerHTML = '<div class="xmPanelTop">✦ ' + xmEsc(title) + '</div>' +
-      '<div class="xmPanelBody">' + xmEsc(body || '…') + '</div>';
+    d.className = 'xmToast';
+    d.innerHTML = '<div class="xmToastTop">✦ ' + xmEsc(title) + '</div>' +
+      '<div class="xmToastBody">' + xmEsc(body || '…') + '</div>';
     document.body.appendChild(d);
     d.addEventListener('click', function(){ d.remove(); });
     setTimeout(function(){ if(d.parentNode) d.remove(); }, 30000);
@@ -2472,16 +2472,16 @@ window.xmAsk = xmAsk;
 })();
 
 (function(){
-  if(document.getElementById('xmPanelCss')) return;
+  if(document.getElementById('xmToastCss')) return;
   var st = document.createElement('style');
-  st.id = 'xmPanelCss';
+  st.id = 'xmToastCss';
   st.textContent =
-    '.xmPanel{position:fixed;left:12px;right:12px;bottom:calc(64px + env(safe-area-inset-bottom));'+
+    '.xmToast{position:fixed;left:12px;right:12px;bottom:calc(64px + env(safe-area-inset-bottom));'+
       'background:rgba(28,28,30,.96);color:#f2f2f2;border-radius:14px;padding:14px 16px;z-index:99;'+
       'backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);'+
       'box-shadow:0 8px 30px rgba(0,0,0,.35)}'+
-    '.xmPanelTop{font-size:12px;color:#c8a86a;letter-spacing:.06em;margin-bottom:6px}'+
-    '.xmPanelBody{font-size:14.5px;line-height:1.6;white-space:pre-wrap}';
+    '.xmToastTop{font-size:12px;color:#c8a86a;letter-spacing:.06em;margin-bottom:6px}'+
+    '.xmToastBody{font-size:14.5px;line-height:1.6;white-space:pre-wrap}';
   document.head.appendChild(st);
 })();
 
@@ -2928,7 +2928,7 @@ window.xmAsk = xmAsk;
 })();
 
 
-*/一、位置共享（块16）*/
+/* 一、位置共享（块16）*/
 
 
 (function(){
