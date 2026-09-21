@@ -152,3 +152,86 @@
   s.textContent='.dcIc{width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:#576b95;background:none;border-radius:0}.dcIc svg{width:22px;height:22px}';
   document.head.appendChild(s);
 })();
+
+
+body.wxskin #msgs{background:#ededed}
+body.wxskin #msgs .msg{display:flex;margin:10px 12px}
+body.wxskin #msgs .msg .bub{
+  max-width:72%;padding:9px 12px;border-radius:8px;
+  font-size:15px;line-height:1.45;word-break:break-word;
+  box-shadow:0 1px 1px rgba(0,0,0,.03);position:relative;
+}
+body.wxskin #msgs .msg.user{justify-content:flex-end}
+body.wxskin #msgs .msg.user .bub{background:#9c9c99;color:#fff}
+body.wxskin #msgs .msg.user .bub::after{
+  content:'';position:absolute;right:-5px;top:10px;
+  border:5px solid transparent;border-left-color:#9c9c99;border-right:0;
+}
+body.wxskin #msgs .msg:not(.user){justify-content:flex-start}
+body.wxskin #msgs .msg:not(.user) .bub{background:#F6F1C9;color:#2b2b2b}
+body.wxskin #msgs .msg:not(.user) .bub::after{
+  content:'';position:absolute;left:-5px;top:10px;
+  border:5px solid transparent;border-right-color:#F6F1C9;border-left:0;
+}
+body.wxskin .inputbar{
+  background:#ededed;border-top:1px solid #dcdcdc;
+  padding:8px 10px;display:flex;align-items:center;gap:8px;
+}
+body.wxskin .inputbar textarea,
+body.wxskin .inputbar input[type=text]{
+  flex:1;background:#fff;border:none;border-radius:18px;
+  padding:9px 14px;font-size:15px;outline:none;resize:none;
+  max-height:96px;color:#2b2b2b;
+}
+body.wxskin .inputbar .send,
+body.wxskin .inputbar [data-send]{
+  background:#07c160;color:#fff;border:none;border-radius:6px;
+  padding:8px 14px;font-size:15px;cursor:pointer;
+}
+body.wxskin .inputbar .send[disabled],
+body.wxskin .inputbar [data-send][disabled]{background:#d5d5d5;color:#fff}
+body.wxskin .inputbar .icon{color:#5a5a5a;font-size:20px;cursor:pointer}
+
+body.wxskin #msgs .rp{
+  width:212px;border-radius:6px;overflow:hidden;
+  background:#f7a94b;color:#fff;cursor:pointer;
+  box-shadow:0 1px 2px rgba(0,0,0,.08)
+}
+body.wxskin #msgs .rp.rpDone{background:#f3c39a}
+body.wxskin #msgs .rpTop{display:flex;align-items:center;gap:8px;padding:14px 12px 6px}
+body.wxskin #msgs .rpIco{
+  width:22px;height:22px;border-radius:3px;background:#ffe6b8;position:relative;flex:none
+}
+body.wxskin #msgs .rpIco::after{
+  content:'';position:absolute;inset:6px 5px;border:1.6px solid #f7a94b;border-radius:50%
+}
+body.wxskin #msgs .rpTxt{font-size:14px;line-height:1.3}
+body.wxskin #msgs .rpBot{font-size:19px;font-weight:500;padding:2px 12px 10px}
+body.wxskin #msgs .rpMeta{font-size:11px;opacity:.85;padding:0 12px 10px}
+
+.xmPanel{
+  position:fixed;left:12px;right:12px;bottom:calc(64px + env(safe-area-inset-bottom));
+  background:rgba(28,28,30,.96);color:#f2f2f2;border-radius:14px;
+  padding:14px 16px;z-index:9999;backdrop-filter:blur(12px);
+  box-shadow:0 8px 30px rgba(0,0,0,.35);animation:xmIn .18s ease
+}
+@keyframes xmIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.xmPanelTop{font-size:12px;color:#c8a86a;letter-spacing:.06em;margin-bottom:6px}
+.xmPanelBody{font-size:14.5px;line-height:1.6;white-space:pre-wrap}
+
+.xmScanWrap{position:relative;border-radius:10px;overflow:hidden;background:#000}
+.xmScanWrap video{width:100%;max-height:56vh;object-fit:cover;display:block}
+.xmScanFrame{position:absolute;left:50%;top:50%;width:62%;aspect-ratio:1;
+  transform:translate(-50%,-50%);border:2px solid rgba(255,255,255,.9);
+  border-radius:12px;box-shadow:0 0 0 2000px rgba(0,0,0,.28)}
+.xmSBtns{display:flex;gap:10px;margin-top:16px}
+.xmSBtn{flex:1;background:#07c160;color:#fff;text-align:center;padding:11px;border-radius:8px;font-size:15px}
+.xmSBtn2{background:#3a3a3c}
+
+body.wxskin #msgs .ximg{max-width:180px;max-height:240px;border-radius:6px;display:block}
+body.wxskin #msgs .xaud{display:inline-flex;align-items:center;gap:8px;min-width:70px;cursor:pointer}
+body.wxskin #msgs .xaud .xwav{display:flex;align-items:flex-end;gap:2px;height:16px}
+body.wxskin #msgs .xaud .xwav i{width:2px;background:currentColor;border-radius:1px;opacity:.75}
+body.wxskin #msgs .xaud .xlen{font-size:13px;opacity:.8}
+body.wxskin #msgs .xaud.playing .xwav i{animation:xmWav .6s infinite alternate}
+@keyframes xmWav{from{height:4px}to{height:16px}}
