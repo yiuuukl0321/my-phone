@@ -1515,7 +1515,7 @@
       '<div class="meSign' + (sign ? '' : ' ph') + '">' + esc(sign || '还没写签名') + '</div>' +
       '<div class="meHr"></div>' +
       '<div class="meBtns">' +
-        '<div class="meBtn2" id="meFavBtn">我的收藏</div>' +
+        '<div class="meBtn2" id="meFavBtn">Favourites</div>' +
         '<div class="meBtn2" id="meEditBtn">Edit Profile</div>' +
         '<div class="meBtn2" id="meSetBtn">Settings</div>' +
       '</div>' +
