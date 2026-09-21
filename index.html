@@ -199,15 +199,6 @@ html,body{height:100%;width:100%;position:fixed;overflow:hidden;overscroll-behav
 </div>
 <div class="up">上滑解锁</div>
 </div>
-<script>
-
-
-(function(){
-  var d=new Date(),p=function(n){return String(n).padStart(2,'0')};
-  document.getElementById('lkDate').textContent=(d.getMonth()+1)+'.'+p(d.getDate())+' 星期'+'日一二三四五六'[d.getDay()];
-  document.getElementById('lkTime').textContent=p(d.getHours())+':'+p(d.getMinutes());
-})();
-</script>
 
 <div id="home">
   <div class="pages">
@@ -914,121 +905,6 @@ $('home').addEventListener('click', e => {
   else lastHomeTap = now;
 });
 
-/* ---------- 推送 ---------- */
-
-
-function urlB64ToUint8Array(b64){
-  const pad = '='.repeat((4 - b64.length % 4) % 4);
-  const s = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/');
-  const raw = atob(s);
-  const out = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-  return out;
-}
-
-
-function pushSupported(){ return ('serviceWorker' in navigator) && ('PushManager' in window); }
-
-
-async function refreshPushState(){
-  const el = $('pushState'); if (!el) return;
-  try {
-    if (!('serviceWorker' in navigator)){ el.textContent = '不支持'; return; }
-    const reg = await navigator.serviceWorker.getRegistration();
-    const sub = reg && await reg.pushManager.getSubscription();
-    el.textContent = sub ? '已开启' : '未开启';
-  } catch(e){ el.textContent = '未开启'; }
-}
-
-
-async function enablePush(){
-  const out = $('pushMsg');
-  out.textContent = '';
-  try {
-    if (!pushSupported()){
-      out.textContent = '这个浏览器不支持推送。\niPhone 要先「添加到主屏幕」，再从主屏幕那个图标打开，才给推送。';
-      return;
-    }
-    if (!S.key){ out.textContent = '先去下面把中继密钥填好。'; return; }
-    if (!('Notification' in window)){ out.textContent = '没有 Notification 接口。'; return; }
-    const perm = await Notification.requestPermission();
-    if (perm !== 'granted'){
-      out.textContent = '权限没给。去 iPhone「设置 → 通知 → 咩&砚」里打开通知。';
-      return;
-    }
-    out.textContent = '注册中…';
-    const reg = await navigator.serviceWorker.register('sw.js');
-    await navigator.serviceWorker.ready;
-    const kr = await api('/api/push/vapid-key');
-    const pub = typeof kr === 'string' ? kr
-      : (kr && (kr.publicKey || kr.key || kr.vapidPublicKey || kr.pub));
-    if (!pub || typeof pub !== 'string'){
-      out.textContent = '中继没给 VAPID 公钥：' + JSON.stringify(kr).slice(0, 160);
-      return;
-    }
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub){
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlB64ToUint8Array(pub)
-      });
-    }
-    const json = sub.toJSON();
-    await api('/api/push/subscribe', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        inboxId: S.inbox,
-        channel: 'web',
-        sub: json,
-        subscription: { channel: 'web', sub: json }
-      })
-    });
-    S.pushOn = 1; save();
-    out.textContent = '推送开好了。';
-    refreshPushState();
-  } catch(e){
-    out.textContent = '失败：' + e.message;
-  }
-}
-
-
-async function disablePush(){
-  const out = $('pushMsg');
-  try {
-    const reg = await navigator.serviceWorker.getRegistration();
-    const sub = reg && await reg.pushManager.getSubscription();
-    if (sub){
-      await api('/api/push/unsubscribe', {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inboxId: S.inbox, endpoint: sub.endpoint })
-      }).catch(() => {});
-      await sub.unsubscribe();
-    }
-    S.pushOn = 0; save();
-    out.textContent = '推送关掉了。';
-    refreshPushState();
-  } catch(e){ out.textContent = '失败：' + e.message; }
-}
-
-
-async function testPush(){
-  const out = $('pushMsg');
-  try {
-    if (!('Notification' in window) || Notification.permission !== 'granted'){
-      out.textContent = '先点「开启推送」把权限拿到。';
-      return;
-    }
-    const reg = await navigator.serviceWorker.ready;
-    await reg.showNotification('祁砚', { body: '测试一下，看得到吗。', tag: 'test' });
-    out.textContent = '发出去了，看到通知了吗？';
-  } catch(e){ out.textContent = '失败：' + e.message; }
-}
-if ('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').catch(() => {});
-  navigator.serviceWorker.addEventListener('message', e => {
-    if (e.data && e.data.type === 'open-chat'){ $('lock').classList.add('hide'); openApp('chat'); }
-  });
-}
 
 const FRAGMENTS = [
   ['到家跟我说一声。','2026.09.16'],
@@ -1807,90 +1683,8 @@ function vStats(){
 }
 
 
-function vSet(){
-  return `<div class="card">
-    <div class="eyebrow">PUSH</div>
-    <div class="sub" style="margin:0 0 6px">开了之后，就算你没停在咩&amp;砚这个画面，
-      他的回复也会弹到手机上。iPhone 要先「添加到主屏幕」，再从主屏幕那个图标打开才给推送。</div>
-    <div class="item"><span>推送状态</span><em id="pushState">未开启</em></div>
-    <div class="item" onclick="enablePush()"><span>开启推送</span><em>›</em></div>
-    <div class="item" onclick="testPush()"><span>发送测试通知</span><em>›</em></div>
-    <div class="item" onclick="disablePush()"><span>关闭推送</span><em>›</em></div>
-    <div class="st" id="pushMsg"></div>
-  </div>
-  <div class="card">
-    <div class="eyebrow">MEMORY</div>
-    <div class="sub" style="margin:0 0 6px">它自己判断哪句值得记。值得记的，回完会自动写进来；
-      一次性的闲聊不会。这里也能自己加、自己删。</div>
-    <div class="item" onclick="toggleAuto()"><span>自动记忆</span>
-      <em>${S.autoMem ? 'ON' : 'OFF'}</em></div>
-    <textarea id="mNew" placeholder="手动加一条，例：她怕打雷"></textarea>
-    <div class="item" onclick="addMem()"><span>加一条</span><em>›</em></div>
-    <div class="memlist">
-      ${MEM.length
-        ? MEM.slice().reverse().map(m => `<div class="memrow"><span>${esc(m)}</span>
-            <b onclick="delMemText(this)">×</b></div>`).join('')
-        : '<div class="empty">还没记住什么。</div>'}
-    </div>
-    ${MEM.length ? `<div class="item" onclick="clearMem()"><span style="color:#ff3b30">全部清掉</span><em>›</em></div>` : ''}
-  </div>
-  <div class="card">
-    <div class="eyebrow">LOOK</div>
-    <div class="field"><span>壁纸</span><input id="sWall" placeholder="${WALL_DEFAULT}" value="${S.wall}"></div>
-    <div class="field"><span>暗度</span><input id="sDim" type="number" step="0.05" min="0" max="0.6" value="${S.dim}"></div>
-    <div class="field"><span>桌面图标</span><input id="sIcon" placeholder="${ICON_DEFAULT}" value="${S.icon}"></div>
-  </div>
-  <div class="card">
-    <div class="eyebrow">RELAY</div>
-    <div class="field"><span>地址</span><input id="sRelay" value="${S.relay}"></div>
-    <div class="field"><span>密钥</span><input id="sKey" type="password" value="${S.key}"></div>
-    <div class="field"><span>收件箱</span><input id="sInbox" value="${S.inbox}"></div>
-  </div>
-  <div class="card">
-    <div class="eyebrow">AI</div>
-    <div class="field"><span>接口地址</span><input id="sApiUrl" placeholder="https://api.deepseek.com/v1" value="${S.apiUrl}"></div>
-    <div class="field"><span>API Key</span><input id="sApiKey" type="password" value="${S.apiKey}"></div>
-    <div class="field"><span>模型名</span><input id="sModel" placeholder="deepseek-flash" value="${S.model}"></div>
-    <div class="field"><span>类型</span><input id="sType" placeholder="openai" value="${S.apiType}"></div>
-  </div>
-  <div class="card">
-    <div class="eyebrow">PHONE</div>
-    <div class="field"><span>名字</span><input id="sName" value="${S.name}"></div>
-    <div class="field"><span>纪念日</span><input id="sAnniv" type="date" value="${S.anniv}"></div>
-  </div>
-  <div class="card">
-    <div class="item" onclick="saveSet()"><span>保存设置</span><em>›</em></div>
-    <div class="item" onclick="testRelay()"><span>测试中继</span><em>›</em></div>
-    <div class="item" onclick="resetLayout()"><span>还原桌面顺序</span><em>›</em></div>
-    <div class="item" onclick="clearChat()"><span>清空聊天记录</span><em>›</em></div>
-    <div class="st" id="stTest"></div>
-  </div>`;
-}
 
 
-function toggleAuto(){ S.autoMem = S.autoMem ? 0 : 1; save(); openApp('set'); }
-
-
-function addMem(){
-  const t = $('mNew').value.trim();
-  if (!t) return;
-  if (!addMemAuto(t)) return;
-  openApp('set');
-}
-
-
-function delMemText(el){
-  const t = el.previousElementSibling.textContent;
-  const i = MEM.indexOf(t);
-  if (i > -1){ MEM.splice(i,1); saveMem(); }
-  openApp('set');
-}
-
-
-function clearMem(){
-  if (!confirm('把记住的事全部清掉？')) return;
-  MEM = []; saveMem(); openApp('set');
-}
 
 
 function addPhoto(inp){
@@ -1915,53 +1709,6 @@ function addPhoto(inp){
 
 
 function delPhoto(i){ S.photos.splice(i,1); save(); openApp('album'); }
-
-
-function saveSet(){
-  S.name = $('sName').value || '小咩';
-  S.anniv = $('sAnniv').value || S.anniv;
-  S.relay = $('sRelay').value.trim() || S.relay;
-  S.key = $('sKey').value.trim();
-  S.inbox = $('sInbox').value.trim() || 'xiaomie';
-  S.apiUrl = $('sApiUrl').value.trim();
-  S.apiKey = $('sApiKey').value.trim();
-  S.model = $('sModel').value.trim();
-  S.apiType = $('sType').value.trim() || 'openai';
-  S.wall = $('sWall').value.trim();
-  S.icon = $('sIcon').value.trim();
-  S.dim = $('sDim').value;
-  save(); tick(); applyWall(); applyTouchIcon(); closeOv();
-}
-
-
-function clearChat(){
-  if (!confirm('清空本地聊天记录吗？')) return;
-  CHAT = []; saveChat();
-  if ($('stTest')) $('stTest').textContent = '已清空。';
-  if ($('msgs')) renderChat(true);
-}
-
-
-async function testRelay(){
-  const out = $('stTest');
-  S.relay = $('sRelay').value.trim() || S.relay;
-  S.key = $('sKey').value.trim();
-  S.inbox = $('sInbox').value.trim() || 'xiaomie';
-  save();
-  out.textContent = '测试中…';
-  try {
-    const r = await fetch(base() + '/health');
-    out.textContent = '中继 ' + r.status + '：' + (await r.text());
-  } catch(e){
-    out.textContent = '连不上：' + e.message;
-  }
-}
-
-if (location.search.indexOf('chat=1') > -1){
-  $('lock').classList.add('hide');
-  setTimeout(() => { openApp('chat'); }, 400);
-}
-</script>
 
 
 <!-- JS 加载顺序：改哪个文件就把那个文件的数字加一 -->
