@@ -49,7 +49,7 @@
     '.wxBack{left:8px}.wxPlus{right:8px}'+
     '.wxBack:active,.wxPlus:active{background:rgba(0,0,0,.06)}'+
     '.wxBody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}'+
-    '.wxTabs{flex:0 0 auto;display:grid;grid-template-columns:repeat(2,1fr);'+
+    '.wxTabs{flex:0 0 auto;display:grid;grid-template-columns:repeat(4,1fr);'+
       'padding:8px 0 calc(env(safe-area-inset-bottom) + 8px);background:rgba(255,255,255,.42);'+
       'backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);'+
       'border-top:1px solid rgba(0,0,0,.06)}'+
@@ -328,7 +328,7 @@
   }
 
   function render(){
-    var title = SUB === 'moments' ? '朋友圈' : TAB === 'wx' ? '聊天' : '我';
+    var title = SUB === 'moments' ? '朋友圈' : TAB === 'wx' ? '聊天' : TAB === 'book' ? '通讯录' : '我';
     var bd = SUB === 'moments' ? momentsPage()
       : TAB === 'wx' ? chatList() : TAB === 'book' ? bookList()
       : TAB === 'find' ? findList() : mePage();
@@ -336,11 +336,11 @@
       '<div class="wxTop">' + (SUB === 'moments' ? '<span class="wxBack" id="wxBack">' + IC.back + '</span>' : '') +
         title + ((SUB === 'moments' || TAB === 'me') ? '<span class="wxPlus" id="wxNew">' + IC.plus + '</span>' : '') + '</div>' +
       '<div class="wxBody">' + bd + '</div>' +
-      (SUB ? '' : '<div class="wxTabs">' +
-        [['wx', IC.chat, ''], ['me', IC.me, '']].map(function(t){
-          return '<div class="wxT' + (TAB === t[0] ? ' on' : '') + '" data-tab="' + t[0] + '">' +
-            t[1] + '<span>' + t[2] + '</span></div>';
-        }).join('') + '</div>');
+      '<div class="wxTabs">' +
+        [['wx', IC.chat], ['book', IC.book], ['find', IC.find], ['me', IC.me]].map(function(t){
+          var on = (t[0] === 'find') ? (TAB === 'find' || SUB === 'moments') : (TAB === t[0] && !SUB);
+          return '<div class="wxT' + (on ? ' on' : '') + '" data-tab="' + t[0] + '">' + t[1] + '</div>';
+        }).join('') + '</div>';
     bind();
   }
 
