@@ -1408,7 +1408,8 @@
     '#wx .meAva{width:92px;height:92px;border-radius:50%;margin:0 auto;'+
       'background:#e6e6e2 center/cover;border:1px solid rgba(0,0,0,.06);'+
       'box-shadow:0 3px 14px rgba(0,0,0,.07)}'+
-    '#wx .meName{display:inline-block;margin-top:15px;font-size:17px;font-weight:500;'+
+    '#wx .meNameWrap{display:block;margin-top:15px}'+
+    '#wx .meName{display:inline-block;font-size:17px;font-weight:500;'+
       'letter-spacing:.03em;color:#0b0b0b;padding:0 14px 7px;'+
       'border-bottom:1px solid rgba(0,0,0,.16)}'+
     '#wx .meHr{height:1px;background:rgba(0,0,0,.09);margin:14px 62px}'+
@@ -1510,7 +1511,7 @@
     return '<div class="meWrap">' +
       '<div class="meAva" id="meAva"' +
         (MYAVA() ? ' style="background-image:url(\'' + MYAVA() + '\')"' : '') + '></div>' +
-      '<div class="meName">' + esc(S.name || '小咩') + '</div>' +
+      '<div class="meNameWrap"><div class="meName">' + esc(S.name || '小咩') + '</div></div>' +
       '<div class="meSign' + (sign ? '' : ' ph') + '">' + esc(sign || '还没写签名') + '</div>' +
       '<div class="meHr"></div>' +
       '<div class="meBtns">' +
