@@ -2242,3 +2242,689 @@ document.addEventListener('click', function(e){
   setInterval(inject, 900);
   setTimeout(inject, 600);
 })();
+
+
+
+
+-----------------------------------------------------------------
+/*一、xmAsk：走真中继问一句（后面的心声/情诗/翻译/通话都靠它）*/
+-----------------------------------------------------------------
+
+async function xmAsk(prompt, temp){
+  if(!window.S || !S.key || !S.relay) return '';
+  var url = String(S.relay).replace(/\/+$/, '');
+  var h = { 'Content-Type':'application/json', 'Authorization':'Bearer ' + S.key };
+  var rid = 'wx' + Date.now() + Math.random().toString(36).slice(2,6);
+
+  var sys = (typeof PERSONA !== 'undefined') ? PERSONA : '';
+  if(typeof MEM !== 'undefined' && MEM && MEM.length){
+    sys += '\n\n【你记得关于她的事】\n' + MEM.slice(-40).map(function(x){ return '· ' + x; }).join('\n');
+  }
+
+  try{
+    await fetch(url + '/generate', { method:'POST', headers:h, body: JSON.stringify({
+      requestId: rid, inboxId: S.inbox,
+      messages: [ { role:'system', content: sys }, { role:'user', content: prompt } ],
+      settings: { mainApiUrl:S.apiUrl, mainApiKey:S.apiKey, mainApiModel:S.model,
+                  apiType:S.apiType || 'openai', temperature: temp || 0.95 },
+      meta: { charName:'祁砚', charId:'kai' }
+    }) });
+  }catch(e){ return ''; }
+
+  for(var i = 0; i < 20; i++){
+    await new Promise(function(r){ setTimeout(r, i ? 1800 : 700); });
+    try{
+      var j = await fetch(url + '/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0',
+        { headers:{ 'Authorization':'Bearer ' + S.key } }).then(function(r){ return r.json(); });
+      var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
+      if(f){
+        fetch(url + '/ack', { method:'POST', headers:h,
+          body: JSON.stringify({ inboxId:S.inbox, ids:[f.id] }) }).catch(function(){});
+        return String(f.content || '').replace(/\[\[[\s\S]*?\]\]/g,'').trim();
+      }
+    }catch(e){}
+  }
+  return '';
+}
+window.xmAsk = xmAsk;
+
+
+----------------------------------------
+/*二、群聊 + 红包（块10 / 块11)*/
+----------------------------------------
+   
+/* ---------- 群聊 + 红包 ---------- */
+(function(){
+  var ST = 'chats';
+  var rid = function(p){ return p + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); };
+
+  async function createGroup(name, members){
+    var g = { id:rid('g'), name:name||'群聊', members:members||[],
+      msgs:[], ts:Date.now(), unread:0, last:'', group:true };
+    await XDB.put(ST, g);
+    return g;
+  }
+  async function addMember(gid, name){
+    var g = await XDB.get(ST, gid); if(!g) return null;
+    g.members = g.members || [];
+    if(g.members.indexOf(name) < 0) g.members.push(name);
+    await XDB.put(ST, g); return g;
+  }
+  async function delMember(gid, name){
+    var g = await XDB.get(ST, gid); if(!g) return null;
+    g.members = (g.members || []).filter(function(m){ return m !== name; });
+    await XDB.put(ST, g); return g;
+  }
+  async function pushGroupMsg(gid, sender, text){
+    var g = await XDB.get(ST, gid); if(!g) return null;
+    g.msgs = g.msgs || [];
+    g.msgs.push({ role: sender==='我'?'user':'ai', sender:sender, text:text, ts:Date.now() });
+    g.last = (g.members.length > 2 && sender !== '我' ? sender + '：' : '') + text;
+    g.ts = Date.now();
+    await XDB.put(ST, g);
+    return g;
+  }
+
+  async function sendPacket(cid, amount, note, count){
+    var c = await XDB.get(ST, cid); if(!c) return null;
+    var id = rid('rp');
+    c.msgs = c.msgs || [];
+    c.msgs.push({ role:'user', type:'rp', text:'[[RP:' + id + ']]', ts:Date.now(),
+      rp:{ id:id, amount:Math.round(amount*100)/100, note:note||'恭喜发财',
+           total:count||1, got:[], open:false } });
+    c.last = '[红包] ' + (note || '恭喜发财');
+    c.ts = Date.now();
+    await XDB.put(ST, c);
+    return c;
+  }
+
+  async function openPacket(rpId, who){
+    var chats = await XDB.all(ST);
+    for(var i = 0; i < chats.length; i++){
+      var c = chats[i];
+      var m = (c.msgs || []).filter(function(x){ return x.rp && x.rp.id === rpId; })[0];
+      if(!m) continue;
+      var rp = m.rp;
+      if(rp.got.some(function(g){ return g.who === who; })) return { ok:false, msg:'已经领过了' };
+      if(rp.got.length >= rp.total) return { ok:false, msg:'红包被抢光了' };
+      var got = rp.got.reduce(function(s,g){ return s + g.amount; }, 0);
+      var rest = Math.round((rp.amount - got) * 100) / 100;
+      var left = rp.total - rp.got.length;
+      var amt;
+      if(left <= 1) amt = rest;
+      else{
+        amt = Math.round((rest / left) * (0.5 + Math.random()) * 100) / 100;
+        if(amt > rest - (left-1) * 0.01) amt = Math.round((rest - (left-1)*0.01) * 100) / 100;
+        if(amt < 0.01) amt = 0.01;
+      }
+      rp.got.push({ who:who, amount:amt, ts:Date.now() });
+      if(rp.got.length >= rp.total) rp.open = true;
+      await XDB.put(ST, c);
+      if(who === '我' && window.XM_DC) await XM_DC.tx(amt, '收到红包');
+      return { ok:true, amount:amt, rp:rp };
+    }
+    return { ok:false, msg:'找不到这个红包' };
+  }
+
+  window.XM_GROUP = { createGroup:createGroup, addMember:addMember, delMember:delMember,
+                      pushGroupMsg:pushGroupMsg, sendPacket:sendPacket, openPacket:openPacket };
+
+  document.addEventListener('click', async function(e){
+    var el = e.target.closest && e.target.closest('[data-rp]');
+    if(!el) return;
+    var res = await openPacket(el.dataset.rp, '我');
+    if(window.toast) toast(res && res.ok ? ('抢到 ¥' + res.amount) : ((res && res.msg) || '打不开'));
+    if(res && res.ok && window.XM_RPUI) XM_RPUI.scan();
+  });
+})();
+
+/* ---------- 红包气泡 ---------- */
+(function(){
+  function rpHTML(rp){
+    var got = rp.got || [];
+    var left = Math.max(0, (rp.total || 1) - got.length);
+    var mine = got.filter(function(g){ return g.who === '我'; })[0];
+    var face = left === 0 ? '已领完' : (mine ? '¥' + mine.amount : '¥ ' + rp.amount);
+    return '<div class="rp' + (left === 0 ? ' rpDone' : '') + '" data-rp="' + xmEsc(rp.id) + '">' +
+      '<div class="rpTop"><span class="rpIco"></span><span class="rpTxt">' +
+        xmEsc(rp.note || '恭喜发财') + '</span></div>' +
+      '<div class="rpBot">' + face + '</div>' +
+      '<div class="rpMeta">' + got.length + '/' + (rp.total || 1) + ' 已领</div>' +
+    '</div>';
+  }
+
+  function scan(){
+    var els = document.querySelectorAll('#msgs .bub, #msgs .wrap');
+    for(var i = 0; i < els.length; i++){
+      var el = els[i];
+      if(el.getAttribute('data-rp-done')) continue;
+      var t = el.textContent || '';
+      var a = t.indexOf('[[RP:');
+      if(a < 0) continue;
+      var b = t.indexOf(']]', a);
+      if(b < 0) continue;
+      var id = t.slice(a + 5, b);
+      el.setAttribute('data-rp-done', '1');
+      (function(host, rpid){
+        XDB.all('chats').then(function(list){
+          for(var k = 0; k < list.length; k++){
+            var ms = list[k].msgs || [];
+            for(var j = 0; j < ms.length; j++){
+              if(ms[j].rp && ms[j].rp.id === rpid){
+                host.innerHTML = rpHTML(ms[j].rp);
+                host.style.padding = '4px';
+                return;
+              }
+            }
+          }
+        });
+      })(el, id);
+    }
+  }
+
+  window.XM_RPUI = { scan:scan, rpHTML:rpHTML };
+
+  new MutationObserver(function(){ setTimeout(scan, 80); })
+    .observe(document.body, { childList:true, subtree:true });
+  setTimeout(scan, 900);
+})();
+
+
+-----------------------------------------------
+/*三、心声 / 情诗 / 翻译（块12，改走 xmAsk）*/
+-----------------------------------------------
+
+(function(){
+  function panel(title, body){
+    var old = document.querySelectorAll('.xmPanel');
+    for(var i = 0; i < old.length; i++) old[i].remove();
+    var d = document.createElement('div');
+    d.className = 'xmPanel';
+    d.innerHTML = '<div class="xmPanelTop">✦ ' + xmEsc(title) + '</div>' +
+      '<div class="xmPanelBody">' + xmEsc(body || '…') + '</div>';
+    document.body.appendChild(d);
+    d.addEventListener('click', function(){ d.remove(); });
+    setTimeout(function(){ if(d.parentNode) d.remove(); }, 30000);
+  }
+
+  async function heart(src){
+    var r = await xmAsk('以第一人称写一段祁砚此刻的「心声」，不要引号、不要前缀，只写正文，40 字内。上下文：' + src, 0.95);
+    return r || '没连上中继';
+  }
+  async function poem(src){
+    var r = await xmAsk('写一首很短的中文情诗给恋人小咩，四行以内，不要标题、不要引号。主题：' + src, 1.0);
+    return r || '没连上中继';
+  }
+  async function translate(text, lang){
+    var r = await xmAsk('把下面这段翻译成' + (lang || '英文') + '，只输出译文，不要解释：\n' + text, 0.2);
+    return r || '没连上中继';
+  }
+
+  window.XM_UTIL = { heart:heart, poem:poem, translate:translate, panel:panel };
+
+  document.addEventListener('click', async function(e){
+    var b = e.target.closest && e.target.closest('[data-xm]');
+    if(!b) return;
+    var act = b.dataset.xm, src = b.dataset.text || '';
+    if(act === 'heart'){ panel('心声', '…'); panel('心声', await heart(src)); }
+    if(act === 'poem'){ panel('情诗', '…'); panel('情诗', await poem(src)); }
+    if(act === 'trans'){ panel('翻译', '…'); panel('翻译', await translate(src, '英文')); }
+  });
+})();
+
+(function(){
+  if(document.getElementById('xmPanelCss')) return;
+  var st = document.createElement('style');
+  st.id = 'xmPanelCss';
+  st.textContent =
+    '.xmPanel{position:fixed;left:12px;right:12px;bottom:calc(64px + env(safe-area-inset-bottom));'+
+      'background:rgba(28,28,30,.96);color:#f2f2f2;border-radius:14px;padding:14px 16px;z-index:99;'+
+      'backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);'+
+      'box-shadow:0 8px 30px rgba(0,0,0,.35)}'+
+    '.xmPanelTop{font-size:12px;color:#c8a86a;letter-spacing:.06em;margin-bottom:6px}'+
+    '.xmPanelBody{font-size:14.5px;line-height:1.6;white-space:pre-wrap}';
+  document.head.appendChild(st);
+})();
+
+
+----------------------------------------------------
+/*四、扫一扫 / 摇一摇 / 小程序（块13）*/
+----------------------------------------------------
+   
+(function(){
+  function sheet(html){
+    var old = document.querySelectorAll('.xmSheet');
+    for(var i = 0; i < old.length; i++) old[i].remove();
+    var d = document.createElement('div');
+    d.className = 'xmSheet';
+    d.innerHTML = '<div class="xmSheetIn">' + html + '</div>';
+    document.body.appendChild(d);
+    d.addEventListener('click', function(e){ if(e.target === d) d.remove(); });
+    return d;
+  }
+
+  function loadJSQR(){
+    if(window.jsQR) return Promise.resolve(true);
+    if(window.__jsqrP) return window.__jsqrP;
+    window.__jsqrP = new Promise(function(res){
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+      s.onload = function(){ res(!!window.jsQR); };
+      s.onerror = function(){ res(false); };
+      document.head.appendChild(s);
+    });
+    return window.__jsqrP;
+  }
+
+  async function scan(){
+    var s = sheet('<div class="xmST">扫一扫</div>' +
+      '<div class="xmScanWrap"><video id="xmScanV" playsinline muted></video>' +
+      '<div class="xmScanFrame"></div></div>' +
+      '<div class="xmSHint" id="xmScanHint">对准二维码</div>');
+    var v = s.querySelector('#xmScanV');
+    var hint = s.querySelector('#xmScanHint');
+
+    var stream;
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        video:{ facingMode:{ ideal:'environment' }, width:{ ideal:1280 }, height:{ ideal:720 } }
+      });
+    }catch(e){ hint.textContent = '拿不到摄像头权限'; return; }
+
+    v.srcObject = stream;
+    try{ await v.play(); }catch(e){}
+
+    function stop(){ if(stream) stream.getTracks().forEach(function(t){ t.stop(); }); }
+    s.addEventListener('click', function(e){ if(e.target === s) stop(); });
+
+    var ok = await loadJSQR();
+    if(!ok){ hint.textContent = '解码库没加载上，检查网络'; return; }
+
+    var cv = document.createElement('canvas');
+    var ctx = cv.getContext('2d', { willReadFrequently:true });
+    var dead = false, last = 0;
+
+    function tick(t){
+      if(dead || !v.isConnected){ stop(); return; }
+      if(t - last > 180 && v.readyState === 4){
+        last = t;
+        var w = v.videoWidth, h = v.videoHeight;
+        if(w && h){
+          cv.width = w; cv.height = h;
+          ctx.drawImage(v, 0, 0, w, h);
+          try{
+            var img = ctx.getImageData(0, 0, w, h);
+            var code = window.jsQR(img.data, w, h, { inversionAttempts:'attemptBoth' });
+            if(code && code.data){
+              dead = true; stop();
+              if(navigator.vibrate) navigator.vibrate(50);
+              showResult(code.data);
+              return;
+            }
+          }catch(e){}
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function showResult(text){
+    var isUrl = /^https?:\/\//i.test(text);
+    sheet('<div class="xmST">扫到了</div>' +
+      '<div class="xmSHint" style="margin-top:0">' + xmEsc(text) + '</div>' +
+      '<div class="xmSBtns">' +
+        (isUrl ? '<div class="xmSBtn" data-open="' + xmEsc(text) + '">打开链接</div>' : '') +
+        '<div class="xmSBtn xmSBtn2" data-copy="' + xmEsc(text) + '">复制内容</div>' +
+      '</div>');
+  }
+
+  async function shake(){
+    var cs = await XDB.all('contacts');
+    if(!cs.length) return sheet('<div class="xmST">摇一摇</div><div class="xmSHint">通讯录还是空的</div>');
+    var c = cs[Math.floor(Math.random() * cs.length)];
+    sheet('<div class="xmST">摇到一个人</div>' +
+      '<div class="xmSRow"><img src="' + xmEsc(c.ava || '') + '">' +
+        '<div><div class="xmSN">' + xmEsc(c.name || '') + '</div>' +
+        '<div class="xmSHint" style="text-align:left;margin-top:2px">' + xmEsc(c.sign || '') + '</div></div></div>' +
+      '<div class="xmSBtn" data-shake-add="' + xmEsc(c.id) + '">打个招呼</div>');
+    if(navigator.vibrate) navigator.vibrate(60);
+  }
+
+  var MINI = [ {k:'calc',t:'计算器'}, {k:'note',t:'备忘录'}, {k:'dice',t:'掷骰子'}, {k:'coin',t:'抛硬币'} ];
+
+  function mini(){
+    sheet('<div class="xmST">小程序</div>' + MINI.map(function(m){
+      return '<div class="xmSItem" data-mini="' + m.k + '">' + m.t + '</div>';
+    }).join(''));
+  }
+
+  function runMini(k){
+    if(k === 'dice') return sheet('<div class="xmST">' + (1 + Math.floor(Math.random()*6)) + '</div><div class="xmSHint">掷骰子</div>');
+    if(k === 'coin') return sheet('<div class="xmST">' + (Math.random() < 0.5 ? '正' : '反') + '</div><div class="xmSHint">抛硬币</div>');
+    if(k === 'note') return sheet('<div class="xmST">备忘录</div><div class="xmSHint">在抽屉里打开</div>');
+    if(k === 'calc') return sheet('<div class="xmST">计算器</div><div class="xmSHint">在抽屉里打开</div>');
+  }
+
+  window.XM_TOOL = { scan:scan, shake:shake, mini:mini, runMini:runMini, sheet:sheet };
+
+  document.addEventListener('click', async function(e){
+    if(!e.target.closest) return;
+    var mi = e.target.closest('[data-mini]');
+    if(mi) return runMini(mi.dataset.mini);
+
+    var op = e.target.closest('[data-open]');
+    if(op){
+      window.open(op.dataset.open, '_blank');
+      document.querySelectorAll('.xmSheet').forEach(function(x){ x.remove(); });
+      return;
+    }
+    var cp = e.target.closest('[data-copy]');
+    if(cp){
+      try{ await navigator.clipboard.writeText(cp.dataset.copy); if(window.toast) toast('已复制'); }catch(e){}
+      document.querySelectorAll('.xmSheet').forEach(function(x){ x.remove(); });
+      return;
+    }
+    var add = e.target.closest('[data-shake-add]');
+    if(add){
+      var cid = add.dataset.shakeAdd;
+      await XM_WX.putChat({ id:cid, name:cid, msgs:[], ts:Date.now(), last:'' });
+      document.querySelectorAll('.xmSheet').forEach(function(x){ x.remove(); });
+    }
+  });
+})();
+
+(function(){
+  if(document.getElementById('xmSheetCss')) return;
+  var st = document.createElement('style');
+  st.id = 'xmSheetCss';
+  st.textContent =
+    '.xmSheet{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:98;display:flex;'+
+      'align-items:flex-end}'+
+    '.xmSheetIn{width:100%;background:#1c1c1e;border-radius:16px 16px 0 0;'+
+      'padding:18px 16px calc(20px + env(safe-area-inset-bottom));color:#f2f2f2}'+
+    '.xmST{font-size:17px;font-weight:500;text-align:center;margin-bottom:12px}'+
+    '.xmSHint{font-size:13px;color:#9a9a9e;text-align:center;margin-top:8px;word-break:break-all}'+
+    '.xmScanWrap{position:relative;border-radius:10px;overflow:hidden;background:#000}'+
+    '.xmScanWrap video{width:100%;max-height:56vh;object-fit:cover;display:block}'+
+    '.xmScanFrame{position:absolute;left:50%;top:50%;width:62%;aspect-ratio:1;'+
+      'transform:translate(-50%,-50%);border:2px solid rgba(255,255,255,.9);border-radius:12px;'+
+      'box-shadow:0 0 0 2000px rgba(0,0,0,.28)}'+
+    '.xmSBtns{display:flex;gap:10px;margin-top:16px}'+
+    '.xmSBtn{flex:1;background:#07c160;color:#fff;text-align:center;padding:11px;'+
+      'border-radius:8px;font-size:15px}'+
+    '.xmSBtn2{background:#3a3a3c}'+
+    '.xmSItem{padding:14px 4px;font-size:15.5px;border-bottom:1px solid #2c2c2e}'+
+    '.xmSItem:last-child{border-bottom:none}'+
+    '.xmSRow{display:flex;align-items:center;gap:12px;padding:8px 4px}'+
+    '.xmSRow img{width:46px;height:46px;border-radius:8px;object-fit:cover}'+
+    '.xmSN{font-size:16px}';
+  document.head.appendChild(st);
+})();
+
+
+--------------------------------------
+/*五、图片 + 语音消息（块14）*/
+--------------------------------------
+
+(function(){
+  function pick(file, mx, cb){
+    var fr = new FileReader();
+    fr.onload = function(){
+      var im = new Image();
+      im.onload = function(){
+        var s = Math.min(1, mx / im.naturalWidth, mx / im.naturalHeight);
+        var c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(im.naturalWidth * s));
+        c.height = Math.max(1, Math.round(im.naturalHeight * s));
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        cb(c.toDataURL('image/jpeg', .72));
+      };
+      im.onerror = function(){ cb(''); };
+      im.src = fr.result;
+    };
+    fr.onerror = function(){ cb(''); };
+    fr.readAsDataURL(file);
+  }
+
+  function fImg(){
+    var f = document.getElementById('xmImgIn');
+    if(!f){
+      f = document.createElement('input');
+      f.id = 'xmImgIn'; f.type = 'file'; f.accept = 'image/*';
+      f.style.display = 'none';
+      document.body.appendChild(f);
+    }
+    return f;
+  }
+
+  function sendImage(file){
+    if(!file) return;
+    pick(file, 1280, function(url){
+      if(!url) return;
+      CHAT.push({ role:'user', text:'', thumb:url, t:Date.now() });
+      saveChat();
+      renderChat(true);
+    });
+  }
+
+  fImg().onchange = function(){ if(this.files[0]) sendImage(this.files[0]); };
+
+  var rec = null, chunks = [], t0 = 0, mime = '';
+  function pickMime(){
+    var c = ['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/ogg'];
+    for(var i = 0; i < c.length; i++){
+      if(window.MediaRecorder && MediaRecorder.isTypeSupported(c[i])) return c[i];
+    }
+    return '';
+  }
+  function startRec(){
+    if(rec) return;
+    navigator.mediaDevices.getUserMedia({ audio:true }).then(function(st){
+      mime = pickMime();
+      rec = new MediaRecorder(st, mime ? { mimeType:mime } : undefined);
+      chunks = [];
+      rec.ondataavailable = function(e){ if(e.data.size) chunks.push(e.data); };
+      rec.start(); t0 = Date.now();
+      if(navigator.vibrate) navigator.vibrate(30);
+      if(window.toast) toast('松开发送');
+    }).catch(function(){ if(window.toast) toast('拿不到麦克风'); });
+  }
+  function stopRec(){
+    if(!rec) return;
+    var dur = Math.round((Date.now() - t0) / 1000);
+    var r = rec; rec = null;
+    r.onstop = function(){
+      r.stream.getTracks().forEach(function(t){ t.stop(); });
+      if(dur < 1 || !chunks.length) return;
+      var blob = new Blob(chunks, { type: mime || 'audio/mp4' });
+      var fr = new FileReader();
+      fr.onload = function(){
+        CHAT.push({ role:'user', text:'', aud:fr.result, dur:dur, t:Date.now() });
+        saveChat(); renderChat(true);
+      };
+      fr.readAsDataURL(blob);
+    };
+    try{ r.stop(); }catch(e){}
+  }
+
+  function paint(){
+    var box = document.getElementById('msgs');
+    if(!box) return;
+    var ws = box.querySelectorAll('.wrap');
+    for(var i = 0; i < ws.length; i++){
+      var w = ws[i];
+      if(w.getAttribute('data-media')) continue;
+      var idx = +w.getAttribute('data-i');
+      var m = (typeof CHAT !== 'undefined' && CHAT[idx]) || null;
+      if(!m || (!m.thumb && !m.aud)) continue;
+      var bub = w.querySelector('.bub');
+      if(!bub) continue;
+      w.setAttribute('data-media','1');
+      if(m.thumb){
+        bub.innerHTML = '<img class="ximg" src="' + m.thumb + '">';
+        bub.style.padding = '4px';
+      }else{
+        var bars = '';
+        for(var k = 0; k < 9; k++) bars += '<i style="height:' + (4 + Math.round(Math.random()*10)) + 'px"></i>';
+        bub.innerHTML = '<span class="xaud" data-play="' + idx + '"><span class="xwav">' + bars +
+          '</span><span class="xlen">' + m.dur + '"</span></span>';
+        bub.style.padding = '9px 12px';
+      }
+    }
+  }
+
+  window.XM_MEDIA = { pick:pick, sendImage:sendImage, startRec:startRec, stopRec:stopRec,
+                      openPicker:function(){ fImg().click(); } };
+
+  new MutationObserver(function(){ setTimeout(paint, 60); })
+    .observe(document.body, { childList:true, subtree:true });
+  setTimeout(paint, 800);
+
+  document.addEventListener('click', function(e){
+    var p = e.target.closest && e.target.closest('[data-play]');
+    if(!p) return;
+    var m = CHAT[+p.dataset.play];
+    if(!m || !m.aud) return;
+    var a = new Audio(m.aud);
+    p.classList.add('playing');
+    a.onended = function(){ p.classList.remove('playing'); };
+    a.play().catch(function(){});
+  });
+})();
+
+(function(){
+  if(document.getElementById('xmMediaCss')) return;
+  var st = document.createElement('style');
+  st.id = 'xmMediaCss';
+  st.textContent =
+    '#msgs .ximg{max-width:180px;max-height:240px;border-radius:6px;display:block}'+
+    '#msgs .xaud{display:inline-flex;align-items:center;gap:8px;min-width:70px;cursor:pointer}'+
+    '#msgs .xaud .xwav{display:flex;align-items:flex-end;gap:2px;height:16px}'+
+    '#msgs .xaud .xwav i{width:2px;background:currentColor;border-radius:1px;opacity:.75}'+
+    '#msgs .xaud .xlen{font-size:13px;opacity:.8}'+
+    '#msgs .xaud.playing .xwav i{animation:xmWav .6s infinite alternate}'+
+    '@keyframes xmWav{from{height:4px}to{height:16px}}';
+  document.head.appendChild(st);
+})();
+
+
+------------------------------------------------
+/*六、语音通话（块15，改走 xmAsk）*/
+------------------------------------------------
+
+(function(){
+  if(document.getElementById('xmCallCss')) return;
+  var st = document.createElement('style');
+  st.id = 'xmCallCss';
+  st.textContent =
+    '#xmCall{position:fixed;inset:0;z-index:88;display:none;flex-direction:column;'+
+      'align-items:center;justify-content:space-between;background:#101012;color:#f2f2f2;'+
+      'padding:calc(env(safe-area-inset-top) + 46px) 0 calc(env(safe-area-inset-bottom) + 44px)}'+
+    '#xmCall.on{display:flex}'+
+    '.xmCAva{width:104px;height:104px;border-radius:50%;background:#F6F1C9 center/cover;'+
+      'position:relative;z-index:2;box-shadow:0 8px 40px rgba(0,0,0,.5)}'+
+    '.xmCName{font-size:20px;font-weight:500;margin-top:18px;position:relative;z-index:2}'+
+    '.xmCTime{font-size:13px;color:#9a9a9e;margin-top:6px;position:relative;z-index:2}'+
+    '.xmCCap{font-size:14px;line-height:1.7;color:#e8e8e8;max-width:80vw;text-align:center;'+
+      'margin-top:22px;position:relative;z-index:2;white-space:pre-wrap}'+
+    '.xmCBtns{display:flex;gap:52px;position:relative;z-index:2}'+
+    '.xmCBtn{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;'+
+      'justify-content:center;background:rgba(255,255,255,.16)}'+
+    '.xmCBtn.hang{background:#e5484d}'+
+    '.xmCBtn svg{width:26px;height:26px}'+
+    '.xmCBtn.hang svg{transform:rotate(135deg)}';
+  document.head.appendChild(st);
+})();
+
+(function(){
+  var PHONE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M7.4 3.8 9.6 8l-2 1.7c.9 1.9 2.4 3.4 4.3 4.3l1.7-2 4.2 2.2-.6 3c-.2.9-1 1.5-1.9 1.4C9.6 17.8 5.6 13.8 4.4 8.1c-.1-.9.4-1.7 1.3-2z"/></svg>';
+
+  var layer = document.createElement('div');
+  layer.id = 'xmCall';
+  layer.innerHTML =
+    '<div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center">' +
+      '<div class="xmCAva" id="xmCAva"></div>' +
+      '<div class="xmCName">祁砚</div>' +
+      '<div class="xmCTime" id="xmCTime">正在呼叫…</div>' +
+      '<div class="xmCCap" id="xmCCap"></div>' +
+    '</div>' +
+    '<div class="xmCBtns"><div class="xmCBtn hang" id="xmCHang">' + PHONE + '</div></div>';
+  document.body.appendChild(layer);
+
+  var timer = null, sec = 0, talk = null;
+
+  function fmt(n){
+    var m = Math.floor(n/60), s = n % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function speak(text){
+    if(!text) return;
+    var cfg = {};
+    try{ cfg = JSON.parse(localStorage.getItem('xm_tts') || '{}'); }catch(e){}
+    if(!+cfg.on) return;
+    try{
+      var u = new SpeechSynthesisUtterance(String(text).slice(0, 300));
+      u.rate = Math.max(.5, Math.min(2, +cfg.speed || 1));
+      u.lang = 'zh-CN';
+      var vs = speechSynthesis.getVoices() || [];
+      var v = vs.filter(function(x){ return /zh[-_]|Chinese|中文/i.test(x.lang + ' ' + x.name); })[0];
+      if(v) u.voice = v;
+      speechSynthesis.speak(u);
+    }catch(e){}
+  }
+
+  async function line(kind, n){
+    var prompt = kind === 'open'
+      ? '小咩打给你了。写一句接起电话时说的话，25 字内，只写说的内容，不要引号。'
+      : '通话中，你已经说了 ' + n + ' 句。再自然说一句，25 字内，只写说的内容，不要引号。';
+    var t = await xmAsk(prompt, 0.95);
+    return t ? (t.split('\n').filter(function(x){ return x.trim(); })[0] || '') : '';
+  }
+
+  async function start(){
+    layer.classList.add('on');
+    document.getElementById('xmCCap').textContent = '';
+    document.getElementById('xmCTime').textContent = '正在呼叫…';
+    document.getElementById('xmCAva').style.backgroundImage =
+      "url('" + (localStorage.getItem('xm_kai_ava') || '') + "')";
+
+    sec = 0;
+    timer = setInterval(function(){
+      sec++;
+      document.getElementById('xmCTime').textContent = fmt(sec);
+    }, 1000);
+
+    var t = await line('open', 0);
+    document.getElementById('xmCCap').textContent = t || '喂？';
+    if(t) speak(t);
+
+    var n = 1;
+    talk = setInterval(async function(){
+      if(!layer.classList.contains('on')) return;
+      var s = await line('talk', n);
+      if(s){ document.getElementById('xmCCap').textContent = s; speak(s); n++; }
+    }, 14000);
+  }
+
+  function hang(){
+    layer.classList.remove('on');
+    if(timer){ clearInterval(timer); timer = null; }
+    if(talk){ clearInterval(talk); talk = null; }
+    try{ speechSynthesis.cancel(); }catch(e){}
+    if(sec > 0){
+      CHAT.push({ role:'assistant', text:'（通话结束，' + fmt(sec) + '）', t:Date.now() });
+      saveChat(); renderChat(true);
+    }
+  }
+
+  document.addEventListener('click', function(e){
+    if(!e.target.closest) return;
+    var v = e.target.closest('[data-call]');
+    if(v && v.dataset.call === 'voice'){ start(); return; }
+    if(e.target.closest('#xmCHang')) hang();
+  });
+
+  window.XM_CALL = { start:start, hang:hang };
+})();
