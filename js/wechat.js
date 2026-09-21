@@ -294,14 +294,18 @@
       (MOM.length ? MOM.length + ' 条动态' : '还没有动态') + '</span></div></div>';
   }
   function mePage(){
-    return '<div class="wxRow" style="padding:22px 14px">' + avaBox(MYAVA(), 'wxAva') +
-      '<div class="wxMid"><b>' + esc(S.name || '小咩') + '</b><span>点这里换头像</span></div>' +
-      '<em><b class="momAvaBtn" style="color:#5b6b8c;font-size:12px">更换</b></em></div>' +
-      '<div class="wxRow" data-go="moments">' + avaBox('') +
-      '<div class="wxMid"><b>我的朋友圈</b><span>' + MOM.filter(function(m){ return m.who === 'me'; }).length +
-      ' 条</span></div></div>' +
-      '<div class="wxRow" data-kai="1">' + avaBox(KAI_AVA) +
-      '<div class="wxMid"><b>让祁砚发一条</b><span>他随手拍的那种</span></div></div>';
+    var sign = String(S.sign || '').trim();
+    return '<div class="meWrap">' +
+      '<div class="meAva" id="meAva"' +
+        (MYAVA() ? ' style="background-image:url(\'' + MYAVA() + '\')"' : '') + '></div>' +
+      '<div class="meNameWrap"><div class="meName">' + esc(S.name || '小咩') + '</div></div>' +
+      '<div class="meSign' + (sign ? '' : ' ph') + '">' + esc(sign || '还没写签名') + '</div>' +
+      '<div class="meHr"></div>' +
+      '<div class="meBtns">' +
+        '<div class="meBtn2" onclick="xmOpenFav()">Favourites</div>' +
+        '<div class="meBtn2" onclick="xmOpenEdit()">Edit Profile</div>' +
+        '<div class="meBtn2" onclick="openSet()">Settings</div>' +
+      '</div></div>';
   }
   function momentsPage(){
     var list = MOM.slice().reverse();
@@ -1042,6 +1046,7 @@
   }
 
   function repaint(){
+    return;
     var box = document.getElementById('wx');
     if (!box || !box.classList.contains('on')) return;
     var on = box.querySelector('.wxT.on');
@@ -1419,7 +1424,7 @@
     '#wx .meSign.ph{color:#c6c6c2}'+
     '#wx .meStar{padding:2px 0;color:#8d8d89;line-height:0}'+
     '#wx .meStar:active{color:#0b0b0b}'+
-    '#wx .meBtns{display:flex;gap:8px;padding:0 20px;margin-top:18px}'+
+    '#wx .meBtns{display:flex;flex-direction:row;gap:8px;padding:0 20px;margin-top:18px}'+
     '#wx .meBtn2{flex:1;padding:10px 4px;border-radius:12px;background:#fff;'+
       'font-size:12.5px;color:#0b0b0b;border:1px solid rgba(0,0,0,.08);'+
       'white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.03)}'+
@@ -1671,6 +1676,8 @@
 
   new MutationObserver(function(){ setTimeout(repaint, 60); })
     .observe(document.body, { childList: true, subtree: true });
+  window.xmOpenFav = favSheet;
+  window.xmOpenEdit = editProfile;
   window.wxRefresh = function(){ repaint(true); };
   setInterval(repaint, 300);
 })();
