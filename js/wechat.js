@@ -2096,3 +2096,84 @@ var WXList = (function () {
   return { render: render, mount: mount, rowHTML: rowHTML };
 })();
 window.WXList = WXList;
+
+
+/* ===== 块2：朋友圈 IDB + 渲染 ===== */
+(function(){
+  const DB = () => window.__xmDB;
+  const store = 'moments';
+
+  async function putMoment(m){
+    const db = await DB();
+    m.id = m.id || ('m_'+Date.now()+'_'+Math.random().toString(36).slice(2,7));
+    m.ts = m.ts || Date.now();
+    await db.put(store, m);
+    return m;
+  }
+  async function allMoments(){
+    const db = await DB();
+    const list = await db.all(store);
+    return list.sort((a,b)=>b.ts-a.ts);
+  }
+  async function delMoment(id){
+    const db = await DB();
+    await db.del(store, id);
+  }
+
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+  function card(m){
+    const ava = (window.S && S.ava) || '';
+    const imgs = (m.imgs||[]).map(u=><img class="momImg" src="${esc(u)}">).join('');
+    return `<div class="mom" data-id="${esc(m.id)}">
+      <div class="momAva"><img src="${esc(m.ava||ava)}"></div>
+      <div class="momMain">
+        <div class="momName">${esc(m.name||'我')}</div>
+        <div class="momText">${esc(m.text||'')}</div>
+        ${imgs?<div class="momImgs">${imgs}</div>:''}
+        <div class="momFoot"><span class="momTime">${fmt(m.ts)}</span>
+          <span class="momDel" data-del="${esc(m.id)}">删除</span></div>
+      </div></div>`;
+  }
+  function fmt(t){
+    const d=new Date(t), n=new Date(), p=x=>String(x).padStart(2,'0');
+    if(d.toDateString()===n.toDateString()) return 今天 ${p(d.getHours())}:${p(d.getMinutes())};
+    return ${d.getMonth()+1}月${d.getDate()}日 ${p(d.getHours())}:${p(d.getMinutes())};
+  }
+
+  async function render(){
+    const box = document.querySelector('.momList') || document.querySelector('#momList');
+    if(!box) return;
+    const list = await allMoments();
+    box.innerHTML = list.length ? list.map(card).join('') : '<div class="momEmpty">还没有动态</div>';
+  }
+
+  async function migrate(){
+    const raw = localStorage.getItem('xm_moments');
+    if(!raw) return;
+    let old=[]; try{ old=JSON.parse(raw)||[]; }catch(e){}
+    if(!old.length) return;
+    for(const m of old) await putMoment(m);
+    localStorage.removeItem('xm_moments');
+  }
+
+  async function addFromInput(){
+    const ta = document.querySelector('.momInput') || document.querySelector('#momInput');
+    if(!ta) return;
+    const text = (ta.value||'').trim();
+    if(!text) return;
+    await putMoment({text});
+    ta.value='';
+    render();
+  }
+
+  window.XM_MOM = { putMoment, allMoments, delMoment, render, migrate };
+
+  document.addEventListener('click', async e=>{
+    const del = e.target.closest('[data-del]');
+    if(del){ await delMoment(del.dataset.del); render(); return; }
+    if(e.target.closest('.momSend') || e.target.closest('#momSend')) addFromInput();
+  });
+
+  (async()=>{ await migrate(); render(); })();
+})();
