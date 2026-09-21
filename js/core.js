@@ -143,3 +143,12 @@
 
   document.addEventListener('dragstart', function(e){ e.preventDefault(); });
 })();
+
+
+(function(){
+  if(document.getElementById('dcCss')) return;
+  const s=document.createElement('style');
+  s.id='dcCss';
+  s.textContent='.dcIc{width:26px;height:26px;display:flex;align-items:center;justify-content:center;color:#576b95;background:none;border-radius:0}.dcIc svg{width:22px;height:22px}';
+  document.head.appendChild(s);
+})();
