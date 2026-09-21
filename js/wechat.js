@@ -1840,3 +1840,259 @@
   setInterval(move, 200);
   move();
 })();
+
+/* ===== 块 1A：本地数据库（原生 IndexedDB，不依赖任何库） ===== */
+var WXDB = (function () {
+  var NAME = 'xm_wx_v1', VER = 1, _p = null;
+  var SCHEMA = {
+    chats:      { key: 'id' },
+    messages:   { key: 'id', ai: true, ix: [['byChatAt', ['chatId', 'createdAt']]] },
+    groups:     { key: 'id' },
+    moments:    { key: 'id', ai: true, ix: [['byTime', 'createdAt']] },
+    comments:   { key: 'id', ai: true, ix: [['byMoment', 'momentId']] },
+    likes:      { key: 'key' },
+    finance:    { key: 'id', ai: true, ix: [['byTime', 'createdAt']] },
+    redpackets: { key: 'id' },
+    calls:      { key: 'id', ai: true, ix: [['byChat', 'chatId']] },
+    memories:   { key: 'id', ai: true },
+    thoughts:   { key: 'id', ai: true },
+    config:     { key: 'key' },
+    blobs:      { key: 'key' }
+  };
+
+  function open() {
+    if (_p) return _p;
+    _p = new Promise(function (res, rej) {
+      var req;
+      try { req = indexedDB.open(NAME, VER); } catch (e) { rej(e); return; }
+      req.onupgradeneeded = function () {
+        var db = req.result;
+        Object.keys(SCHEMA).forEach(function (n) {
+          if (db.objectStoreNames.contains(n)) return;
+          var c = SCHEMA[n];
+          var st = db.createObjectStore(n, c.ai ? { keyPath: c.key, autoIncrement: true } : { keyPath: c.key });
+          (c.ix || []).forEach(function (i) { st.createIndex(i[0], i[1], { unique: false }); });
+        });
+      };
+      req.onsuccess = function () {
+        var db = req.result;
+        db.onclose = function () { _p = null; };
+        db.onversionchange = function () { try { db.close(); } catch (e) {} _p = null; };
+        res(db);
+      };
+      req.onerror = function () { _p = null; rej(req.error || new Error('idb_open_failed')); };
+      req.onblocked = function () { _p = null; rej(new Error('idb_blocked')); };
+    });
+    return _p;
+  }
+
+  function ask(r) {
+    return new Promise(function (res, rej) {
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+
+  function once(stores, mode, fn) {
+    return open().then(function (db) {
+      return new Promise(function (res, rej) {
+        var t = db.transaction(stores, mode), out;
+        t.oncomplete = function () { res(out); };
+        t.onerror = function () { rej(t.error); };
+        t.onabort = function () { rej(t.error || new Error('idb_abort')); };
+        try { out = fn(t, ask); } catch (e) { try { t.abort(); } catch (_) {} rej(e); }
+      });
+    });
+  }
+
+  /* iOS 会把闲置连接回收，报错就重开一次再试 */
+  function run(stores, mode, fn) {
+    return once(stores, mode, fn).catch(function (err) {
+      _p = null;
+      return once(stores, mode, fn);
+    });
+  }
+
+  function page(store, index, range, dir, limit) {
+    return run([store], 'readonly', function (t) {
+      return new Promise(function (res, rej) {
+        var out = [], src = index ? t.objectStore(store).index(index) : t.objectStore(store);
+        var r = src.openCursor(range || null, dir || 'prev');
+        r.onsuccess = function () {
+          var c = r.result;
+          if (!c || out.length >= limit) return res(out);
+          out.push(c.value); c.continue();
+        };
+        r.onerror = function () { rej(r.error); };
+      });
+    });
+  }
+
+  var API = {
+    open: open, run: run, page: page,
+    get: function (s, k) { return run([s], 'readonly', function (t) { return ask(t.objectStore(s).get(k)); }); },
+    put: function (s, v) { return run([s], 'readwrite', function (t) { return ask(t.objectStore(s).put(v)); }); },
+    del: function (s, k) { return run([s], 'readwrite', function (t) { return ask(t.objectStore(s).delete(k)); }); },
+    all: function (s) { return run([s], 'readonly', function (t) { return ask(t.objectStore(s).getAll()); }); },
+    count: function (s, q) { return run([s], 'readonly', function (t) { return ask(t.objectStore(s).count(q || null)); }); },
+    cfg: function (k, d) { return API.get('config', k).then(function (r) { return r && 'value' in r ? r.value : d; }); },
+    setCfg: function (k, v) { return API.put('config', { key: k, value: v }); }
+  };
+  return API;
+})();
+window.WXDB = WXDB;
+
+/* ===== 块 1B：数据接口（会话 / 消息 / 迁移） ===== */
+var WXStore = (function () {
+  var SELF = 'user';
+  function cid(charId) { return 'c_' + String(charId || 'kai'); }
+  function head(m) { return String(m.text || '').replace(/\s+/g, ' ').slice(0, 40); }
+  function rng(chatId, from, to) { return IDBKeyRange.bound([chatId, from], [chatId, to]); }
+
+  async function ensureChat(charId, patch) {
+    var id = cid(charId), cur = await WXDB.get('chats', id);
+    var row = Object.assign({
+      id: id, charId: String(charId || 'kai'), name: '祁砚', avatar: '', type: 'private',
+      groupId: '', pinned: 0, muted: 0, unread: 0, draft: '', lastText: '', lastAt: 0
+    }, cur || {}, patch || {});
+    await WXDB.put('chats', row);
+    return row;
+  }
+
+  async function listChats() {
+    var rows = await WXDB.all('chats');
+    return rows.sort(function (a, b) {
+      return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (b.lastAt || 0) - (a.lastAt || 0);
+    });
+  }
+
+  async function addMessage(chatId, m) {
+    var row = Object.assign({
+      chatId: chatId, role: SELF, kind: 'text', text: '', quote: '',
+      createdAt: Date.now(), status: 'ok'
+    }, m || {});
+    var id = await WXDB.put('messages', row);
+    var chat = await WXDB.get('chats', chatId);
+    if (chat) {
+      chat.lastText = head(row); chat.lastAt = row.createdAt;
+      if (row.role !== SELF && !chat.muted) chat.unread = (chat.unread || 0) + 1;
+      await WXDB.put('chats', chat);
+    }
+    return id;
+  }
+
+  async function recentMessages(chatId, limit) {
+    var rows = await WXDB.page('messages', 'byChatAt', rng(chatId, -Infinity, Infinity), 'prev', limit || 60);
+    return rows.reverse();
+  }
+  async function messagesBefore(chatId, createdAt, limit) {
+    var rows = await WXDB.page('messages', 'byChatAt', rng(chatId, -Infinity, createdAt - 1), 'prev', limit || 60);
+    return rows.reverse();
+  }
+  function hasEarlier(chatId, createdAt) {
+    return WXDB.count('messages', rng(chatId, -Infinity, createdAt - 1)).then(function (n) { return n > 0; });
+  }
+
+  async function setDraft(chatId, text) {
+    var chat = await WXDB.get('chats', chatId);
+    if (!chat) return; chat.draft = String(text || ''); await WXDB.put('chats', chat);
+  }
+  async function markRead(chatId) {
+    var chat = await WXDB.get('chats', chatId);
+    if (!chat) return; chat.unread = 0; await WXDB.put('chats', chat);
+  }
+  async function togglePin(chatId) {
+    var chat = await WXDB.get('chats', chatId);
+    if (!chat) return 0; chat.pinned = chat.pinned ? 0 : 1; await WXDB.put('chats', chat); return chat.pinned;
+  }
+  async function toggleMute(chatId) {
+    var chat = await WXDB.get('chats', chatId);
+    if (!chat) return 0; chat.muted = chat.muted ? 0 : 1; await WXDB.put('chats', chat); return chat.muted;
+  }
+
+  /* 旧数据搬家：朋友圈 + 当前聊天记录，只跑一次 */
+  async function migrate() {
+    if (await WXDB.cfg('migrated_v1', false)) return { skipped: true };
+    var out = { moments: 0, messages: 0 };
+    try {
+      var moms = JSON.parse(localStorage.getItem('xm_moments') || '[]');
+      for (var i = 0; i < (moms || []).length; i++) {
+        var m = moms[i] || {};
+        await WXDB.put('moments', {
+          id: String(m.id || ('legacy_' + i)), text: String(m.text || m.content || ''),
+          img: m.img || '', createdAt: Number(m.at || m.createdAt) || Date.now(),
+          likes: m.likes || [], comments: m.comments || [], pinned: m.pinned ? 1 : 0
+        });
+        out.moments++;
+      }
+    } catch (e) {}
+    try {
+      var id = cid('kai');
+      await ensureChat('kai');
+      var list = (typeof CHAT !== 'undefined' && Array.isArray(CHAT)) ? CHAT : [];
+      for (var j = 0; j < list.length; j++) {
+        var c = list[j] || {};
+        if (c.typing || !c.text) continue;
+        await WXDB.put('messages', {
+          chatId: id, role: c.role === 'user' ? 'user' : 'assistant', kind: 'text',
+          text: String(c.text), createdAt: Number(c.at || c.time) || (Date.now() + j), status: 'ok'
+        });
+        out.messages++;
+      }
+      var last = await recentMessages(id, 1);
+      if (last.length) await ensureChat('kai', { lastText: head(last[0]), lastAt: last[0].createdAt });
+    } catch (e) {}
+    await WXDB.setCfg('migrated_v1', true);
+    return out;
+  }
+
+  return {
+    cid: cid, ensureChat: ensureChat, listChats: listChats, addMessage: addMessage,
+    recentMessages: recentMessages, messagesBefore: messagesBefore, hasEarlier: hasEarlier,
+    setDraft: setDraft, markRead: markRead, togglePin: togglePin, toggleMute: toggleMute,
+    migrate: migrate, range: rng
+  };
+})();
+window.WXStore = WXStore;
+
+/* ===== 块 1C：IDB 版会话列表（开关：localStorage.xm_wxlist = 'idb'） ===== */
+var WXList = (function () {
+  function esc(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function ago(t) {
+    if (!t) return '';
+    var s = (Date.now() - t) / 1000;
+    if (s < 60) return '刚刚';
+    if (s < 3600) return Math.floor(s / 60) + '分钟前';
+    if (s < 86400) return Math.floor(s / 3600) + '小时前';
+    return Math.floor(s / 86400) + '天前';
+  }
+  function rowHTML(c) {
+    return '<div class="wxRow" data-wx-chat="' + esc(c.id) + '">' +
+      '<span class="wxAva"' + (c.avatar ? ' style="background-image:url(\'' + esc(c.avatar) + '\')"' : '') + '></span>' +
+      '<div class="wxMid"><b>' + esc(c.name) + (c.pinned ? ' ·置顶' : '') + (c.muted ? ' ·免打扰' : '') + '</b>' +
+      '<span>' + esc(c.draft ? '[草稿] ' + c.draft : (c.lastText || '')) + '</span></div>' +
+      '<em>' + ago(c.lastAt) + (c.unread ? ' · ' + c.unread : '') + '</em></div>';
+  }
+  async function render(body) {
+    if (!body) return 0;
+    var rows = await WXStore.listChats();
+    body.innerHTML = rows.length ? rows.map(rowHTML).join('') : '<div class="wxHead">还没有会话</div>';
+    return rows.length;
+  }
+  function mount() {
+    if (localStorage.getItem('xm_wxlist') !== 'idb') return;
+    var wx = document.getElementById('wx');
+    var body = wx && wx.querySelector('.wxBody');
+    if (!body) return;
+    render(body);
+    new MutationObserver(function () {
+      if (!body.querySelector('[data-wx-chat]')) render(body);
+    }).observe(body, { childList: true });
+  }
+  document.addEventListener('DOMContentLoaded', function () { setTimeout(mount, 900); });
+  return { render: render, mount: mount, rowHTML: rowHTML };
+})();
+window.WXList = WXList;
