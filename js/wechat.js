@@ -27,7 +27,7 @@
   function sv(p, s){ return '<svg width="'+(s||24)+'" height="'+(s||24)+'" viewBox="0 0 24 24" '+W+'>'+p+'</svg>'; }
   var IC = {
     chat: sv('<path d="M20.4 12.4c0 3.9-3.8 7-8.4 7-1 0-2-.15-2.9-.42L4.2 20.4l1.3-3.3C4.1 15.9 3.6 14.2 3.6 12.4c0-3.9 3.8-7 8.4-7s8.4 3.1 8.4 7z"/>',25),
-    book: sv('<circle cx="12" cy="8.4" r="3.7"/><path d="M4.8 20.2c.7-3.6 3.7-5.9 7.2-5.9s6.5 2.3 7.2 5.9"/>',25),
+    book: sv('<circle cx="9.4" cy="8.6" r="3.2"/><path d="M2.9 19.9c.6-3.3 3.3-5.5 6.5-5.5s5.9 2.2 6.5 5.5"/><path d="M16.3 6.2a3.1 3.1 0 0 1 0 5.5"/><path d="M17.5 14.8c1.9.6 3.2 2.1 3.7 4.3"/>',25),
     find: sv('<circle cx="12" cy="12" r="8.4"/><path d="M14.8 9.2 13 13l-3.8 1.8L11 11z"/>',25),
     me:   sv('<circle cx="12" cy="8.2" r="3.8"/><path d="M4.6 20.3c.6-3.7 3.7-6 7.4-6s6.8 2.3 7.4 6"/>',25),
     back: sv('<path d="M14.6 5.4 8 12l6.6 6.6"/>',22),
@@ -48,9 +48,11 @@
       'display:flex;align-items:center;justify-content:center;border-radius:50%}'+
     '.wxBack{left:8px}.wxPlus{right:8px}'+
     '.wxBack:active,.wxPlus:active{background:rgba(0,0,0,.06)}'+
-    '.wxBody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}'+
-    '.wxTabs{flex:0 0 auto;display:grid;grid-template-columns:repeat(4,1fr);'+
-      'padding:8px 0 calc(env(safe-area-inset-bottom) + 8px);background:rgba(255,255,255,.42);'+
+    '.wxBody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;'+
+      'padding-bottom:calc(env(safe-area-inset-bottom) + 64px)}'+
+    '.wxTabs{position:fixed;left:0;right:0;bottom:0;z-index:2;display:grid;'+
+      'grid-template-columns:repeat(4,1fr);'+
+      'padding:8px 0 calc(env(safe-area-inset-bottom) + 8px);background:rgba(255,255,255,.72);'+
       'backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);'+
       'border-top:1px solid rgba(0,0,0,.06)}'+
     '.wxT{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;color:#9a9a96}'+
@@ -1406,19 +1408,20 @@
     '#wx .meAva{width:92px;height:92px;border-radius:50%;margin:0 auto;'+
       'background:#e6e6e2 center/cover;border:1px solid rgba(0,0,0,.06);'+
       'box-shadow:0 3px 14px rgba(0,0,0,.07)}'+
-    '#wx .meName{display:block;margin-top:15px;font-size:17px;font-weight:500;'+
-      'letter-spacing:.03em;color:#0b0b0b}'+
+    '#wx .meName{display:inline-block;margin-top:15px;font-size:17px;font-weight:500;'+
+      'letter-spacing:.03em;color:#0b0b0b;padding:0 14px 7px;'+
+      'border-bottom:1px solid rgba(0,0,0,.16)}'+
     '#wx .meHr{height:1px;background:rgba(0,0,0,.09);margin:14px 62px}'+
-    '#wx .meSign{display:inline-block;max-width:78%;font-size:14px;font-weight:300;'+
+    '#wx .meSign{display:inline-block;margin-top:18px;max-width:78%;font-size:14px;font-weight:300;'+
   'line-height:1.7;color:#6b6b67;padding:11px 18px;border:1px solid rgba(0,0,0,.09);'+
   'border-radius:14px;background:#fff;word-break:break-word}'+
     '#wx .meSign.ph{color:#c6c6c2}'+
     '#wx .meStar{padding:2px 0;color:#8d8d89;line-height:0}'+
     '#wx .meStar:active{color:#0b0b0b}'+
-    '#wx .meBtns{display:flex;gap:8px;padding:0 20px;margin-top:-6px}'+
-    '#wx .meBtn2{flex:1;padding:10px;border-radius:12px;background:#fff;'+
-      'font-size:13.5px;color:#0b0b0b;border:1px solid rgba(0,0,0,.08);'+
-      'box-shadow:0 1px 4px rgba(0,0,0,.03)}'+
+    '#wx .meBtns{display:flex;gap:8px;padding:0 20px;margin-top:18px}'+
+    '#wx .meBtn2{flex:1;padding:10px 4px;border-radius:12px;background:#fff;'+
+      'font-size:12.5px;color:#0b0b0b;border:1px solid rgba(0,0,0,.08);'+
+      'white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.03)}'+
     '#wx .meBtn2:active{background:#f2f2f0;transform:scale(.985)}'+
     '#wx .pf{display:flex;gap:11px;padding:17px 18px 15px;text-align:left;'+
       'border-top:1px solid rgba(0,0,0,.07)}'+
@@ -1508,16 +1511,13 @@
       '<div class="meAva" id="meAva"' +
         (MYAVA() ? ' style="background-image:url(\'' + MYAVA() + '\')"' : '') + '></div>' +
       '<div class="meName">' + esc(S.name || '小咩') + '</div>' +
-      '<div class="meHr"></div>' +
       '<div class="meSign' + (sign ? '' : ' ph') + '">' + esc(sign || '还没写签名') + '</div>' +
       '<div class="meHr"></div>' +
-      '<div class="meStar" id="meStar">' + STAR + '</div>' +
-      '<div class="meHr"></div>' +
       '<div class="meBtns">' +
+        '<div class="meBtn2" id="meFavBtn">我的收藏</div>' +
         '<div class="meBtn2" id="meEditBtn">Edit Profile</div>' +
         '<div class="meBtn2" id="meSetBtn">Settings</div>' +
       '</div>' +
-      '<div class="meFeed">' + feed(MOM()) + '</div>' +
     '</div>';
   }
 
@@ -1636,7 +1636,7 @@
 
     var q = function(id){ return b.querySelector('#' + id); };
     if (q('meAva')) q('meAva').onclick = function(){ editProfile(); };
-    if (q('meStar')) q('meStar').onclick = function(){ favSheet(); };
+    if (q('meFavBtn')) q('meFavBtn').onclick = function(){ favSheet(); };
     if (q('meEditBtn')) q('meEditBtn').onclick = function(){ editProfile(); };
     if (q('meSetBtn')) q('meSetBtn').onclick = function(){
       if (typeof window.openSet === 'function') window.openSet();
@@ -2220,30 +2220,6 @@ document.addEventListener('click', function(e){
     });
   }
 });
-
-
-/*七、入口：往「我」页面塞一个「发现」按钮*/
-
-
-
-(function(){
-  function inject(){
-    var box = document.querySelector('#wx .meBtns');
-    if(!box || box.querySelector('[data-xm-find]')) return;
-    var b = document.createElement('div');
-    b.className = 'meBtn2';
-    b.setAttribute('data-xm-find','1');
-    b.textContent = '发现';
-    b.onclick = function(){ XM_FIND.open(); };
-    box.appendChild(b);
-  }
-  new MutationObserver(function(){ setTimeout(inject, 60); })
-    .observe(document.body, { childList:true, subtree:true });
-  setInterval(inject, 900);
-  setTimeout(inject, 600);
-})();
-
-
 
 
 
