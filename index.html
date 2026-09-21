@@ -1709,6 +1709,11 @@ function addPhoto(inp){
 
 function delPhoto(i){ S.photos.splice(i,1); save(); openApp('album'); }
 
+if (location.search.indexOf('chat=1') > -1){
+  $('lock').classList.add('hide');
+  setTimeout(() => { openApp('chat'); }, 400);
+}
+</script>
 
 <!-- JS 加载顺序：改哪个文件就把那个文件的数字加一 -->
 <script src="js/core.js?v=51"></script>
