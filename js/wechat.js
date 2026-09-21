@@ -311,10 +311,11 @@
       '<div class="momPad"></div>' +
       (list.length ? list.map(function(m, i){
         var idx = MOM.length - 1 - i;
-        return '<div class="mom">' + avaBox(m.who === 'me' ? MYAVA() : KAI_AVA, 'av') +
+        return '<div class="mom"' + (m.vid ? ' data-vid="' + m.vid + '"' : '') + '>'
           '<div class="bd"><div class="nm">' + (m.who === 'me' ? esc(S.name || '小咩') : '祁砚') + '</div>' +
           (m.text ? '<div class="tx">' + esc(m.text) + '</div>' : '') +
-          (m.img && m.who !== 'kai' ? '<img class="im" src="' + m.img + '">' : '') +
+          (m.vid ? '<img class="im" data-vid="' + m.vid + '">'
+           : (m.img && m.who !== 'kai' ? '<img class="im" src="' + m.img + '">' : '')) +
           '<div class="tm">' + ago(m.t) +
             '<span class="op"><span data-like="' + idx + '">' + IC.heart + '</span>' +
             '<span data-cm="' + idx + '">' + IC.cmt + '</span></span></div>' +
@@ -2927,4 +2928,676 @@ window.xmAsk = xmAsk;
   });
 
   window.XM_CALL = { start:start, hang:hang };
+})();
+
+------------------------------
+*/一、位置共享（块16）*/
+------------------------------
+
+(function(){
+  if(document.getElementById('xmLocCss')) return;
+  var st = document.createElement('style');
+  st.id = 'xmLocCss';
+  st.textContent =
+    '#msgs .xloc{width:210px;border-radius:8px;overflow:hidden;background:#fff;'+
+      'border:1px solid rgba(0,0,0,.08)}'+
+    '#msgs .xloc .hd{padding:9px 11px 4px;font-size:13.5px;color:#2b2b2b}'+
+    '#msgs .xloc .sub{padding:0 11px 9px;font-size:11.5px;color:#a3a39f}'+
+    '#msgs .xloc canvas{display:block;width:100%;height:96px}';
+  document.head.appendChild(st);
+})();
+
+(function(){
+  function mapCanvas(lat, lng){
+    var c = document.createElement('canvas');
+    c.width = 420; c.height = 192;
+    var g = c.getContext('2d');
+    g.fillStyle = '#eceae5'; g.fillRect(0, 0, 420, 192);
+
+    /* 用坐标当种子，画一张固定的假路网，同一个点永远长一样 */
+    var seed = Math.abs(Math.round((lat + lng) * 10000)) % 99991;
+    function rnd(){ seed = (seed * 1103515245 + 12345) & 0x7fffffff; return (seed >> 8) / 8388608; }
+
+    g.strokeStyle = '#f7f6f2'; g.lineWidth = 14;
+    for(var i = 0; i < 5; i++){
+      g.beginPath();
+      g.moveTo(rnd() * 420, -20);
+      g.lineTo(rnd() * 420, 212);
+      g.stroke();
+    }
+    g.strokeStyle = '#dedbd4'; g.lineWidth = 3;
+    for(var j = 0; j < 6; j++){
+      g.beginPath();
+      g.moveTo(-20, rnd() * 192);
+      g.lineTo(440, rnd() * 192);
+      g.stroke();
+    }
+    g.strokeStyle = '#cfd8e3'; g.lineWidth = 9;
+    g.beginPath(); g.moveTo(0, 130); g.bezierCurveTo(120, 96, 300, 150, 420, 110); g.stroke();
+
+    /* 中心点 */
+    g.beginPath();
+    g.arc(210, 96, 9, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(229,72,77,.22)'; g.fill();
+    g.beginPath();
+    g.arc(210, 96, 4.5, 0, Math.PI * 2);
+    g.fillStyle = '#e5484d'; g.fill();
+    g.strokeStyle = '#fff'; g.lineWidth = 1.6; g.stroke();
+    return c;
+  }
+
+  function send(){
+    if(!navigator.geolocation){ if(window.toast) toast('这台设备不给定位'); return; }
+    if(window.toast) toast('定位中…');
+    navigator.geolocation.getCurrentPosition(function(p){
+      var lat = +p.coords.latitude.toFixed(6);
+      var lng = +p.coords.longitude.toFixed(6);
+      CHAT.push({ role:'user', text:'', loc:{ lat:lat, lng:lng }, t:Date.now() });
+      saveChat(); renderChat(true);
+      reply(lat, lng);
+    }, function(){ if(window.toast) toast('定位失败'); },
+    { enableHighAccuracy:true, timeout:8000 });
+  }
+
+  async function reply(lat, lng){
+    var t = await xmAsk('小咩把她的位置发给你了：' + lat + ',' + lng +
+      '。用一句话回她，25 字内，不要引号。', 0.95);
+    if(!t) return;
+    CHAT.push({ role:'assistant', text:t, t:Date.now() });
+    saveChat(); renderChat(true);
+  }
+
+  function paint(){
+    var box = document.getElementById('msgs');
+    if(!box) return;
+    var ws = box.querySelectorAll('.wrap');
+    for(var i = 0; i < ws.length; i++){
+      var w = ws[i];
+      if(w.getAttribute('data-loc')) continue;
+      var idx = +w.getAttribute('data-i');
+      var m = (typeof CHAT !== 'undefined' && CHAT[idx]) || null;
+      if(!m || !m.loc) continue;
+      var bub = w.querySelector('.bub');
+      if(!bub) continue;
+      w.setAttribute('data-loc','1');
+      bub.innerHTML = '';
+      bub.style.padding = '4px';
+      var card = document.createElement('div');
+      card.className = 'xloc';
+      card.setAttribute('data-map', m.loc.lat + ',' + m.loc.lng);
+      card.innerHTML = '<div class="hd">我的位置</div>' +
+        '<div class="sub">' + m.loc.lat + ', ' + m.loc.lng + '</div>';
+      card.insertBefore(mapCanvas(m.loc.lat, m.loc.lng), card.querySelector('.sub'));
+      bub.appendChild(card);
+    }
+  }
+
+  window.XM_LOC = { send:send };
+
+  new MutationObserver(function(){ setTimeout(paint, 60); })
+    .observe(document.body, { childList:true, subtree:true });
+  setTimeout(paint, 900);
+
+  document.addEventListener('click', function(e){
+    if(!e.target.closest) return;
+    if(e.target.closest('[data-loc-send]')) return send();
+    var mp = e.target.closest('[data-map]');
+    if(mp) window.open('https://maps.apple.com/?ll=' + mp.dataset.map, '_blank');
+  });
+})();
+
+
+------------------------------
+/*二、转账 + 收付款（块17）*/
+------------------------------
+
+(function(){
+  if(document.getElementById('xmPayCss')) return;
+  var st = document.createElement('style');
+  st.id = 'xmPayCss';
+  st.textContent =
+    '#msgs .xpay{width:210px;border-radius:8px;background:#f7a94b;color:#fff;padding:12px 14px}'+
+    '#msgs .xpay .n{font-size:22px;font-weight:500;margin-top:6px}'+
+    '#msgs .xpay .s{font-size:11.5px;opacity:.85;margin-top:6px}'+
+    '#xmPayBox .in{background:#f4f4f2;border-radius:20px 20px 0 0;'+
+      'padding:20px 18px calc(env(safe-area-inset-bottom) + 20px);width:100%}'+
+    '#xmPayBox .am{font-size:34px;font-weight:600;display:flex;align-items:center;gap:4px}'+
+    '#xmPayBox .am small{font-size:16px}'+
+    '#xmPayBox input.amt{flex:1;border:0;background:none;font-size:34px;font-weight:600;outline:none}'+
+    '#xmPayBox input.nt{width:100%;border:0;background:#fff;border-radius:10px;padding:11px 13px;'+
+      'font-size:14px;margin-top:12px;outline:none;box-sizing:border-box}'+
+    '#xmPayBox .go{margin-top:16px;background:#07c160;color:#fff;text-align:center;'+
+      'padding:12px;border-radius:10px;font-size:16px}'+
+    '#xmPayBox .qr{margin-top:12px;background:#fff;border-radius:14px;padding:22px;text-align:center}'+
+    '#xmPayBox .qr canvas{width:190px;height:190px}';
+  document.head.appendChild(st);
+})();
+
+(function(){
+  function sheet(html){
+    var old = document.getElementById('xmPayBox');
+    if(old) old.remove();
+    var d = document.createElement('div');
+    d.id = 'xmPayBox';
+    d.className = 'xmOv';
+    d.style.zIndex = '96';
+    d.innerHTML = '<div class="in">' + html + '</div>';
+    d.addEventListener('click', function(e){ if(e.target === d) d.remove(); });
+    document.body.appendChild(d);
+    return d;
+  }
+
+  function transfer(){
+    var d = sheet('<div style="font-size:13px;color:#8a8a86">转账给 祁砚</div>' +
+      '<div class="am"><small>¥</small>' +
+        '<input class="amt" id="xmPayAmt" inputmode="decimal" placeholder="0.00"></div>' +
+      '<input class="nt" id="xmPayNote" placeholder="添加备注">' +
+      '<div class="go" id="xmPayGo">转账</div>');
+    d.querySelector('#xmPayAmt').focus();
+    d.querySelector('#xmPayGo').onclick = async function(){
+      var a = parseFloat(d.querySelector('#xmPayAmt').value);
+      if(!(a > 0)){ if(window.toast) toast('金额不对'); return; }
+      var note = d.querySelector('#xmPayNote').value.trim();
+      await XM_DC.tx(-a, '转账给祁砚' + (note ? ' · ' + note : ''));
+      CHAT.push({ role:'user', text:'', pay:{ amount:a, note:note, dir:'out' }, t:Date.now() });
+      saveChat(); renderChat(true);
+      d.remove();
+      setTimeout(function(){
+        CHAT.push({ role:'assistant', text:'（已收款 ¥' + a.toFixed(2) + '）', t:Date.now() });
+        saveChat(); renderChat(true);
+      }, 1200);
+    };
+  }
+
+  async function qr(){
+    var w = await XM_DC.getWallet();
+    var d = sheet('<div style="text-align:center;font-size:15px;font-weight:500">收付款</div>' +
+      '<div class="qr"><canvas id="xmQrC" width="380" height="380"></canvas>' +
+      '<div style="font-size:12.5px;color:#8a8a86;margin-top:10px">余额 ¥' + w.balance.toFixed(2) + '</div></div>');
+    var c = d.querySelector('#xmQrC'), g = c.getContext('2d');
+    var n = 25, cell = 380 / n;
+    g.fillStyle = '#fff'; g.fillRect(0, 0, 380, 380);
+    g.fillStyle = '#111';
+    var seed = 7;
+    var s0 = 'kai-' + w.balance;
+    for(var i = 0; i < s0.length; i++) seed = (seed * 31 + s0.charCodeAt(i)) % 99991;
+    for(var y = 0; y < n; y++){
+      for(var x = 0; x < n; x++){
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        if((seed >> 8) & 1) g.fillRect(x*cell, y*cell, cell, cell);
+      }
+    }
+    function eye(px, py){
+      g.fillStyle = '#fff'; g.fillRect(px*cell, py*cell, cell*7, cell*7);
+      g.fillStyle = '#111'; g.fillRect(px*cell, py*cell, cell*7, cell*7);
+      g.fillStyle = '#fff'; g.fillRect((px+1)*cell, (py+1)*cell, cell*5, cell*5);
+      g.fillStyle = '#111'; g.fillRect((px+2)*cell, (py+2)*cell, cell*3, cell*3);
+    }
+    eye(0, 0); eye(n-7, 0); eye(0, n-7);
+  }
+
+  function paint(){
+    var box = document.getElementById('msgs');
+    if(!box) return;
+    var ws = box.querySelectorAll('.wrap');
+    for(var i = 0; i < ws.length; i++){
+      var w = ws[i];
+      if(w.getAttribute('data-pay')) continue;
+      var idx = +w.getAttribute('data-i');
+      var m = (typeof CHAT !== 'undefined' && CHAT[idx]) || null;
+      if(!m || !m.pay) continue;
+      var bub = w.querySelector('.bub');
+      if(!bub) continue;
+      w.setAttribute('data-pay','1');
+      bub.innerHTML = '<div class="xpay">' +
+        '<div style="font-size:12.5px;opacity:.9">' +
+          (m.pay.dir === 'out' ? '转账给祁砚' : '收款') + '</div>' +
+        '<div class="n">¥ ' + Number(m.pay.amount).toFixed(2) + '</div>' +
+        (m.pay.note ? '<div class="s">' + xmEsc(m.pay.note) + '</div>' : '') + '</div>';
+      bub.style.padding = '4px';
+    }
+  }
+
+  window.XM_PAY = { transfer:transfer, qr:qr };
+
+  new MutationObserver(function(){ setTimeout(paint, 60); })
+    .observe(document.body, { childList:true, subtree:true });
+  setTimeout(paint, 900);
+
+  document.addEventListener('click', function(e){
+    if(!e.target.closest) return;
+    if(e.target.closest('[data-pay-send]')) return transfer();
+    if(e.target.closest('[data-pay-qr]')) return qr();
+  });
+})();
+
+
+-----------------------------------------
+/*三、置顶 / 免打扰 / 删除（块18）*/
+-----------------------------------------
+
+
+(function(){
+  if(document.getElementById('xmCtxCss')) return;
+  var st = document.createElement('style');
+  st.id = 'xmCtxCss';
+  st.textContent =
+    '#xmCtxMenu{position:fixed;z-index:97;background:#fff;border-radius:12px;overflow:hidden;'+
+      'box-shadow:0 10px 34px rgba(0,0,0,.18);min-width:158px}'+
+    '#xmCtxMenu div{padding:13px 18px;font-size:14.5px;border-bottom:1px solid #f0f0ee}'+
+    '#xmCtxMenu div:last-child{border-bottom:0}'+
+    '#xmCtxMenu div:active{background:#f6f6f4}'+
+    '#xmCtxMenu .rd{color:#e5484d}';
+  document.head.appendChild(st);
+})();
+
+(function(){
+  async function menu(x, y, cid){
+    var old = document.getElementById('xmCtxMenu');
+    if(old) old.remove();
+    var c = (await XDB.get('chats', cid)) || {};
+
+    var d = document.createElement('div');
+    d.id = 'xmCtxMenu';
+    d.innerHTML = '<div data-a="top">' + (c.top ? '取消置顶' : '置顶该聊天') + '</div>' +
+      '<div data-a="mute">' + (c.mute ? '取消免打扰' : '消息免打扰') + '</div>' +
+      '<div class="rd" data-a="del">删除该聊天</div>';
+    d.style.left = Math.min(x, window.innerWidth - 178) + 'px';
+    d.style.top = y + 'px';
+    document.body.appendChild(d);
+
+    d.onclick = async function(e){
+      var t = e.target.closest('[data-a]');
+      if(!t) return;
+      var a = t.dataset.a;
+      var row = await XDB.get('chats', cid);
+      if(a === 'top' && row){ row.top = row.top ? 0 : 1; await XDB.put('chats', row); }
+      if(a === 'mute' && row){ row.mute = row.mute ? 0 : 1; await XDB.put('chats', row); }
+      if(a === 'del'){
+        if(!confirm('删掉这个会话？聊天记录一起没。')) return;
+        await XDB.del('chats', cid);
+      }
+      d.remove();
+    };
+
+    setTimeout(function(){
+      document.addEventListener('click', function h(ev){
+        if(!d.contains(ev.target)){ d.remove(); document.removeEventListener('click', h); }
+      });
+    }, 0);
+  }
+
+  var lt = null;
+  function clear(){ if(lt){ clearTimeout(lt); lt = null; } }
+
+  document.addEventListener('touchstart', function(e){
+    var r = e.target.closest && e.target.closest('.wxRow[data-cid]');
+    if(!r) return;
+    lt = setTimeout(function(){
+      var rect = r.getBoundingClientRect();
+      menu(rect.left + 20, rect.top, r.dataset.cid);
+      if(navigator.vibrate) navigator.vibrate(20);
+    }, 550);
+  }, { passive:true });
+
+  ['touchend','touchmove','touchcancel','scroll'].forEach(function(ev){
+    document.addEventListener(ev, clear, { passive:true });
+  });
+
+  window.XM_CFG = { menu:menu };
+})();
+
+
+------------------------------
+/*四、消息搜索（块19）*/
+------------------------------
+
+(function(){
+  if(document.getElementById('xmSearchCss')) return;
+  var st = document.createElement('style');
+  st.id = 'xmSearchCss';
+  st.textContent =
+    '#xmSearch{position:fixed;inset:0;z-index:94;background:#f4f4f2;display:flex;flex-direction:column}'+
+    '#xmSearch .tp{padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;display:flex;gap:10px;align-items:center}'+
+    '#xmSearch input{flex:1;border:0;background:#fff;border-radius:10px;padding:10px 13px;'+
+      'font-size:14.5px;outline:none;box-sizing:border-box}'+
+    '#xmSearch .cl{font-size:14px;color:#5b6b8c}'+
+    '#xmSearch .bd{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}'+
+    '#xmSearch .hit{padding:13px 16px;background:#fff;border-bottom:1px solid #f0f0ee}'+
+    '#xmSearch .hit b{color:#e5484d;font-weight:500}'+
+    '#xmSearch .hit .w{font-size:12px;color:#a3a39f;margin-bottom:3px}'+
+    '#xmSearch .hit .t{font-size:14.5px;line-height:1.6;color:#2b2b2b}'+
+    '#xmSearch .no{text-align:center;color:#b4b4b0;font-size:13.5px;padding:70px 30px}';
+  document.head.appendChild(st);
+})();
+
+(function(){
+  var d = null;
+
+  function run(q){
+    q = String(q || '').trim();
+    var bd = d.querySelector('.bd');
+    if(!q){ bd.innerHTML = ''; return; }
+    var hits = [];
+    (typeof CHAT !== 'undefined' ? CHAT : []).forEach(function(m, i){
+      var t = String(m.text || (m.thumb ? '[图片]' : m.aud ? '[语音]' : ''));
+      if(t.toLowerCase().indexOf(q.toLowerCase()) > -1) hits.push({ i:i, m:m, t:t });
+    });
+    if(!hits.length){ bd.innerHTML = '<div class="no">没找到「' + xmEsc(q) + '」</div>'; return; }
+    bd.innerHTML = hits.reverse().map(function(h){
+      var re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
+      var body = xmEsc(h.t).replace(re, '<b>$1</b>');
+      var dt = new Date(h.m.t || Date.now());
+      var w = (h.m.role === 'user' ? '我' : '祁砚') + ' · ' +
+        (dt.getMonth()+1) + '/' + dt.getDate() + ' ' +
+        ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2);
+      return '<div class="hit" data-jump="' + h.i + '"><div class="w">' + w +
+        '</div><div class="t">' + body + '</div></div>';
+    }).join('');
+  }
+
+  function open(){
+    if(d) d.remove();
+    d = document.createElement('div');
+    d.id = 'xmSearch';
+    d.innerHTML = '<div class="tp"><input id="xmSQ" placeholder="搜索聊天记录">' +
+      '<span class="cl" id="xmSC">取消</span></div><div class="bd"></div>';
+    document.body.appendChild(d);
+    d.querySelector('#xmSQ').focus();
+    d.querySelector('#xmSQ').oninput = function(){ run(this.value); };
+    d.querySelector('#xmSC').onclick = function(){ d.remove(); d = null; };
+    d.querySelector('.bd').onclick = function(e){
+      var h = e.target.closest('[data-jump]');
+      if(!h) return;
+      var i = +h.dataset.jump;
+      d.remove(); d = null;
+      var box = document.getElementById('msgs');
+      var w = box && box.querySelector('.wrap[data-i="' + i + '"]');
+      if(!w) return;
+      w.scrollIntoView({ block:'center', behavior:'smooth' });
+      var bub = w.querySelector('.bub');
+      if(bub){
+        bub.style.transition = 'box-shadow .3s';
+        bub.style.boxShadow = '0 0 0 2px #07c160';
+        setTimeout(function(){ bub.style.boxShadow = ''; }, 1600);
+      }
+    };
+  }
+
+  window.XM_SEARCH = { open:open };
+
+  document.addEventListener('click', function(e){
+    if(e.target.closest && e.target.closest('[data-search]')) open();
+  });
+})();
+
+------------------------------
+/*五、语音转文字（块20）*/
+------------------------------
+
+(function(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function tip(t){
+    if(window.toast) return toast(t);
+    var d = document.createElement('div');
+    d.textContent = t;
+    d.style.cssText = 'position:fixed;left:50%;bottom:150px;transform:translateX(-50%);' +
+      'background:rgba(0,0,0,.84);color:#fff;font-size:12.5px;padding:9px 16px;' +
+      'border-radius:14px;z-index:99;max-width:82vw;text-align:center';
+    document.body.appendChild(d);
+    setTimeout(function(){ d.remove(); }, 2400);
+  }
+
+  function listen(cb){
+    if(!SR){ tip('这台设备不支持语音识别'); return null; }
+    var r = new SR();
+    r.lang = 'zh-CN';
+    r.interimResults = true;
+    r.continuous = false;
+    var done = '';
+    r.onresult = function(e){
+      var t = '';
+      for(var i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript;
+      done = t;
+      if(cb) cb(t, false);
+    };
+    r.onerror = function(){ tip('没听清'); if(cb) cb('', true); };
+    r.onend = function(){ if(cb) cb(done, true); };
+    try{ r.start(); }catch(e){}
+    return r;
+  }
+
+  function hold(){
+    var inp = document.getElementById('mIn');
+    if(!inp){ tip('聊天没开着'); return; }
+    var base = inp.value || '';
+    var r = listen(function(t, end){
+      inp.value = base + t;
+      if(end) inp.dispatchEvent(new Event('input'));
+    });
+    if(!r) return;
+    function stop(){
+      try{ r.stop(); }catch(e){}
+      document.removeEventListener('pointerup', stop);
+      document.removeEventListener('pointercancel', stop);
+    }
+    document.addEventListener('pointerup', stop);
+    document.addEventListener('pointercancel', stop);
+  }
+
+  document.addEventListener('click', function(e){
+    if(e.target.closest && e.target.closest('[data-asr]')) return hold();
+  });
+
+  window.XM_ASR = { listen:listen, hold:hold, supported: !!SR };
+})();
+
+
+-------------------------------------
+/*六、朋友圈视频（块21）*/
+-------------------------------------
+
+
+(function(){
+  var DB = 'xm_media_v1', ST = 'media', _p = null;
+
+  function openDB(){
+    if(_p) return _p;
+    _p = new Promise(function(res, rej){
+      var r = indexedDB.open(DB, 1);
+      r.onupgradeneeded = function(){ r.result.createObjectStore(ST, { keyPath:'id' }); };
+      r.onsuccess = function(){ res(r.result); };
+      r.onerror = function(){ _p = null; rej(r.error); };
+    });
+    return _p;
+  }
+
+  function put(id, blob){
+    return openDB().then(function(db){
+      return new Promise(function(res){
+        var t = db.transaction(ST, 'readwrite');
+        t.objectStore(ST).put({ id:id, blob:blob, t:Date.now() });
+        t.oncomplete = function(){ res(true); };
+      });
+    });
+  }
+
+  function get(id){
+    return openDB().then(function(db){
+      return new Promise(function(res){
+        var t = db.transaction(ST, 'readonly');
+        var q = t.objectStore(ST).get(id);
+        q.onsuccess = function(){ res(q.result && q.result.blob); };
+        q.onerror = function(){ res(null); };
+      });
+    });
+  }
+
+  function fVid(){
+    var f = document.getElementById('xmVidIn');
+    if(!f){
+      f = document.createElement('input');
+      f.id = 'xmVidIn'; f.type = 'file'; f.accept = 'video/*';
+      f.style.display = 'none';
+      document.body.appendChild(f);
+    }
+    return f;
+  }
+
+  fVid().onchange = function(){
+    var file = this.files[0];
+    if(!file) return;
+    if(file.size > 60 * 1024 * 1024){ if(window.toast) toast('视频太大，挑 60MB 以内的'); return; }
+    var id = 'v' + Date.now();
+    put(id, file).then(function(){
+      var MOM = [];
+      try{ MOM = JSON.parse(localStorage.getItem('xm_moments') || '[]'); }catch(e){}
+      MOM.push({ who:'me', text:'', vid:id, t:Date.now(), likes:[], cms:[] });
+      try{ localStorage.setItem('xm_moments', JSON.stringify(MOM.slice(-60))); }catch(e){}
+      if(window.wxRefresh) window.wxRefresh();
+    });
+  };
+
+  function paint(){
+    var list = document.querySelectorAll('.mom[data-vid]:not([data-vid-done])');
+    for(var i = 0; i < list.length; i++){
+      (function(el){
+        el.setAttribute('data-vid-done','1');
+        get(el.getAttribute('data-vid')).then(function(b){
+          if(!b) return;
+          var u = URL.createObjectURL(b);
+          var bd = el.querySelector('.bd') || el.querySelector('.momMain');
+          if(!bd) return;
+          var v = document.createElement('video');
+          v.className = 'vd'; v.src = u; v.controls = true; v.playsInline = true;
+          var im = bd.querySelector('.im');
+          if(im) im.replaceWith(v); else bd.appendChild(v);
+        });
+      })(list[i]);
+    }
+  }
+
+  new MutationObserver(function(){ setTimeout(paint, 80); })
+    .observe(document.body, { childList:true, subtree:true });
+  setTimeout(paint, 900);
+
+  document.addEventListener('click', function(e){
+    if(e.target.closest && e.target.closest('[data-vid-pick]')) fVid().click();
+  });
+
+  window.XM_VID = { put:put, get:get, pick:function(){ fVid().click(); } };
+})();
+
+(function(){
+  if(document.getElementById('xmVidCss')) return;
+  var st = document.createElement('style');
+  st.id = 'xmVidCss';
+  st.textContent = '.mom .vd{width:100%;border-radius:8px;margin-top:8px;display:block;background:#000}';
+  document.head.appendChild(st);
+})();
+
+
+----------------------------------
+/*七、表情面板 + 表情包（块22）*/
+----------------------------------
+
+(function(){
+  var EMO = ('😀 😄 😊 🙂 😉 😍 🥰 😘 😗 😙 😚 😋 😜 🤪 😝 🤗 🤔 🤨 😐 😑 😶 🙄 ' +
+    '😏 😣 😥 😮 🤐 😯 😴 😌 😔 😪 😢 😭 😤 😠 😡 🤬 😳 🥺 😞 😟 😰 😨 😱 😖 😓 ' +
+    '😫 😩 🥱 😬 😵 🤯 🤠 😎 🤓 🧐 😕 😲 😦 😧 🙁 😒 😷 🤒 🤕 🥳 🥹 😇 ' +
+    '🤍 💛 💔 💗 💓 💞 💕 ✨ ⭐️ 🌙 ☀️ 🌧 ❄️ 🍀 🌸 🌷 🎀 🫶 🤲').split(' ');
+
+  var KEY = 'xm_stickers';
+  function stk(){ try{ return JSON.parse(localStorage.getItem(KEY) || '[]'); }catch(e){ return []; } }
+  function saveStk(a){ try{ localStorage.setItem(KEY, JSON.stringify(a.slice(-40))); }catch(e){} }
+
+  if(!document.getElementById('xmEmoCss')){
+    var st = document.createElement('style');
+    st.id = 'xmEmoCss';
+    st.textContent =
+      '#xmEmo{position:fixed;left:0;right:0;bottom:0;z-index:93;background:#f4f4f2;'+
+        'border-top:1px solid rgba(0,0,0,.08);display:none;flex-direction:column;'+
+        'padding-bottom:calc(env(safe-area-inset-bottom) + 6px)}'+
+      '#xmEmo.on{display:flex}'+
+      '#xmEmo .tabs{display:flex;gap:16px;padding:8px 14px 4px;font-size:13px;color:#8a8a86}'+
+      '#xmEmo .tabs b{font-weight:500;color:#0b0b0b}'+
+      '#xmEmo .grid{height:214px;overflow-y:auto;-webkit-overflow-scrolling:touch;'+
+        'display:grid;grid-template-columns:repeat(8,1fr);gap:2px;padding:6px 10px}'+
+      '#xmEmo .grid span{display:flex;align-items:center;justify-content:center;'+
+        'font-size:24px;height:42px;border-radius:8px}'+
+      '#xmEmo .grid span:active{background:rgba(0,0,0,.06)}'+
+      '#xmEmo .grid img{width:100%;height:42px;object-fit:cover;border-radius:8px}'+
+      '#xmEmo .add{grid-column:span 2;font-size:13px;color:#5b6b8c;border:1px dashed #d0d0cc}';
+    document.head.appendChild(st);
+  }
+
+  var p = document.createElement('div');
+  p.id = 'xmEmo';
+  document.body.appendChild(p);
+  var TAB = 'e';
+
+  function render(){
+    var list;
+    if(TAB === 'e'){
+      list = EMO.map(function(x){ return '<span data-e="' + x + '">' + x + '</span>'; }).join('');
+    }else{
+      list = stk().map(function(s, i){
+        return '<span data-s="' + i + '"><img src="' + s + '"></span>';
+      }).join('') + '<span class="add" data-add-stk>+ 加表情包</span>';
+    }
+    p.innerHTML = '<div class="tabs"><b data-t="e">表情</b><span data-t="s">表情包</span></div>' +
+      '<div class="grid">' + list + '</div>';
+  }
+  render();
+
+  function ins(t){
+    var inp = document.getElementById('mIn');
+    if(!inp) return;
+    var s = inp.selectionStart == null ? inp.value.length : inp.selectionStart;
+    var e = inp.selectionEnd == null ? s : inp.selectionEnd;
+    inp.value = inp.value.slice(0, s) + t + inp.value.slice(e);
+    inp.focus();
+    inp.selectionStart = inp.selectionEnd = s + t.length;
+    inp.dispatchEvent(new Event('input'));
+  }
+
+  function sendSticker(url){
+    CHAT.push({ role:'user', text:'', thumb:url, t:Date.now() });
+    saveChat(); renderChat(true);
+    p.classList.remove('on');
+  }
+
+  var fStk = document.createElement('input');
+  fStk.type = 'file'; fStk.accept = 'image/*'; fStk.style.display = 'none';
+  document.body.appendChild(fStk);
+  fStk.onchange = function(){
+    var file = this.files[0];
+    if(!file || !window.XM_MEDIA) return;
+    XM_MEDIA.pick(file, 320, function(url){
+      if(!url) return;
+      var a = stk(); a.push(url); saveStk(a);
+      TAB = 's'; render();
+    });
+  };
+
+  document.addEventListener('click', function(e){
+    if(!e.target.closest) return;
+    var tog = e.target.closest('[data-emo]');
+    if(tog){
+      p.classList.toggle('on');
+      if(p.classList.contains('on')) render();
+      return;
+    }
+    if(!p.contains(e.target)) return;
+    var t = e.target.closest('[data-t]');
+    if(t){ TAB = t.dataset.t; render(); return; }
+    var em = e.target.closest('[data-e]');
+    if(em){ ins(em.dataset.e); return; }
+    var sk = e.target.closest('[data-s]');
+    if(sk){ var u = stk()[+sk.dataset.s]; if(u) sendSticker(u); return; }
+    if(e.target.closest('[data-add-stk]')) fStk.click();
+  });
+
+  window.XM_EMO = { open:function(){ p.classList.add('on'); render(); }, ins:ins };
 })();
