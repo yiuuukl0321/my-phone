@@ -927,7 +927,7 @@ const APPS = {
   days:   { cell:1,  n:'纪念日', v:vDays },
   drawer: { cell:9,  n:'抽屉',   v:vDrawer },
   watch:  { cell:8,  n:'监视器', v:vWatch },
-  set:    { cell:5,  n:'设置',   v:vSet }
+  set:    { cell:5,  n:'设置',   v: () => vSet() }
 };
 const ALL = Object.keys(APPS);
 const DEFAULT_GRID = ALL;
