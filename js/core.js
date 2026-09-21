@@ -1,6 +1,6 @@
 /* ============================================================
    咩&砚 · js/core.js
-   壁纸 · 锁屏比例 · 桌面图标 · 禁用缩放
+   壁纸 · 锁屏比例 · 桌面图标 · 禁用缩放 · 微信皮肤样式
    ============================================================ */
 
 
@@ -16,7 +16,7 @@
   function tall(){ return Math.max(innerHeight, screen.height, document.documentElement.clientHeight); }
   var lastW = '';
 
-   function paint(){
+  function paint(){
     if (typeof S === 'undefined' || typeof WALL_DEFAULT === 'undefined') return;
     var w = String(S.wall || '').trim() || WALL_DEFAULT;
     w = w.replace(/'/g, '');
@@ -47,6 +47,7 @@
 
 })();
 
+
 /* ---------- 锁住比例：键盘弹出不放大、双指不缩放 ---------- */
 
 
@@ -61,6 +62,7 @@
     'input,textarea,select,button,.item,.tile{touch-action:manipulation}';
   document.head.appendChild(st);
 })();
+
 
 /* ---------- 桌面图标：极简几何 v2 ---------- */
 
@@ -154,6 +156,17 @@
 })();
 
 
+/* ---------- 微信皮肤 / 红包 / 语音条 / 扫码样式 ----------
+   原本这段 CSS 直接裸放在文件末尾（不在任何函数里），
+   浏览器会当成 JS 解析并抛语法错误，导致整个 core.js 都不执行。
+   现在包进 IIFE 注入，样式不丢。                                     */
+
+
+(function(){
+  if (document.getElementById('xmSkinCss')) return;
+  var st = document.createElement('style');
+  st.id = 'xmSkinCss';
+  st.textContent = `
 body.wxskin #msgs{background:#ededed}
 body.wxskin #msgs .msg{display:flex;margin:10px 12px}
 body.wxskin #msgs .msg .bub{
@@ -209,13 +222,6 @@ body.wxskin #msgs .rpTxt{font-size:14px;line-height:1.3}
 body.wxskin #msgs .rpBot{font-size:19px;font-weight:500;padding:2px 12px 10px}
 body.wxskin #msgs .rpMeta{font-size:11px;opacity:.85;padding:0 12px 10px}
 
-.xmPanel{
-  position:fixed;left:12px;right:12px;bottom:calc(64px + env(safe-area-inset-bottom));
-  background:rgba(28,28,30,.96);color:#f2f2f2;border-radius:14px;
-  padding:14px 16px;z-index:9999;backdrop-filter:blur(12px);
-  box-shadow:0 8px 30px rgba(0,0,0,.35);animation:xmIn .18s ease
-}
-@keyframes xmIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .xmPanelTop{font-size:12px;color:#c8a86a;letter-spacing:.06em;margin-bottom:6px}
 .xmPanelBody{font-size:14.5px;line-height:1.6;white-space:pre-wrap}
 
@@ -235,3 +241,6 @@ body.wxskin #msgs .xaud .xwav i{width:2px;background:currentColor;border-radius:
 body.wxskin #msgs .xaud .xlen{font-size:13px;opacity:.8}
 body.wxskin #msgs .xaud.playing .xwav i{animation:xmWav .6s infinite alternate}
 @keyframes xmWav{from{height:4px}to{height:16px}}
+`;
+  document.head.appendChild(st);
+})();
