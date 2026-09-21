@@ -12,7 +12,7 @@
   var HUABEI_PHONE = 'HUABEI_ASSISTANT'
   var HUABEI_NAME = '花呗助手'
   var FINANCE_PHONE = 'WANWAN_FINANCE'
-  var FINANCE_NAME = '弯弯理财经理'
+  var FINANCE_NAME = '理财经理'
 
   var LEVEL_MULTIPLIER = { 1: 1.0, 2: 1.5, 3: 2.0, 4: 3.0, 5: 5.0 }
   var FUND_UPDATE_MS = 2 * 3600 * 1000
