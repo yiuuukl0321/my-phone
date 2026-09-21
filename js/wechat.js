@@ -2177,3 +2177,1792 @@ window.WXList = WXList;
 
   (async()=>{ await migrate(); render(); })();
 })();
+
+
+/* ===== 块3：微信会话列表接管 ===== */
+(function(){
+  const DB = () => window.__xmDB;
+  const ST = 'chats';
+  const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const now = () => Date.now();
+
+  async function allChats(){
+    const db = await DB();
+    const l = await db.all(ST);
+    return l.sort((a,b)=>(!!b.top-!!a.top)||((b.ts||0)-(a.ts||0)));
+  }
+  async function putChat(c){
+    const db = await DB();
+    c.id = c.id || ('c_'+now()+'_'+Math.random().toString(36).slice(2,6));
+    c.ts = c.ts || now();
+    await db.put(ST, c);
+    return c;
+  }
+  async function delChat(id){ const db=await DB(); await db.del(ST,id); }
+
+  async function pushMsg(id, msg){
+    const db = await DB();
+    const c = await db.get(ST, id);
+    if(!c) return null;
+    c.msgs = c.msgs || [];
+    c.msgs.push(Object.assign({ts:now()}, msg));
+    c.ts = now();
+    c.last = msg.text || c.last;
+    if(msg.role !== 'user') c.unread = (c.unread||0) + 1;
+    await db.put(ST, c);
+    return c;
+  }
+
+  function tm(ts){
+    if(!ts) return '';
+    const d=new Date(ts), n=new Date(), p=x=>String(x).padStart(2,'0');
+    if(d.toDateString()===n.toDateString()) return p(d.getHours())+':'+p(d.getMinutes());
+    return (d.getMonth()+1)+'/'+d.getDate();
+  }
+
+  function row(c){
+    const b = c.unread ? `<span class="wxBadge">${c.unread>99?'99+':c.unread}</span>` : '';
+    return `<div class="wxRow" data-cid="${esc(c.id)}">
+      <div class="wxAva"><img src="${esc(c.ava||'')}"></div>
+      <div class="wxMid"><div class="wxName">${esc(c.name||'')}</div>
+        <div class="wxLast">${esc(c.last||'')}</div></div>
+      <div class="wxRight"><div class="wxTime">${tm(c.ts)}</div>${b}</div>
+    </div>`;
+  }
+
+  async function renderList(){
+    const box = document.querySelector('.wxBody') || document.querySelector('#wxBody');
+    if(!box) return;
+    const l = await allChats();
+    box.innerHTML = l.length ? l.map(row).join('') : '<div class="wxEmpty">暂无会话</div>';
+  }
+
+  async function openChat(id){
+    const db = await DB();
+    const c = await db.get(ST, id);
+    if(!c) return null;
+    if(c.unread){ c.unread = 0; await db.put(ST, c); }
+    return c;
+  }
+
+  window.XM_WX = { allChats, putChat, delChat, pushMsg, renderList, openChat };
+
+  document.addEventListener('click', async e=>{
+    const r = e.target.closest('.wxRow');
+    if(!r) return;
+    const c = await openChat(r.dataset.cid);
+    if(c && window.XM_CHAT && XM_CHAT.load) XM_CHAT.load(c.msgs||[]);
+    renderList();
+  });
+})();
+
+/* ===== 块4：通讯录 + 我的 ===== */
+(function(){
+  const DB = () => window.__xmDB;
+  const CT = 'contacts', ME = 'me';
+  const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  async function allContacts(){
+    const db = await DB(); const l = await db.all(CT);
+    return l.sort((a,b)=>(a.name||'').localeCompare(b.name||'','zh'));
+  }
+  async function putContact(c){
+    const db = await DB();
+    c.id = c.id || ('ct_'+Date.now()+'_'+Math.random().toString(36).slice(2,6));
+    await db.put(CT, c); return c;
+  }
+  async function delContact(id){ const db=await DB(); await db.del(CT,id); }
+
+  async function getMe(){ const db=await DB(); return (await db.get(ME,'me')) || {id:'me',name:'小咩',ava:''}; }
+  async function saveMe(p){ const db=await DB(); const m=Object.assign(await getMe(),p,{id:'me'}); await db.put(ME,m); return m; }
+
+  async function renderContacts(){
+    const box = document.querySelector('.ctList') || document.querySelector('#ctList');
+    if(!box) return;
+    const l = await allContacts();
+    box.innerHTML = l.length ? l.map(c=>`<div class="wxRow" data-ct="${esc(c.id)}">
+      <div class="wxAva"><img src="${esc(c.ava||'')}"></div>
+      <div class="wxMid"><div class="wxName">${esc(c.name||'')}</div>
+        <div class="wxLast">${esc(c.sign||'')}</div></div></div>`).join('')
+      : '<div class="wxEmpty">通讯录空的</div>';
+  }
+
+  async function renderMe(){
+    const m = await getMe();
+    const ava = document.querySelector('#meSet .meAva img, .meAva img');
+    const nm  = document.querySelector('#meSet .meName, .meName');
+    if(ava) ava.src = m.ava || '';
+    if(nm)  nm.textContent = m.name || '';
+    return m;
+  }
+
+  async function migrate(){
+    const raw = localStorage.getItem('xm_contacts');
+    if(raw){ let o=[]; try{o=JSON.parse(raw)||[];}catch(e){}
+      for(const c of o) await putContact(c); localStorage.removeItem('xm_contacts'); }
+    const ava = localStorage.getItem('xm_ava');
+    if(ava){ await saveMe({ava}); }
+  }
+
+  window.XM_CT = { allContacts, putContact, delContact, getMe, saveMe, renderContacts, renderMe };
+
+  document.addEventListener('click', async e=>{
+    const r = e.target.closest('[data-ct]');
+    if(r && window.XM_WX && XM_WX.openChat) return;
+  });
+
+  (async()=>{ await migrate(); renderContacts(); renderMe(); })();
+})();
+
+/* ===== 块5：朋友圈发图 + 点赞评论 ===== */
+(function(){
+  const DB = () => window.__xmDB;
+  const ST = 'moments';
+  const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  function pickImgs(){
+    return new Promise(res=>{
+      const f=document.createElement('input');
+      f.type='file'; f.accept='image/*'; f.multiple=true;
+      f.onchange=()=>{
+        const fs=[...f.files].slice(0,9); if(!fs.length) return res([]);
+        let out=[], n=0;
+        fs.forEach(file=>{
+          const r=new FileReader();
+          r.onload=()=>{
+            const im=new Image();
+            im.onload=()=>{
+              const mx=1080, s=Math.min(1, mx/Math.max(im.width,im.height));
+              const cv=document.createElement('canvas');
+              cv.width=im.widths|0; cv.height=im.heights|0;
+              cv.getContext('2d').drawImage(im,0,0,cv.width,cv.height);
+              out.push(cv.toDataURL('image/jpeg',0.82));
+              if(++n===fs.length) res(out);
+            };
+            im.src=r.result;
+          };
+          r.readAsDataURL(file);
+        });
+      };
+      f.click();
+    });
+  }
+
+  async function addMoment(text, imgs){
+    const db = await DB();
+    const m = {id:'m_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      text:text||'', imgs:imgs||[], ts:Date.now(), likes:[], comments:[]};
+    await db.put(ST, m); return m;
+  }
+  async function getMoment(id){ const db=await DB(); return db.get(ST,id); }
+  async function saveMoment(m){ const db=await DB(); await db.put(ST,m); return m; }
+
+  async function toggleLike(id, who){
+    const m = await getMoment(id); if(!m) return null;
+    m.likes = m.likes||[];
+    const i = m.likes.indexOf(who);
+    i<0 ? m.likes.push(who) : m.likes.splice(i,1);
+    return saveMoment(m);
+  }
+  async function addComment(id, who, text){
+    const m = await getMoment(id); if(!m) return null;
+    m.comments = m.comments||[];
+    m.comments.push({who, text, ts:Date.now()});
+    return saveMoment(m);
+  }
+  async function delComment(id, idx){
+    const m = await getMoment(id); if(!m||!m.comments) return null;
+    m.comments.splice(idx,1); return saveMoment(m);
+  }
+
+  window.XM_MOM2 = { pickImgs, addMoment, getMoment, saveMoment, toggleLike, addComment, delComment };
+
+  document.addEventListener('click', async e=>{
+    if(e.target.closest('.momPick') || e.target.closest('#momPick')){
+      const ta=document.querySelector('.momInput')||document.querySelector('#momInput');
+      const imgs = await pickImgs();
+      if(!imgs.length) return;
+      await addMoment(ta?ta.value.trim():'', imgs);
+      if(ta) ta.value='';
+      if(window.XM_MOM && XM_MOM.render) XM_MOM.render();
+      return;
+    }
+    const lk = e.target.closest('[data-like]');
+    if(lk){ await toggleLike(lk.dataset.like, '我'); if(window.XM_MOM) XM_MOM.render(); return; }
+  });
+})();
+
+/* ===== 块6：发现页 + 钱包 ===== */
+(function(){
+  const DB = () => window.__xmDB;
+  const ST = 'wallet';
+  const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  const IC = {
+    moments:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="9" r="2.2"/><path d="M7.5 17c.8-2 2.5-3 4.5-3s3.7 1 4.5 3"/></svg>',
+    scan:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 8V5h3M20 8V5h-3M4 16v3h3M20 16v3h-3"/><path d="M4 12h16"/></svg>',
+    shake:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M3.5 8l2 2-2 2M20.5 8l-2 2 2 2"/></svg>',
+    wallet:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18"/><circle cx="17" cy="14" r="1.2"/></svg>',
+    mini:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8.5" cy="8.5" r="4"/><circle cx="15.5" cy="15.5" r="4"/></svg>'
+  };
+
+  const DISCOVER = [
+    {k:'moments', t:'朋友圈', i:IC.moments},
+    {k:'scan',    t:'扫一扫', i:IC.scan},
+    {k:'shake',   t:'摇一摇', i:IC.shake},
+    {k:'wallet',  t:'钱包',   i:IC.wallet},
+    {k:'mini',    t:'小程序', i:IC.mini}
+  ];
+
+  function renderDiscover(){
+    const box = document.querySelector('.dcList') || document.querySelector('#dcList');
+    if(!box) return;
+    box.innerHTML = DISCOVER.map(d=>`<div class="wxRow" data-dc="${d.k}">
+      <div class="wxAva dcIc">${d.i}</div>
+      <div class="wxMid"><div class="wxName">${d.t}</div></div>
+      <div class="wxRight">›</div></div>`).join('');
+  }
+
+  async function getWallet(){ const db=await DB(); return (await db.get(ST,'me')) || {id:'me', balance:0, log:[]}; }
+  async function saveWallet(w){ const db=await DB(); await db.put(ST,w); return w; }
+  async function tx(amount, note){
+    const w = await getWallet();
+    w.balance = Math.round((w.balance + amount)*100)/100;
+    w.log = w.log||[];
+    w.log.unshift({amount, note:note||'', ts:Date.now(), after:w.balance});
+    if(w.log.length>200) w.log.length=200;
+    return saveWallet(w);
+  }
+
+  async function renderWallet(){
+    const box = document.querySelector('.wlBody') || document.querySelector('#wlBody');
+    if(!box) return;
+    const w = await getWallet();
+    const rows = (w.log||[]).map(l=>`<div class="wxRow">
+      <div class="wxMid"><div class="wxName">${esc(l.note||'—')}</div>
+        <div class="wxLast">${new Date(l.ts).toLocaleString('zh-HK',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</div></div>
+      <div class="wxRight" style="color:${l.amount<0?'#8a8a8a':'#4a9e5c'}">${l.amount>0?'+':''}${l.amount}</div>
+    </div>`).join('');
+    box.innerHTML = `<div class="wlTop"><div class="wlBal">¥ ${w.balance}</div></div>
+      <div class="wlList">${rows||'<div class="wxEmpty">还没有记录</div>'}</div>`;
+  }
+
+  window.XM_DC = { renderDiscover, getWallet, saveWallet, tx, renderWallet };
+
+  document.addEventListener('click', async e=>{
+    const d = e.target.closest('[data-dc]');
+    if(!d) return;
+    const k = d.dataset.dc;
+    if(k==='wallet'){ if(window.openApp) openApp('wallet'); renderWallet(); }
+    else if(k==='moments'){ if(window.openApp) openApp('moments'); }
+  });
+
+  renderDiscover();
+})();
+
+/* ===== 块7：设置 + 备份 ===== */
+(function(){
+  const DB = () => window.__xmDB;
+  const TABLES = ['chats','moments','contacts','wallet','me'];
+
+  async function exportAll(){
+    const db = await DB();
+    const out = {ver:1, ts:Date.now(), data:{}};
+    for(const t of TABLES) out.data[t] = await db.all(t);
+    return out;
+  }
+
+  function download(name, text){
+    const b = new Blob([text], {type:'application/json'});
+    const u = URL.createObjectURL(b);
+    const a = document.createElement('a');
+    a.href = u; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(u), 3000);
+  }
+
+  async function doExport(){
+    const d = await exportAll();
+    const n = new Date();
+    const p = x=>String(x).padStart(2,'0');
+    download(xm-backup-${n.getFullYear()}${p(n.getMonth()+1)}${p(n.getDate())}.json,
+      JSON.stringify(d, null, 2));
+  }
+
+  function pickFile(){
+    return new Promise(res=>{
+      const f=document.createElement('input');
+      f.type='file'; f.accept='.json,application/json';
+      f.onchange=()=>{
+        const file=f.files[0]; if(!file) return res(null);
+        const r=new FileReader();
+        r.onload=()=>{ try{ res(JSON.parse(r.result)); }catch(e){ res({__err:e.message}); } };
+        r.readAsText(file);
+      };
+      f.click();
+    });
+  }
+
+  async function doImport(){
+    const d = await pickFile();
+    if(!d) return {ok:false, msg:'没选文件'};
+    if(d.__err) return {ok:false, msg:'JSON 坏了：'+d.__err};
+    if(!d.data) return {ok:false, msg:'不是备份文件'};
+    const db = await DB();
+    let n = 0;
+    for(const t of TABLES){
+      const arr = d.data[t] || [];
+      for(const row of arr){ await db.put(t, row); n++; }
+    }
+    return {ok:true, msg:导入 ${n} 条};
+  }
+
+  window.XM_BAK = { exportAll, doExport, doImport };
+
+  document.addEventListener('click', async e=>{
+    if(e.target.closest('#bakOut') || e.target.closest('.bakOut')){ doExport(); return; }
+    if(e.target.closest('#bakIn') || e.target.closest('.bakIn')){
+      const r = await doImport();
+      if(window.toast) toast(r.msg);
+      if(window.XM_WX) XM_WX.renderList();
+      if(window.XM_MOM) XM_MOM.render();
+      return;
+    }
+  });
+})();
+
+/* ===== 块8：微信聊天接中继 ===== */
+(function(){
+  const DB = () => window.__xmDB;
+  const ST = 'chats';
+  const KEY = () => (window.S && S.relay) || '';
+
+  function jpost(url, body, sig){
+    return fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json', ...(sig?{Authorization:'Bearer '+sig}:{})},
+      body:JSON.stringify(body)
+    }).then(r=>r.json());
+  }
+
+  async function ensureChat(cid, name){
+    const db = await DB();
+    let c = await db.get(ST, cid);
+    if(!c){ c = {id:cid, name:name||cid, msgs:[], ts:Date.now(), unread:0, last:''}; await db.put(ST,c); }
+    return c;
+  }
+
+  async function send(cid, text){
+    if(!text || !text.trim()) return;
+    const base = KEY();
+    if(!base) return {ok:false, msg:'没配中继'};
+    const c = await ensureChat(cid);
+    c.msgs = c.msgs||[];
+    c.msgs.push({role:'user', text, ts:Date.now()});
+    c.last = text; c.ts = Date.now();
+    await DB().then(d=>d.put(ST,c));
+    if(window.XM_WX) XM_WX.renderList();
+
+    try{
+      await jpost(base.replace(/\/$/,'')+'/generate', {
+        chat_id: cid,
+        messages: c.msgs.map(m=>({role: m.role==='user'?'user':'assistant', content:m.text}))
+      });
+    }catch(e){ return {ok:false, msg:'发送失败'}; }
+    return {ok:true};
+  }
+
+  async function poll(cid){
+    const base = KEY();
+    if(!base) return null;
+    let res;
+    try{ res = await jpost(base.replace(/\/$/,'')+'/outbox', {chat_id: cid}); }
+    catch(e){ return null; }
+    const list = (res && (res.messages || res.items)) || [];
+    if(!list.length) return null;
+
+    const db = await DB();
+    const c = await db.get(ST, cid); if(!c) return null;
+    c.msgs = c.msgs||[];
+    const ids = [];
+    for(const m of list){
+      const text = m.text || m.content || '';
+      if(!text) continue;
+      c.msgs.push({role: m.role==='user'?'user':'ai', text, ts: m.ts||Date.now()});
+      c.last = text;
+      if(m.id) ids.push(m.id);
+    }
+    c.ts = Date.now();
+    if(c.unread!=null) c.unread = 0;
+    await db.put(ST, c);
+    if(ids.length){
+      try{ await jpost(base.replace(/\/$/,'')+'/ack', {chat_id: cid, ids}); }catch(e){}
+    }
+    if(window.XM_WX) XM_WX.renderList();
+    return c.msgs;
+  }
+
+  window.XM_RELAY = { send, poll };
+})();
+
+/* ===== 块9：输入栏接管 + 轮询 + 皮肤 ===== */
+(function(){
+  let curCid = null, timer = null;
+
+  function isWx(){
+    const l = document.getElementById('wxLayer') || document.querySelector('#wx');
+    return l && getComputedStyle(l).display !== 'none';
+  }
+
+  function applySkin(on){
+    document.body.classList.toggle('wxskin', !!on);
+    try{ localStorage.setItem('xm_wxskin', on?'1':'0'); }catch(e){}
+  }
+
+  function startPoll(cid){
+    stopPoll();
+    curCid = cid;
+    if(!cid) return;
+    timer = setInterval(async ()=>{
+      const msgs = await window.XM_RELAY.poll(cid);
+      if(msgs && window.XM_CHAT && XM_CHAT.load) XM_CHAT.load(msgs);
+    }, 3000);
+  }
+  function stopPoll(){ if(timer){ clearInterval(timer); timer=null; } curCid=null; }
+
+  function wireInput(){
+    const bar = document.querySelector('.inputbar');
+    if(!bar) return;
+    const ta = bar.querySelector('textarea, input[type=text]');
+    const btn = bar.querySelector('.send, #send, [data-send]');
+    if(!ta || !btn) return;
+
+    const fire = async ()=>{
+      const t = (ta.value||'').trim();
+      if(!t || !curCid) return;
+      ta.value=''; ta.style.height='auto';
+      const r = await window.XM_RELAY.send(curCid, t);
+      if(!r || !r.ok){ if(window.toast) toast(r&&r.msg||'发失败'); return; }
+      startPoll(curCid);
+    };
+
+    if(!btn.__xmWired){
+      btn.__xmWired = true;
+      btn.addEventListener('click', e=>{ e.preventDefault(); fire(); });
+      ta.addEventListener('keydown', e=>{
+        if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); fire(); }
+      });
+    }
+  }
+
+  window.XM_CHATUI = {
+    open(cid){
+      curCid = cid;
+      startPoll(cid);
+      setTimeout(wireInput, 100);
+    },
+    close(){ stopPoll(); },
+    applySkin,
+    get skin(){ return document.body.classList.contains('wxskin'); }
+  };
+
+  // 启动时读皮肤
+  try{ applySkin(localStorage.getItem('xm_wxskin')==='1'); }catch(e){}
+
+  // 微信层被点开/关闭时切换轮询
+  document.addEventListener('click', e=>{
+    if(e.target.closest('[data-cid]')){
+      const r = e.target.closest('[data-cid]');
+      setTimeout(()=>XM_CHATUI.open(r.dataset.cid), 50);
+    }
+    const back = e.target.closest('.ovtop .back, #ovBack, .wxBack');
+    if(back) XM_CHATUI.close();
+    const sk = e.target.closest('#skinToggle, .skinToggle');
+    if(sk) applySkin(!XM_CHATUI.skin);
+  });
+})();
+
+/* ===== 块10：群聊 + 红包 ===== */
+(function(){
+  const DB = () => window.__xmDB;
+  const ST = 'chats';
+  const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const rid = p => p+''+Date.now()+''+Math.random().toString(36).slice(2,6);
+
+  async function createGroup(name, members){
+    const db = await DB();
+    const g = {id:rid('g'), name:name||'群聊', members:members||[], msgs:[], ts:Date.now(), unread:0, last:'', group:true};
+    await db.put(ST, g);
+    if(window.XM_WX) XM_WX.renderList();
+    return g;
+  }
+
+  async function addMember(gid, name){
+    const db = await DB(); const g = await db.get(ST, gid); if(!g) return null;
+    g.members = g.members||[];
+    if(!g.members.includes(name)) g.members.push(name);
+    await db.put(ST, g); return g;
+  }
+  async function delMember(gid, name){
+    const db = await DB(); const g = await db.get(ST, gid); if(!g) return null;
+    g.members = (g.members||[]).filter(m=>m!==name);
+    await db.put(ST, g); return g;
+  }
+
+  async function pushGroupMsg(gid, sender, text){
+    const db = await DB(); const g = await db.get(ST, gid); if(!g) return null;
+    g.msgs = g.msgs||[];
+    g.msgs.push({role: sender==='我'?'user':'ai', sender, text, ts:Date.now()});
+    g.last = (g.members.length>2 && sender!=='我' ? sender+'：' : '')+text;
+    g.ts = Date.now();
+    await db.put(ST, g);
+    if(window.XM_WX) XM_WX.renderList();
+    return g;
+  }
+
+  // —— 红包 ——
+  async function sendPacket(cid, amount, note, count){
+    const db = await DB(); const c = await db.get(ST, cid); if(!c) return null;
+    c.msgs = c.msgs||[];
+    c.msgs.push({role:'user', type:'rp', ts:Date.now(),
+      rp:{id:rid('rp'), amount:Math.round(amount*100)/100, note:note||'恭喜发财', total:count||1, got:[], open:false}});
+    c.last = '[红包] '+ (note||'恭喜发财'); c.ts = Date.now();
+    await db.put(ST, c);
+    if(window.XM_WX) XM_WX.renderList();
+    return c;
+  }
+
+  async function openPacket(cid, msgTs, who){
+    const db = await DB(); const c = await db.get(ST, cid); if(!c) return null;
+    const m = (c.msgs||[]).find(x=>x.ts===msgTs && x.rp); if(!m) return null;
+    const rp = m.rp;
+    if(rp.got.includes(who)) return {ok:false, msg:'已经领过了'};
+    if(rp.got.length >= rp.total) return {ok:false, msg:'红包被抢光了'};
+    const left = rp.total - rp.got.length;
+    let amt;
+    if(left<=1) amt = Math.round((rp.amount - rp.got.reduce((s,g)=>s+g.amount,0))*100)/100;
+    else{
+      const avg = (rp.amount - rp.got.reduce((s,g)=>s+g.amount,0)) / left;
+      amt = Math.round(avg * (0.5 + Math.random()) * 100)/100;
+      const rest = rp.amount - rp.got.reduce((s,g)=>s+g.amount,0);
+      if(amt > rest - (left-1)*0.01) amt = Math.round((rest - (left-1)*0.01)*100)/100;
+      if(amt < 0.01) amt = 0.01;
+    }
+    rp.got.push({who, amount:amt, ts:Date.now()});
+    if(rp.got.length >= rp.total) rp.open = true;
+    await db.put(ST, c);
+    if(window.XM_DC && who==='我') await XM_DC.tx(amt, '收到红包');
+    return {ok:true, amount:amt, rp};
+  }
+
+  window.XM_GROUP = { createGroup, addMember, delMember, pushGroupMsg, sendPacket, openPacket };
+
+  document.addEventListener('click', async e=>{
+    const rp = e.target.closest('[data-rp]');
+    if(rp){
+      const ts = Number(rp.dataset.rp);
+      const box = rp.closest('[data-cid]');
+      const cid = box ? box.dataset.cid : (window.__curCid||null);
+      const res = await openPacket(cid, ts, '我');
+      if(window.toast) toast(res && res.ok ? 抢到 ¥${res.amount} : (res&&res.msg||'打不开'));
+      if(window.XM_MOM) {}
+    }
+  });
+})();
+
+/* ===== 块10：群聊 + 红包 ===== */
+(function(){
+  const DB = () => window.__xmDB;
+  const ST = 'chats';
+  const rid = p => p+''+Date.now()+''+Math.random().toString(36).slice(2,6);
+
+  async function createGroup(name, members){
+    const db = await DB();
+    const g = {id:rid('g'), name:name||'群聊', members:members||[],
+      msgs:[], ts:Date.now(), unread:0, last:'', group:true};
+    await db.put(ST, g);
+    if(window.XM_WX) XM_WX.renderList();
+    return g;
+  }
+  async function addMember(gid, name){
+    const db = await DB(); const g = await db.get(ST, gid); if(!g) return null;
+    g.members = g.members||[];
+    if(!g.members.includes(name)) g.members.push(name);
+    await db.put(ST, g); return g;
+  }
+  async function delMember(gid, name){
+    const db = await DB(); const g = await db.get(ST, gid); if(!g) return null;
+    g.members = (g.members||[]).filter(m=>m!==name);
+    await db.put(ST, g); return g;
+  }
+  async function pushGroupMsg(gid, sender, text){
+    const db = await DB(); const g = await db.get(ST, gid); if(!g) return null;
+    g.msgs = g.msgs||[];
+    g.msgs.push({role: sender==='我'?'user':'ai', sender, text, ts:Date.now()});
+    g.last = (g.members.length>2 && sender!=='我' ? sender+'：' : '')+text;
+    g.ts = Date.now();
+    await db.put(ST, g);
+    if(window.XM_WX) XM_WX.renderList();
+    return g;
+  }
+
+  async function sendPacket(cid, amount, note, count){
+    const db = await DB(); const c = await db.get(ST, cid); if(!c) return null;
+    const id = rid('rp');
+    c.msgs = c.msgs||[];
+    c.msgs.push({role:'user', type:'rp', text:'[[RP:'+id+']]', ts:Date.now(),
+      rp:{id, amount:Math.round(amount*100)/100, note:note||'恭喜发财',
+          total:count||1, got:[], open:false}});
+    c.last = '[红包] '+(note||'恭喜发财');
+    c.ts = Date.now();
+    await db.put(ST, c);
+    if(window.XM_WX) XM_WX.renderList();
+    return c;
+  }
+
+  async function openPacket(rpId, who){
+    const db = await DB();
+    for(const c of await db.all(ST)){
+      const m = (c.msgs||[]).find(x=>x.rp && x.rp.id===rpId);
+      if(!m) continue;
+      const rp = m.rp;
+      if(rp.got.some(g=>g.who===who)) return {ok:false, msg:'已经领过了'};
+      if(rp.got.length >= rp.total) return {ok:false, msg:'红包被抢光了'};
+      const rest = Math.round((rp.amount - rp.got.reduce((s,g)=>s+g.amount,0))*100)/100;
+      const left = rp.total - rp.got.length;
+      let amt;
+      if(left <= 1) amt = rest;
+      else{
+        const avg = rest/left;
+        amt = Math.round(avg*(0.5+Math.random())*100)/100;
+        if(amt > rest-(left-1)*0.01) amt = Math.round((rest-(left-1)*0.01)*100)/100;
+        if(amt < 0.01) amt = 0.01;
+      }
+      rp.got.push({who, amount:amt, ts:Date.now()});
+      if(rp.got.length >= rp.total) rp.open = true;
+      await db.put(ST, c);
+      if(who==='我' && window.XM_DC) await XM_DC.tx(amt, '收到红包');
+      return {ok:true, amount:amt, rp};
+    }
+    return {ok:false, msg:'找不到这个红包'};
+  }
+
+  window.XM_GROUP = { createGroup, addMember, delMember, pushGroupMsg, sendPacket, openPacket };
+
+  document.addEventListener('click', async e=>{
+    const el = e.target.closest('[data-rp]');
+    if(!el) return;
+    const res = await openPacket(el.dataset.rp, '我');
+    if(window.toast) toast(res && res.ok ? ('抢到 ¥'+res.amount) : ((res&&res.msg)||'打不开'));
+    if(res && res.ok && window.XM_RPUI) XM_RPUI.scan();
+  });
+})();
+
+
+/* ===== 块11：红包气泡替换 ===== */
+(function(){
+  const DB = () => window.__xmDB;
+  const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  function rpHTML(rp){
+    const got = rp.got||[];
+    const left = Math.max(0,(rp.total||1)-got.length);
+    const mine = got.find(g=>g.who==='我');
+    const face = left===0 ? '已领完' : (mine ? '¥'+mine.amount : '¥ '+rp.amount);
+    return `<div class="rp${left===0?' rpDone':''}" data-rp="${esc(rp.id)}">
+      <div class="rpTop"><span class="rpIco"></span><span class="rpTxt">${esc(rp.note||'恭喜发财')}</span></div>
+      <div class="rpBot">${face}</div>
+      <div class="rpMeta">${got.length}/${rp.total||1} 已领</div>
+    </div>`;
+  }
+
+  async function findRp(id){
+    const db = await DB();
+    for(const c of await db.all('chats'))
+      for(const m of (c.msgs||[]))
+        if(m.rp && m.rp.id===id) return m.rp;
+    return null;
+  }
+
+  function scan(){
+    document.querySelectorAll('body *').forEach(el=>{
+      if(el.dataset && el.dataset.rpDone) return;
+      if(el.children.length) return;
+      const t = el.textContent||'';
+      const i = t.indexOf('[[RP:'); if(i<0) return;
+      const j = t.indexOf(']]', i); if(j<0) return;
+      const id = t.slice(i+5, j);
+      const host = el.closest('.bub,.msg,.bubble') || el.parentElement || el;
+      findRp(id).then(rp=>{
+        if(!rp || !host) return;
+        host.dataset.rpDone = '1';
+        host.innerHTML = rpHTML(rp);
+      });
+    });
+  }
+
+  window.XM_RPUI = { scan, rpHTML };
+
+  new MutationObserver(()=>scan()).observe(document.body,{childList:true,subtree:true});
+  scan();
+})();
+
+
+/* ===== 块12：心声 / 情诗 / 翻译 ===== */
+(function(){
+  const KEY = () => (window.S && S.relay) || '';
+  const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  async function ask(prompt){
+    const base = KEY(); if(!base) return '';
+    const r = await fetch(base.replace(/\/$/,'')+'/generate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({chat_id:'__util__', messages:[{role:'user', content:prompt}]})
+    }).then(r=>r.json()).catch(()=>null);
+    if(!r) return '';
+    const m = (r.messages||r.items||[])[0] || r;
+    return (m && (m.text||m.content)) || '';
+  }
+
+  async function heart(msgText){
+    return ask(以第一人称写一段祁砚此刻的「心声」，不要引号、不要前缀，只写正文，40字内。上下文：${msgText});
+  }
+  async function poem(msgText){
+    return ask(写一首很短的中文情诗给恋人小咩，四行以内，不要标题、不要引号。主题：${msgText});
+  }
+  async function translate(text, lang){
+    return ask(把下面这段翻译成${lang||'英文'}，只输出译文，不要解释：\n${text});
+  }
+
+  function panel(title, body){
+    document.querySelectorAll('.xmPanel').forEach(e=>e.remove());
+    const d = document.createElement('div');
+    d.className='xmPanel';
+    d.innerHTML = `<div class="xmPanelTop">✦ ${esc(title)}</div>
+      <div class="xmPanelBody">${esc(body||'…')}</div>`;
+    document.body.appendChild(d);
+    d.addEventListener('click', ()=>d.remove());
+    setTimeout(()=>{ if(d.parentNode) d.remove(); }, 20000);
+  }
+
+  window.XM_UTIL = { ask, heart, poem, translate, panel };
+
+  document.addEventListener('click', async e=>{
+    const b = e.target.closest('[data-xm]');
+    if(!b) return;
+    const act = b.dataset.xm;
+    const src = b.dataset.text || '';
+    if(act==='heart'){ panel('心声', '…'); panel('心声', await heart(src)); }
+    if(act==='poem'){ panel('情诗', '…'); panel('情诗', await poem(src)); }
+    if(act==='trans'){ panel('翻译', '…'); panel('翻译', await translate(src, '英文')); }
+  });
+})();
+
+
+/* ===== 块13：扫一扫 / 摇一摇 / 小程序 ===== */
+(function(){
+  const DB = () => window.__xmDB;
+  const esc = s => String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  function sheet(html){
+    document.querySelectorAll('.xmSheet').forEach(e=>e.remove());
+    const d = document.createElement('div');
+    d.className='xmSheet';
+    d.innerHTML = <div class="xmSheetIn">${html}</div>;
+    document.body.appendChild(d);
+    d.addEventListener('click', e=>{ if(e.target===d) d.remove(); });
+    return d;
+  }
+
+  function loadJSQR(){
+    if(window.jsQR) return Promise.resolve(true);
+    if(window.__jsqrP) return window.__jsqrP;
+    window.__jsqrP = new Promise(res=>{
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+      s.onload = ()=>res(!!window.jsQR);
+      s.onerror = ()=>res(false);
+      document.head.appendChild(s);
+    });
+    return window.__jsqrP;
+  }
+
+  let scanStop = null;
+
+  async function scan(){
+    const s = sheet(`<div class="xmST">扫一扫</div>
+      <div class="xmScanWrap"><video id="xmScanV" playsinline muted></video>
+        <div class="xmScanFrame"></div></div>
+      <div class="xmSHint" id="xmScanHint">对准二维码</div>`);
+    const v = s.querySelector('#xmScanV');
+    const hint = s.querySelector('#xmScanHint');
+
+    let stream;
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        video:{ facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720} }
+      });
+    }catch(e){ hint.textContent='拿不到摄像头权限'; return; }
+
+    v.srcObject = stream;
+    try{ await v.play(); }catch(e){}
+
+    const stop = ()=>{
+      if(stream) stream.getTracks().forEach(t=>t.stop());
+      if(scanStop) scanStop = null;
+    };
+    scanStop = stop;
+    s.addEventListener('click', e=>{ if(e.target===s) stop(); });
+
+    const ok = await loadJSQR();
+    if(!ok){ hint.textContent='解码库没加载上，检查网络'; return; }
+
+    const cv = document.createElement('canvas');
+    const ctx = cv.getContext('2d', {willReadFrequently:true});
+    let dead = false, last = 0;
+
+    const tick = (t)=>{
+      if(dead || !v.isConnected){ stop(); return; }
+      if(t - last > 180 && v.readyState === 4){
+        last = t;
+        const w = v.videoWidth, h = v.videoHeight;
+        if(w && h){
+          cv.width = w; cv.height = h;
+          ctx.drawImage(v, 0, 0, w, h);
+          try{
+            const img = ctx.getImageData(0, 0, w, h);
+            const code = window.jsQR(img.data, w, h, {inversionAttempts:'attemptBoth'});
+            if(code && code.data){
+              dead = true;
+              stop();
+              if(navigator.vibrate) navigator.vibrate(50);
+              showResult(code.data);
+              return;
+            }
+          }catch(e){}
+        }
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  function showResult(text){
+    const isUrl = /^https?:\/\//i.test(text);
+    sheet(`<div class="xmST">扫到了</div>
+      <div class="xmSHint" style="margin-top:0">${esc(text)}</div>
+      <div class="xmSBtns">
+        ${isUrl ? <div class="xmSBtn" data-open="${esc(text)}">打开链接</div> : ''}
+        <div class="xmSBtn xmSBtn2" data-copy="${esc(text)}">复制内容</div>
+      </div>`);
+  }
+
+  /* —— 摇一摇 —— */
+  async function shake(){
+    const db = await DB();
+    const cs = await db.all('contacts');
+    if(!cs.length) return sheet('<div class="xmST">摇一摇</div><div class="xmSHint">通讯录还是空的</div>');
+    const c = cs[Math.floor(Math.random()*cs.length)];
+    sheet(`<div class="xmST">摇到一个人</div>
+      <div class="xmSRow"><img src="${esc(c.ava||'')}">
+        <div><div class="xmSN">${esc(c.name||'')}</div>
+        <div class="xmSHint" style="text-align:left;margin-top:2px">${esc(c.sign||'')}</div></div></div>
+      <div class="xmSBtn" data-shake-add="${esc(c.id)}">打个招呼</div>`);
+    if(navigator.vibrate) navigator.vibrate(60);
+  }
+
+  /* —— 小程序 —— */
+  const MINI = [
+    {k:'calc', t:'计算器'},
+    {k:'note', t:'备忘录'},
+    {k:'dice', t:'掷骰子'},
+    {k:'coin', t:'抛硬币'}
+  ];
+  function mini(){
+    sheet('<div class="xmST">小程序</div>' +
+      MINI.map(m=><div class="xmSItem" data-mini="${m.k}">${m.t}</div>).join(''));
+  }
+  function runMini(k){
+    if(k==='dice') return sheet(<div class="xmST">${1+Math.floor(Math.random()*6)}</div><div class="xmSHint">掷骰子</div>);
+    if(k==='coin') return sheet(<div class="xmST">${Math.random()<0.5?'正':'反'}</div><div class="xmSHint">抛硬币</div>);
+    if(k==='note') return sheet('<div class="xmST">备忘录</div><div class="xmSHint">在抽屉里打开</div>');
+    if(k==='calc') return sheet('<div class="xmST">计算器</div><div class="xmSHint">在抽屉里打开</div>');
+  }
+
+  window.XM_TOOL = { scan, shake, mini, runMini, sheet };
+
+  document.addEventListener('click', async e=>{
+    const d = e.target.closest('[data-dc]');
+    if(d){
+      const k = d.dataset.dc;
+      if(k==='scan') return scan();
+      if(k==='shake') return shake();
+      if(k==='mini') return mini();
+    }
+    const mi = e.target.closest('[data-mini]');
+    if(mi) return runMini(mi.dataset.mini);
+
+    const op = e.target.closest('[data-open]');
+    if(op){ window.open(op.dataset.open, '_blank'); document.querySelectorAll('.xmSheet').forEach(x=>x.remove()); return; }
+
+    const cp = e.target.closest('[data-copy]');
+    if(cp){ try{ await navigator.clipboard.writeText(cp.dataset.copy); if(window.toast) toast('已复制'); }catch(e){} 
+      document.querySelectorAll('.xmSheet').forEach(x=>x.remove()); return; }
+
+    const add = e.target.closest('[data-shake-add]');
+    if(add && window.XM_WX){
+      const cid = add.dataset.shakeAdd;
+      await XM_WX.putChat({id:cid, name:cid, msgs:[], ts:Date.now(), last:''});
+      XM_WX.renderList();
+      document.querySelectorAll('.xmSheet').forEach(x=>x.remove());
+    }
+  });
+})();
+
+/* ===== 块14：图片 + 语音消息 ===== */
+(function(){
+  var esc2 = function(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
+
+  /* ---------- 读图：和 wechat.js 里同一套 pick ---------- */
+  function pick(file, mx, cb){
+    var fr = new FileReader();
+    fr.onload = function(){
+      var im = new Image();
+      im.onload = function(){
+        var s = Math.min(1, mx / im.naturalWidth, mx / im.naturalHeight);
+        var c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(im.naturalWidth * s));
+        c.height = Math.max(1, Math.round(im.naturalHeight * s));
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+        cb(c.toDataURL('image/jpeg', .72));
+      };
+      im.onerror = function(){ cb(''); };
+      im.src = fr.result;
+    };
+    fr.onerror = function(){ cb(''); };
+    fr.readAsDataURL(file);
+  }
+
+  function fImg(){
+    var f = document.getElementById('xmImgIn');
+    if(!f){
+      f = document.createElement('input');
+      f.id = 'xmImgIn'; f.type = 'file'; f.accept = 'image/*';
+      f.style.display = 'none';
+      document.body.appendChild(f);
+    }
+    return f;
+  }
+
+  /* 发图：进 CHAT，thumb 存 dataURL */
+  function sendImage(file){
+    if(!file) return;
+    pick(file, 1280, function(url){
+      if(!url) return;
+      CHAT.push({ role:'user', text:'', thumb:url, t:Date.now() });
+      saveChat();
+      renderChat(true);
+      if(window.XM_RELAY) XM_RELAY.send('', '[图片]');
+    });
+  }
+
+  window.XM_MEDIA = Object.assign(window.XM_MEDIA || {}, {
+    pick: pick,
+    sendImage: sendImage,
+    openPicker: function(){ fImg().click(); }
+  });
+
+  fImg().onchange = function(){ if(this.files[0]) sendImage(this.files[0]); };
+
+  /* ---------- 语音 ---------- */
+  var rec = null, chunks = [], t0 = 0, mime = '';
+  function pickMime(){
+    var c = ['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/ogg'];
+    for(var i=0;i<c.length;i++){ if(window.MediaRecorder && MediaRecorder.isTypeSupported(c[i])) return c[i]; }
+    return '';
+  }
+  function startRec(){
+    if(rec) return;
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(st){
+      mime = pickMime();
+      rec = new MediaRecorder(st, mime ? {mimeType:mime} : undefined);
+      chunks = [];
+      rec.ondataavailable = function(e){ if(e.data.size) chunks.push(e.data); };
+      rec.start(); t0 = Date.now();
+      if(navigator.vibrate) navigator.vibrate(30);
+      if(window.toast) toast('松开发送');
+    }).catch(function(){ if(window.toast) toast('拿不到麦克风'); });
+  }
+  function stopRec(){
+    if(!rec) return;
+    var dur = Math.round((Date.now() - t0) / 1000);
+    var r = rec; rec = null;
+    r.onstop = function(){
+      r.stream.getTracks().forEach(function(t){ t.stop(); });
+      if(dur < 1 || !chunks.length) return;
+      var blob = new Blob(chunks, {type: mime || 'audio/mp4'});
+      var fr = new FileReader();
+      fr.onload = function(){
+        CHAT.push({ role:'user', text:'', aud:fr.result, dur:dur, t:Date.now() });
+        saveChat(); renderChat(true);
+      };
+      fr.readAsDataURL(blob);
+    };
+    try{ r.stop(); }catch(e){}
+  }
+
+  window.XM_MEDIA.startRec = startRec;
+  window.XM_MEDIA.stopRec = stopRec;
+
+  /* 消息里的图/音，画出来 */
+  function paint(){
+    var box = document.getElementById('msgs');
+    if(!box) return;
+    box.querySelectorAll('.wrap').forEach(function(w){
+      if(w.getAttribute('data-media')) return;
+      var i = +w.getAttribute('data-i');
+      var m = (typeof CHAT !== 'undefined' && CHAT[i]) || null;
+      if(!m || (!m.thumb && !m.aud)) return;
+      var bub = w.querySelector('.bub');
+      if(!bub) return;
+      w.setAttribute('data-media','1');
+      if(m.thumb){
+        bub.innerHTML = '<img class="ximg" src="'+m.thumb+'">';
+        bub.style.padding = '4px';
+      } else {
+        var bars = '';
+        for(var k=0;k<9;k++) bars += '<i style="height:'+(4+Math.round(Math.random()*10))+'px"></i>';
+        bub.innerHTML = '<span class="xaud" data-play="'+i+'"><span class="xwav">'+bars+
+          '</span><span class="xlen">'+m.dur+'"</span></span>';
+        bub.style.padding = '9px 12px';
+      }
+    });
+  }
+  new MutationObserver(function(){ setTimeout(paint, 60); })
+    .observe(document.body, {childList:true, subtree:true});
+  setTimeout(paint, 800);
+
+  document.addEventListener('click', function(e){
+    var p = e.target.closest && e.target.closest('[data-play]');
+    if(!p) return;
+    var m = CHAT[+p.dataset.play];
+    if(!m || !m.aud) return;
+    var a = new Audio(m.aud);
+    p.classList.add('playing');
+    a.onended = function(){ p.classList.remove('playing'); };
+    a.play().catch(function(){});
+  });
+})();
+
+/* ===== 块15：语音通话 ===== */
+(function(){
+  var st = document.createElement('style');
+  st.textContent =
+    '#xmCall{position:fixed;inset:0;z-index:80;display:none;flex-direction:column;'+
+      'align-items:center;justify-content:space-between;background:#101012;color:#f2f2f2;'+
+      'padding:calc(env(safe-area-inset-top) + 46px) 0 calc(env(safe-area-inset-bottom) + 44px)}'+
+    '#xmCall.on{display:flex}'+
+    '.xmCAva{width:104px;height:104px;border-radius:50%;background:#F6F1C9 center/cover;'+
+      'position:relative;z-index:2;box-shadow:0 8px 40px rgba(0,0,0,.5)}'+
+    '.xmCName{font-size:20px;font-weight:500;margin-top:18px;position:relative;z-index:2}'+
+    '.xmCTime{font-size:13px;color:#9a9a9e;margin-top:6px;position:relative;z-index:2}'+
+    '.xmCCap{font-size:14px;line-height:1.7;color:#e8e8e8;max-width:80vw;text-align:center;'+
+      'margin-top:22px;position:relative;z-index:2;white-space:pre-wrap}'+
+    '.xmCBtns{display:flex;gap:52px;position:relative;z-index:2}'+
+    '.xmCBtn{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;'+
+      'justify-content:center;background:rgba(255,255,255,.16)}'+
+    '.xmCBtn.hang{background:#e5484d}'+
+    '.xmCBtn svg{width:26px;height:26px}'+
+    '.xmCBtn.hang svg{transform:rotate(135deg)}';
+  document.head.appendChild(st);
+
+  var PHONE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M7.4 3.8 9.6 8l-2 1.7c.9 1.9 2.4 3.4 4.3 4.3l1.7-2 4.2 2.2-.6 3c-.2.9-1 1.5-1.9 1.4C9.6 17.8 5.6 13.8 4.4 8.1c-.1-.9.4-1.7 1.3-2z"/></svg>';
+
+  var layer = document.createElement('div');
+  layer.id = 'xmCall';
+  layer.innerHTML =
+    '<div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center">'+
+      '<div class="xmCAva" id="xmCAva"></div>'+
+      '<div class="xmCName" id="xmCName">祁砚</div>'+
+      '<div class="xmCTime" id="xmCTime">正在呼叫…</div>'+
+      '<div class="xmCCap" id="xmCCap"></div>'+
+    '</div>'+
+    '<div class="xmCBtns"><div class="xmCBtn hang" id="xmCHang">'+PHONE+'</div></div>';
+  document.body.appendChild(layer);
+
+  var timer = null, sec = 0, talk = null;
+
+  function fmt(n){ var m = Math.floor(n/60), s = n%60;
+    return (m<10?'0':'')+m+':'+(s<10?'0':'')+s; }
+
+  function speak(text){
+    if(!text) return;
+    var cfg = {};
+    try{ cfg = JSON.parse(localStorage.getItem('xm_tts') || '{}'); }catch(e){}
+    if(!+cfg.on) return;
+    try{
+      var u = new SpeechSynthesisUtterance(String(text).slice(0,300));
+      u.rate = Math.max(.5, Math.min(2, +cfg.speed || 1));
+      u.lang = 'zh-CN';
+      var vs = speechSynthesis.getVoices() || [];
+      var v = vs.filter(function(x){ return /zh[-_]|Chinese|中文/i.test(x.lang + ' ' + x.name); })[0];
+      if(v) u.voice = v;
+      speechSynthesis.speak(u);
+    }catch(e){}
+  }
+
+  async function line(kind, n){
+    if(!S.key || !S.apiUrl) return '';
+    var rid = 'call' + Date.now() + Math.random().toString(36).slice(2,6);
+    var prompt = kind === 'open'
+      ? '小咩打给你了。写一句接起电话时说的话，25 字内，只写说的内容，不要引号。'
+      : '通话中，你已经说了 ' + n + ' 句。再自然说一句，25 字内，只写说的内容，不要引号。';
+    try{
+      await api('/generate', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ requestId: rid, inboxId: S.inbox,
+          messages:[{role:'system',content:PERSONA},{role:'user',content:prompt}],
+          settings:{ mainApiUrl:S.apiUrl, mainApiKey:S.apiKey, mainApiModel:S.model,
+                     apiType:S.apiType||'openai', temperature:0.95 },
+          meta:{ charName:'祁砚', charId:'kai' } }) });
+    }catch(e){ return ''; }
+    for(var i=0;i<14;i++){
+      await new Promise(function(r){ setTimeout(r, i?1800:700); });
+      try{
+        var j = await api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
+        var f = (j.items||[]).filter(function(x){ return String(x.requestId)===String(rid); })[0];
+        if(f){
+          api('/ack', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ inboxId:S.inbox, ids:[f.id] }) }).catch(function(){});
+          var t = String(f.content||'').replace(/\[\[[\s\S]*?\]\]/g,'').trim();
+          return t.split('\n').filter(function(x){ return x.trim(); })[0] || '';
+        }
+      }catch(e){}
+    }
+    return '';
+  }
+
+  async function start(){
+    layer.classList.add('on');
+    document.getElementById('xmCCap').textContent = '';
+    document.getElementById('xmCTime').textContent = '正在呼叫…';
+    document.getElementById('xmCAva').style.backgroundImage =
+      "url('" + (localStorage.getItem('xm_kai_ava') || '') + "')";
+
+    sec = 0;
+    timer = setInterval(function(){
+      sec++;
+      document.getElementById('xmCTime').textContent = fmt(sec);
+    }, 1000);
+
+    var t = await line('open', 0);
+    document.getElementById('xmCCap').textContent = t || '喂？';
+    if(t) speak(t);
+
+    var n = 1;
+    talk = setInterval(async function(){
+      if(!layer.classList.contains('on')) return;
+      var s = await line('talk', n);
+      if(s){ document.getElementById('xmCCap').textContent = s; speak(s); n++; }
+    }, 14000);
+  }
+
+  function hang(){
+    layer.classList.remove('on');
+    if(timer){ clearInterval(timer); timer = null; }
+    if(talk){ clearInterval(talk); talk = null; }
+    try{ speechSynthesis.cancel(); }catch(e){}
+    CHAT.push({ role:'assistant', text:'（通话结束，'+fmt(sec)+'）', t:Date.now() });
+    saveChat(); renderChat(true);
+  }
+
+  document.addEventListener('click', function(e){
+    if(!e.target.closest) return;
+    var v = e.target.closest('[data-call]');
+    if(v && v.dataset.call === 'voice'){ start(); return; }
+    if(e.target.closest('#xmCHang')) hang();
+  });
+
+  window.XM_CALL = { start: start, hang: hang };
+})();
+
+/* ===== 块16：位置共享 ===== */
+(function(){
+  var st = document.createElement('style');
+  st.textContent =
+    '#msgs .xloc{width:200px;border-radius:8px;overflow:hidden;background:#fff;border:1px solid rgba(0,0,0,.08)}'+
+    '#msgs .xloc .hd{padding:8px 10px;font-size:13px;color:#2b2b2b}'+
+    '#msgs .xloc .mp{height:96px;background:#e8e8e4 center/cover;position:relative}'+
+    '#msgs .xloc .mp::after{content:"";position:absolute;left:50%;top:50%;width:10px;height:10px;'+
+      'margin:-9px 0 0 -5px;background:#e5484d;border-radius:50% 50% 50% 0;transform:rotate(-45deg);'+
+      'box-shadow:0 2px 6px rgba(0,0,0,.3)}';
+  document.head.appendChild(st);
+
+  function send(){
+    if(!navigator.geolocation){ if(window.toast) toast('这台设备不给定位'); return; }
+    if(window.toast) toast('定位中…');
+    navigator.geolocation.getCurrentPosition(function(p){
+      var lat = +p.coords.latitude.toFixed(6), lng = +p.coords.longitude.toFixed(6);
+      CHAT.push({ role:'user', text:'', loc:{lat:lat, lng:lng}, t:Date.now() });
+      saveChat(); renderChat(true);
+      reply(lat, lng);
+    }, function(){ if(window.toast) toast('定位失败'); }, {enableHighAccuracy:true, timeout:8000});
+  }
+
+  async function reply(lat, lng){
+    if(!S.key || !S.apiUrl) return;
+    var rid = 'loc' + Date.now() + Math.random().toString(36).slice(2,6);
+    api('/generate', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ requestId: rid, inboxId: S.inbox,
+        messages:[{role:'system',content:PERSONA},
+          {role:'user',content:'小咩把位置发给你了：'+lat+','+lng+'。用一句话回她，25 字内。'}],
+        settings:{ mainApiUrl:S.apiUrl, mainApiKey:S.apiKey, mainApiModel:S.model,
+                   apiType:S.apiType||'openai', temperature:0.95 },
+        meta:{ charName:'祁砚', charId:'kai' } }) }).catch(function(){ return; });
+    for(var i=0;i<12;i++){
+      await new Promise(function(r){ setTimeout(r, i?1800:700); });
+      try{
+        var j = await api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
+        var f = (j.items||[]).filter(function(x){ return String(x.requestId)===String(rid); })[0];
+        if(f){
+          api('/ack', { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ inboxId:S.inbox, ids:[f.id] }) }).catch(function(){});
+          CHAT.push({ role:'assistant', text: String(f.content||'').replace(/\[\[[\s\S]*?\]\]/g,'').trim(),
+                      t:Date.now() });
+          saveChat(); renderChat(true); return;
+        }
+      }catch(e){}
+    }
+  }
+
+  function paint(){
+    var box = document.getElementById('msgs'); if(!box) return;
+    box.querySelectorAll('.wrap').forEach(function(w){
+      if(w.getAttribute('data-loc')) return;
+      var i = +w.getAttribute('data-i');
+      var m = (typeof CHAT !== 'undefined' && CHAT[i]) || null;
+      if(!m || !m.loc) return;
+      var bub = w.querySelector('.bub'); if(!bub) return;
+      w.setAttribute('data-loc','1');
+      bub.innerHTML = '<div class="xloc" data-map="'+m.loc.lat+','+m.loc.lng+'">'+
+        '<div class="hd">我的位置</div>'+
+        '<div class="mp" style="background-image:url(https://staticmap.openstreetmap.de/staticmap.php?center='+
+        m.loc.lat+','+m.loc.lng+'&zoom=15&size=400x200&markers='+m.loc.lat+','+m.loc.lng+',red-pushpin)"></div>'+
+        '</div>';
+      bub.style.padding = '4px';
+    });
+  }
+  new MutationObserver(function(){ setTimeout(paint, 60); }).observe(document.body,{childList:true,subtree:true});
+  setTimeout(paint, 900);
+
+  document.addEventListener('click', function(e){
+    if(!e.target.closest) return;
+    var b = e.target.closest('[data-loc-send]');
+    if(b){ send(); return; }
+    var mp = e.target.closest('[data-map]');
+    if(mp){ window.open('https://maps.apple.com/?ll='+mp.dataset.map, '_blank'); }
+  });
+
+  window.XM_LOC = { send: send };
+})();
+/* ===== 块17：转账 + 收付款 ===== */
+(function(){
+  var KEY = 'xm_pay';
+  function get(){ try{ return JSON.parse(localStorage.getItem(KEY) || '{"balance":0,"log":[]}'); }
+    catch(e){ return {balance:0, log:[]}; } }
+  function set(v){ try{ localStorage.setItem(KEY, JSON.stringify(v)); }catch(e){} }
+  function tx(amount, note){
+    var w = get();
+    w.balance = Math.round((w.balance + amount)*100)/100;
+    w.log.unshift({ amount:amount, note:note||'', t:Date.now(), after:w.balance });
+    if(w.log.length > 200) w.log.length = 200;
+    set(w); return w;
+  }
+
+  var st = document.createElement('style');
+  st.textContent =
+    '#msgs .xpay{width:200px;border-radius:8px;background:#f7a94b;color:#fff;padding:12px 14px}'+
+    '#msgs .xpay .n{font-size:22px;font-weight:500;margin-top:6px}'+
+    '#msgs .xpay .s{font-size:11.5px;opacity:.85;margin-top:6px}'+
+    '#xmPayBox{position:fixed;inset:0;z-index:75;background:rgba(0,0,0,.35);display:flex;align-items:flex-end}'+
+    '#xmPayBox .in{width:100%;background:#f4f4f2;border-radius:20px 20px 0 0;'+
+      'padding:20px 18px calc(env(safe-area-inset-bottom) + 20px)}'+
+    '#xmPayBox .am{font-size:34px;font-weight:600;letter-spacing:.02em}'+
+    '#xmPayBox .am small{font-size:16px;margin-right:4px}'+
+    '#xmPayBox input{width:100%;border:0;background:none;font-size:34px;font-weight:600;outline:none}'+
+    '#xmPayBox .nt{width:100%;border:0;background:#fff;border-radius:10px;padding:11px 13px;'+
+      'font-size:14px;margin-top:12px;outline:none}'+
+    '#xmPayBox .go{margin-top:16px;background:#07c160;color:#fff;text-align:center;'+
+      'padding:12px;border-radius:10px;font-size:16px}'+
+    '#xmPayBox .qr{margin-top:12px;background:#fff;border-radius:14px;padding:22px;text-align:center}'+
+    '#xmPayBox .qr canvas{width:190px;height:190px}';
+  document.head.appendChild(st);
+
+  function sheet(html, id){
+    var old = document.getElementById(id); if(old) old.remove();
+    var d = document.createElement('div');
+    d.id = id; d.innerHTML = '<div class="in">'+html+'</div>';
+    d.onclick = function(e){ if(e.target === d) d.remove(); };
+    document.body.appendChild(d);
+    return d;
+  }
+
+  /* 转账 */
+  function transfer(){
+    var d = sheet('<div style="font-size:13px;color:#8a8a86">转账给 祁砚</div>'+
+      '<div class="am"><small>¥</small><input id="xmPayAmt" inputmode="decimal" placeholder="0.00"></div>'+
+      '<input class="nt" id="xmPayNote" placeholder="添加备注">'+
+      '<div class="go" id="xmPayGo">转账</div>', 'xmPayBox');
+    d.querySelector('#xmPayAmt').focus();
+    d.querySelector('#xmPayGo').onclick = function(){
+      var a = parseFloat(d.querySelector('#xmPayAmt').value);
+      if(!(a > 0)){ if(window.toast) toast('金额不对'); return; }
+      var note = d.querySelector('#xmPayNote').value.trim();
+      tx(-a, '转账给祁砚' + (note ? ' · '+note : ''));
+      CHAT.push({ role:'user', text:'', pay:{ amount:a, note:note, dir:'out' }, t:Date.now() });
+      saveChat(); renderChat(true); d.remove();
+      setTimeout(function(){
+        CHAT.push({ role:'assistant', text:'（已收款 ¥'+a.toFixed(2)+'）', t:Date.now() });
+        saveChat(); renderChat(true);
+      }, 1200);
+    };
+  }
+
+  /* 收付款码 */
+  function qr(){
+    var bal = get().balance.toFixed(2);
+    var d = sheet('<div style="text-align:center;font-size:15px;font-weight:500">收付款</div>'+
+      '<div class="qr"><canvas id="xmQrC" width="380" height="380"></canvas>'+
+      '<div style="font-size:12.5px;color:#8a8a86;margin-top:10px">余额 ¥'+bal+'</div></div>', 'xmPayBox');
+    var c = d.querySelector('#xmQrC'), g = c.getContext('2d');
+    var n = 25, cell = 380 / n;
+    g.fillStyle = '#fff'; g.fillRect(0,0,380,380);
+    g.fillStyle = '#111';
+    var seed = 'kai-' + bal;
+    var r = 0; for(var i=0;i<seed.length;i++) r = (r*31 + seed.charCodeAt(i)) % 99991;
+    for(var y=0;y<n;y++) for(var x=0;x<n;x++){
+      r = (r*1103515245 + 12345) & 0x7fffffff;
+      if((r >> 8) & 1) g.fillRect(x*cell, y*cell, cell, cell);
+    }
+    function eye(px, py){
+      g.fillStyle = '#fff'; g.fillRect(px*cell, py*cell, cell*7, cell*7);
+      g.fillStyle = '#111'; g.fillRect(px*cell, py*cell, cell*7, cell*7);
+      g.fillStyle = '#fff'; g.fillRect((px+1)*cell, (py+1)*cell, cell*5, cell*5);
+      g.fillStyle = '#111'; g.fillRect((px+2)*cell, (py+2)*cell, cell*3, cell*3);
+    }
+    eye(0,0); eye(n-7,0); eye(0,n-7);
+  }
+
+  function paint(){
+    var box = document.getElementById('msgs'); if(!box) return;
+    box.querySelectorAll('.wrap').forEach(function(w){
+      if(w.getAttribute('data-pay')) return;
+      var i = +w.getAttribute('data-i');
+      var m = (typeof CHAT !== 'undefined' && CHAT[i]) || null;
+      if(!m || !m.pay) return;
+      var bub = w.querySelector('.bub'); if(!bub) return;
+      w.setAttribute('data-pay','1');
+      bub.innerHTML = '<div class="xpay"><div style="font-size:12.5px;opacity:.9">'+
+        (m.pay.dir==='out'?'转账给祁砚':'收款')+'</div>'+
+        '<div class="n">¥ '+Number(m.pay.amount).toFixed(2)+'</div>'+
+        (m.pay.note?'<div class="s">'+String(m.pay.note).replace(/[<>]/g,'')+'</div>':'')+'</div>';
+      bub.style.padding = '4px';
+    });
+  }
+  new MutationObserver(function(){ setTimeout(paint, 60); }).observe(document.body,{childList:true,subtree:true});
+  setTimeout(paint, 900);
+
+  document.addEventListener('click', function(e){
+    if(!e.target.closest) return;
+    if(e.target.closest('[data-pay-send]')) return transfer();
+    if(e.target.closest('[data-pay-qr]')) return qr();
+  });
+
+  window.XM_PAY = { tx: tx, get: get, transfer: transfer, qr: qr };
+})();
+/* ===== 块18：会话置顶 / 免打扰 / 删除 ===== */
+(function(){
+  var KEY = 'xm_chatcfg';
+  function all(){ try{ return JSON.parse(localStorage.getItem(KEY) || '{}'); }catch(e){ return {}; } }
+  function one(cid){ return all()[cid] || { top:0, mute:0 }; }
+  function put(cid, o){ var a = all(); a[cid] = Object.assign(one(cid), o); 
+    try{ localStorage.setItem(KEY, JSON.stringify(a)); }catch(e){} }
+  function del(cid){ var a = all(); delete a[cid];
+    try{ localStorage.setItem(KEY, JSON.stringify(a)); }catch(e){} }
+
+  var st = document.createElement('style');
+  st.textContent =
+    '.wxRow .xmTag{font-size:10px;background:#f0f0ee;color:#8a8a86;border-radius:4px;padding:1px 5px;margin-left:6px}'+
+    '#xmCtxMenu{position:fixed;z-index:90;background:#fff;border-radius:12px;overflow:hidden;'+
+      'box-shadow:0 10px 34px rgba(0,0,0,.18);min-width:150px}'+
+    '#xmCtxMenu div{padding:13px 18px;font-size:14.5px;border-bottom:1px solid #f0f0ee}'+
+    '#xmCtxMenu div:last-child{border-bottom:0}'+
+    '#xmCtxMenu div:active{background:#f6f6f4}'+
+    '#xmCtxMenu .rd{color:#e5484d}';
+  document.head.appendChild(st);
+
+  function menu(x, y, cid){
+    var old = document.getElementById('xmCtxMenu'); if(old) old.remove();
+    var c = one(cid);
+    var d = document.createElement('div');
+    d.id = 'xmCtxMenu';
+    d.innerHTML = '<div data-a="top">'+(c.top?'取消置顶':'置顶该聊天')+'</div>'+
+      '<div data-a="mute">'+(c.mute?'取消免打扰':'消息免打扰')+'</div>'+
+      '<div class="rd" data-a="del">删除该聊天</div>';
+    d.style.left = Math.min(x, innerWidth - 170) + 'px';
+    d.style.top = y + 'px';
+    document.body.appendChild(d);
+    d.onclick = function(e){
+      var t = e.target.closest('[data-a]'); if(!t) return;
+      var a = t.dataset.a;
+      if(a === 'top') put(cid, {top: one(cid).top ? 0 : 1});
+      if(a === 'mute') put(cid, {mute: one(cid).mute ? 0 : 1});
+      if(a === 'del'){
+        if(!confirm('删掉这个会话？聊天记录一起没。')) return;
+        del(cid);
+        try{
+          if(typeof CHAT !== 'undefined' && Array.isArray(CHAT)){ CHAT.length = 0; saveChat(); renderChat(true); }
+        }catch(e){}
+      }
+      d.remove();
+      if(typeof render === 'function') render();
+    };
+    setTimeout(function(){
+      document.addEventListener('click', function h(ev){
+        if(!d.contains(ev.target)){ d.remove(); document.removeEventListener('click', h); }
+      });
+    }, 0);
+  }
+
+  /* 长按 .wxRow */
+  var lt = null;
+  document.addEventListener('touchstart', function(e){
+    var r = e.target.closest && e.target.closest('.wxRow[data-go]');
+    if(!r) return;
+    lt = setTimeout(function(){
+      var rect = r.getBoundingClientRect();
+      menu(rect.left + 20, rect.top, r.dataset.go);
+      if(navigator.vibrate) navigator.vibrate(20);
+    }, 550);
+  }, {passive:true});
+  ['touchend','touchmove','touchcancel','scroll'].forEach(function(ev){
+    document.addEventListener(ev, function(){ if(lt){ clearTimeout(lt); lt = null; } }, {passive:true});
+  });
+
+  window.XM_CFG = { one: one, put: put, del: del, menu: menu };
+})();
+/* ===== 块19：消息搜索 ===== */
+(function(){
+  var st = document.createElement('style');
+  st.textContent =
+    '#xmSearch{position:fixed;inset:0;z-index:78;background:#f4f4f2;display:flex;flex-direction:column}'+
+    '#xmSearch .tp{padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;display:flex;gap:10px;align-items:center}'+
+    '#xmSearch input{flex:1;border:0;background:#fff;border-radius:10px;padding:10px 13px;'+
+      'font-size:14.5px;outline:none}'+
+    '#xmSearch .cl{font-size:14px;color:#5b6b8c}'+
+    '#xmSearch .bd{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}'+
+    '#xmSearch .hit{padding:13px 16px;background:#fff;border-bottom:1px solid #f0f0ee}'+
+    '#xmSearch .hit b{color:#e5484d;font-weight:500}'+
+    '#xmSearch .hit .w{font-size:12px;color:#a3a39f;margin-bottom:3px}'+
+    '#xmSearch .hit .t{font-size:14.5px;line-height:1.6;color:#2b2b2b}'+
+    '#xmSearch .no{text-align:center;color:#b4b4b0;font-size:13.5px;padding:70px 30px}';
+  document.head.appendChild(st);
+
+  var d = null;
+  function esc2(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  function run(q){
+    q = String(q||'').trim();
+    var bd = d.querySelector('.bd');
+    if(!q){ bd.innerHTML = ''; return; }
+    var hits = [];
+    (typeof CHAT !== 'undefined' ? CHAT : []).forEach(function(m, i){
+      var t = String(m.text || (m.thumb ? '[图片]' : m.aud ? '[语音]' : ''));
+      if(t.toLowerCase().indexOf(q.toLowerCase()) > -1) hits.push({ i:i, m:m, t:t });
+    });
+    if(!hits.length){ bd.innerHTML = '<div class="no">没找到「'+esc2(q)+'」</div>'; return; }
+    bd.innerHTML = hits.reverse().map(function(h){
+      var re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'ig');
+      var body = esc2(h.t).replace(re, '<b>$1</b>');
+      var dt = new Date(h.m.t || Date.now());
+      var w = (h.m.role === 'user' ? '我' : '祁砚') + ' · ' +
+        (dt.getMonth()+1) + '/' + dt.getDate() + ' ' +
+        ('0'+dt.getHours()).slice(-2) + ':' + ('0'+dt.getMinutes()).slice(-2);
+      return '<div class="hit" data-jump="'+h.i+'"><div class="w">'+w+'</div><div class="t">'+body+'</div></div>';
+    }).join('');
+  }
+
+  function open(){
+    if(d) d.remove();
+    d = document.createElement('div');
+    d.id = 'xmSearch';
+    d.innerHTML = '<div class="tp"><input id="xmSQ" placeholder="搜索聊天记录">'+
+      '<span class="cl" id="xmSC">取消</span></div><div class="bd"></div>';
+    document.body.appendChild(d);
+    d.querySelector('#xmSQ').focus();
+    d.querySelector('#xmSQ').oninput = function(){ run(this.value); };
+    d.querySelector('#xmSC').onclick = function(){ d.remove(); d = null; };
+    d.querySelector('.bd').onclick = function(e){
+      var h = e.target.closest('[data-jump]'); if(!h) return;
+      var i = +h.dataset.jump;
+      d.remove(); d = null;
+      var box = document.getElementById('msgs');
+      var w = box && box.querySelector('.wrap[data-i="'+i+'"]');
+      if(w){
+        w.scrollIntoView({block:'center', behavior:'smooth'});
+        var bub = w.querySelector('.bub');
+        if(bub){
+          bub.style.transition = 'box-shadow .3s';
+          bub.style.boxShadow = '0 0 0 2px #07c160';
+          setTimeout(function(){ bub.style.boxShadow = ''; }, 1600);
+        }
+      }
+    };
+  }
+
+  document.addEventListener('click', function(e){
+    if(!e.target.closest) return;
+    if(e.target.closest('[data-search]')) open();
+  });
+
+  window.XM_SEARCH = { open: open };
+})();
+/* ===== 块20：语音转文字 ===== */
+(function(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function tip(t){
+    if(window.toast) return toast(t);
+    var d = document.createElement('div');
+    d.textContent = t;
+    d.style.cssText = 'position:fixed;left:50%;bottom:150px;transform:translateX(-50%);'+
+      'background:rgba(0,0,0,.84);color:#fff;font-size:12.5px;padding:9px 16px;'+
+      'border-radius:14px;z-index:99;max-width:82vw;text-align:center';
+    document.body.appendChild(d);
+    setTimeout(function(){ d.remove(); }, 2400);
+  }
+
+  /* 对着麦克风听一句，转成文字塞进输入框 */
+  function listen(cb){
+    if(!SR){ tip('这台设备不支持语音识别'); return null; }
+    var r = new SR();
+    r.lang = 'zh-CN';
+    r.interimResults = true;
+    r.continuous = false;
+    var done = '';
+    r.onresult = function(e){
+      var t = '';
+      for(var i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript;
+      done = t;
+      if(cb) cb(t, false);
+    };
+    r.onerror = function(){ tip('没听清'); if(cb) cb('', true); };
+    r.onend = function(){ if(cb) cb(done, true); };
+    try{ r.start(); }catch(e){}
+    return r;
+  }
+
+  /* 长按说话时同时转写 */
+  function hold(){
+    var inp = document.getElementById('mIn');
+    if(!inp){ tip('聊天没开着'); return; }
+    var base = inp.value || '';
+    var r = listen(function(t, end){
+      inp.value = base + t;
+      if(end) inp.dispatchEvent(new Event('input'));
+    });
+    if(!r) return;
+    var stop = function(){
+      try{ r.stop(); }catch(e){}
+      document.removeEventListener('pointerup', stop);
+      document.removeEventListener('pointercancel', stop);
+    };
+    document.addEventListener('pointerup', stop);
+    document.addEventListener('pointercancel', stop);
+  }
+
+  /* 已有语音消息 → 转文字（走中继，模型自己听不了就只留提示） */
+  function fromMsg(i){
+    var m = (typeof CHAT !== 'undefined' && CHAT[i]) || null;
+    if(!m || !m.aud){ tip('这条不是语音'); return; }
+    if(m.asr){ tip(m.asr); return; }
+    tip('实时转写只支持录制时说，旧语音转不了');
+  }
+
+  document.addEventListener('click', function(e){
+    if(!e.target.closest) return;
+    if(e.target.closest('[data-asr]')) return hold();
+    var a = e.target.closest('[data-asr-msg]');
+    if(a) return fromMsg(+a.dataset.asrMsg);
+  });
+
+  window.XM_ASR = { listen: listen, hold: hold, supported: !!SR };
+})();
+/* ===== 块21：朋友圈视频 ===== */
+(function(){
+  var DB = 'xm_media_v1', ST = 'media';
+  function openDB(){
+    return new Promise(function(res, rej){
+      var r = indexedDB.open(DB, 1);
+      r.onupgradeneeded = function(){ r.result.createObjectStore(ST, {keyPath:'id'}); };
+      r.onsuccess = function(){ res(r.result); };
+      r.onerror = function(){ rej(r.error); };
+    });
+  }
+  function put(id, blob){ return openDB().then(function(db){
+    return new Promise(function(res){
+      var t = db.transaction(ST,'readwrite');
+      t.objectStore(ST).put({ id:id, blob:blob, t:Date.now() });
+      t.oncomplete = function(){ res(true); };
+    });
+  }); }
+  function get(id){ return openDB().then(function(db){
+    return new Promise(function(res){
+      var t = db.transaction(ST,'readonly');
+      var q = t.objectStore(ST).get(id);
+      q.onsuccess = function(){ res(q.result && q.result.blob); };
+      q.onerror = function(){ res(null); };
+    });
+  }); }
+
+  var st = document.createElement('style');
+  st.textContent = '.mom .vd{width:100%;border-radius:8px;margin-top:8px;display:block;background:#000}';
+  document.head.appendChild(st);
+
+  function fVid(){
+    var f = document.getElementById('xmVidIn');
+    if(!f){
+      f = document.createElement('input');
+      f.id = 'xmVidIn'; f.type = 'file'; f.accept = 'video/*';
+      f.style.display = 'none';
+      document.body.appendChild(f);
+    }
+    return f;
+  }
+
+  fVid().onchange = function(){
+    var file = this.files[0]; if(!file) return;
+    if(file.size > 60 * 1024 * 1024){ if(window.toast) toast('视频太大，挑 60MB 以内的'); return; }
+    var id = 'v' + Date.now();
+    put(id, file).then(function(){
+      var MOM = [];
+      try{ MOM = JSON.parse(localStorage.getItem('xm_moments') || '[]'); }catch(e){}
+      MOM.push({ who:'me', text:'', vid:id, t:Date.now(), likes:[], cms:[] });
+      try{ localStorage.setItem('xm_moments', JSON.stringify(MOM.slice(-60))); }catch(e){}
+      if(window.XM_MOM && XM_MOM.render) XM_MOM.render();
+      else if(typeof render === 'function') render();
+    });
+  };
+
+  /* 把朋友圈里的 vid 画成 video */
+  function paint(){
+    var list = document.querySelectorAll('.mom[data-vid]:not([data-vid-done])');
+    list.forEach(function(el){
+      var id = el.getAttribute('data-vid');
+      el.setAttribute('data-vid-done','1');
+      get(id).then(function(b){
+        if(!b) return;
+        var u = URL.createObjectURL(b);
+        var bd = el.querySelector('.bd'); if(!bd) return;
+        var v = document.createElement('video');
+        v.className = 'vd'; v.src = u; v.controls = true; v.playsInline = true;
+        var im = bd.querySelector('.im'); if(im) im.replaceWith(v); else bd.appendChild(v);
+      });
+    });
+  }
+  new MutationObserver(function(){ setTimeout(paint, 80); }).observe(document.body,{childList:true,subtree:true});
+  setTimeout(paint, 900);
+
+  document.addEventListener('click', function(e){
+    if(e.target.closest && e.target.closest('[data-vid-pick]')) fVid().click();
+  });
+
+  window.XM_VID = { put: put, get: get, pick: function(){ fVid().click(); } };
+})();
+/* ===== 块22：表情面板 + 表情包 ===== */
+(function(){
+  var EMO = ('😀 😄 😊 🙂 😉 😍 🥰 😘 😗 😙 😚 😋 😜 🤪 😝 🤗 🤔 🤨 😐 😑 😶 🙄 '+
+    '😏 😣 😥 😮 🤐 😯 😴 😌 😔 😪 😢 😭 😤 😠 😡 🤬 😳 🥺 😞 😟 😰 😨 😱 😖 😓 '+
+    '😫 😩 🥱 😮‍💨 😬 😵 🤯 🤠 😎 🤓 🧐 😕 😲 😦 😧 😮 😱 🙁 😒 😷 🤒 🤕 🥳 '+
+    '🥹 😇 🤍 💛 💔 ❤️‍🔥 💗 💓 💞 💕 ✨ ⭐️ 🌙 ☀️ 🌧 ❄️ 🍀 🌸 🌷 🎀 🫶 🤲').split(/\s+/);
+
+  var KEY = 'xm_stickers';
+  function stk(){ try{ return JSON.parse(localStorage.getItem(KEY) || '[]'); }catch(e){ return []; } }
+  function saveStk(a){ try{ localStorage.setItem(KEY, JSON.stringify(a.slice(-40))); }catch(e){} }
+
+  var st = document.createElement('style');
+  st.textContent =
+    '#xmEmo{position:fixed;left:0;right:0;bottom:0;z-index:70;background:#f4f4f2;'+
+      'border-top:1px solid rgba(0,0,0,.08);display:none;flex-direction:column;'+
+      'padding-bottom:calc(env(safe-area-inset-bottom) + 6px)}'+
+    '#xmEmo.on{display:flex}'+
+    '#xmEmo .tabs{display:flex;gap:16px;padding:8px 14px 4px;font-size:13px;color:#8a8a86}'+
+    '#xmEmo .tabs b{font-weight:500;color:#0b0b0b}'+
+    '#xmEmo .grid{height:214px;overflow-y:auto;-webkit-overflow-scrolling:touch;'+
+      'display:grid;grid-template-columns:repeat(8,1fr);gap:2px;padding:6px 10px}'+
+    '#xmEmo .grid span{display:flex;align-items:center;justify-content:center;'+
+      'font-size:24px;height:42px;border-radius:8px}'+
+    '#xmEmo .grid span:active{background:rgba(0,0,0,.06)}'+
+    '#xmEmo .grid img{width:100%;height:42px;object-fit:cover;border-radius:8px}'+
+    '#xmEmo .add{grid-column:span 2;font-size:13px;color:#5b6b8c;border:1px dashed #d0d0cc}';
+  document.head.appendChild(st);
+
+  var p = document.createElement('div');
+  p.id = 'xmEmo';
+  document.body.appendChild(p);
+  var TAB = 'e';
+
+  function render(){
+    var list = TAB === 'e' ? EMO.map(function(x){ return '<span data-e="'+x+'">'+x+'</span>'; }).join('')
+      : stk().map(function(s, i){ return '<span data-s="'+i+'"><img src="'+s+'"></span>'; }).join('') +
+        '<span class="add" data-add-stk>+ 加表情包</span>';
+    p.innerHTML = '<div class="tabs"><b data-t="e">表情</b><span data-t="s">表情包</span></div>'+
+      '<div class="grid">'+list+'</div>';
+  }
+  render();
+
+  function ins(t){
+    var inp = document.getElementById('mIn'); if(!inp) return;
+    var s = inp.selectionStart == null ? inp.value.length : inp.selectionStart;
+    inp.value = inp.value.slice(0, s) + t + inp.value.slice(inp.selectionEnd == null ? s : inp.selectionEnd);
+    inp.focus();
+    inp.selectionStart = inp.selectionEnd = s + t.length;
+    inp.dispatchEvent(new Event('input'));
+  }
+
+  var fStk = document.createElement('input');
+  fStk.type = 'file'; fStk.accept = 'image/*'; fStk.style.display = 'none';
+  document.body.appendChild(fStk);
+  fStk.onchange = function(){
+    var file = this.files[0]; if(!file) return;
+    if(!window.XM_MEDIA || !XM_MEDIA.pick) return;
+    XM_MEDIA.pick(file, 320, function(url){
+      if(!url) return;
+      var a = stk(); a.push(url); saveStk(a);
+      TAB = 's'; render();
+    });
+  };
+
+  document.addEventListener('click', function(e){
+    if(!e.target.closest) return;
+    var tog = e.target.closest('[data-emo]');
+    if(tog){ p.classList.toggle('on'); if(p.classList.contains('on')) render(); return; }
+    if(!p.contains(e.target)) return;
+    var t = e.target.closest('[data-t]');
+    if(t){ TAB = t.dataset.t; render(); return; }
+    var em = e.target.closest('[data-e]');
+    if(em){ ins(em.dataset.e); return; }
+    var sk = e.target.closest('[data-s]');
+    if(sk){ var u = stk()[+sk.dataset.s]; if(u) sendSticker(u); return; }
+    if(e.target.closest('[data-add-stk]')) fStk.click();
+  });
+
+  function sendSticker(url){
+    CHAT.push({ role:'user', text:'', thumb:url, t:Date.now() });
+    saveChat(); renderChat(true);
+    p.classList.remove('on');
+  }
+
+  window.XM_EMO = { open: function(){ p.classList.add('on'); render(); }, ins: ins };
+})();
