@@ -5202,3 +5202,70 @@ new MutationObserver(function(){
 }).observe(document.body, { childList: true, subtree: true });
 setInterval(fix, 400);
 })();
+
+
+function build(){
+    if (built) return;
+    built = true;
+    var d = document.createElement('div');
+    d.id = 'xmPay';
+    d.innerHTML =
+      '<div class="xpTop"><div class="xpBack" id="xpBack">‹</div><div class="xpTitle">微信支付</div></div>' +
+      '<div class="xpBody">' +
+        '<div class="xpCard">' +
+          '<div class="xpLab"><span class="xpIco"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#8a8a8a" stroke-width="1.9"><circle cx="12" cy="12" r="8.5"/><path d="M9.2 9.6h5.6M9.2 12.2h5.6M12 9.6V17"/></svg></span>零钱</div>' +
+          '<div class="xpBal" id="xpBal">¥0.00</div>' +
+          '<div class="xpBtns">' +
+            '<button class="xpBtn main" id="xpIn">转入</button>' +
+            '<button class="xpBtn ghost" id="xpOut">转出</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="xpSec">银行卡</div>' +
+        '<div class="xpCard" style="padding:0;overflow:hidden">' +
+          '<div class="xpRow" data-bank="SAVING">' +
+            '<div class="xpAv" style="background:#f4ecdb"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#9c8348" stroke-width="1.6"><ellipse cx="12" cy="6.8" rx="6.8" ry="2.8"/><path d="M5.2 6.8v5.2c0 1.6 3 2.8 6.8 2.8s6.8-1.2 6.8-2.8V6.8"/><path d="M5.2 12v5.2c0 1.6 3 2.8 6.8 2.8s6.8-1.2 6.8-2.8V12"/></svg></div>' +
+            '<div class="xpMain"><div class="xpName">弯弯银行<span class="xpTag">SAVING</span></div><div class="xpSub">**** **** 7984</div></div>' +
+            '<div class="xpArr">›</div>' +
+          '</div>' +
+          '<div class="xpRow" data-bank="CHECKING">' +
+            '<div class="xpAv" style="background:#e9eef6"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#5f7186" stroke-width="1.6"><rect x="2.6" y="5.2" width="18.8" height="13.6" rx="2.6"/><path d="M2.6 9.6h18.8"/><path d="M6.2 14.8h4.2"/></svg></div>' +
+            '<div class="xpMain"><div class="xpName">弯弯银行<span class="xpTag">CHECKING</span></div><div class="xpSub">**** **** 2822</div></div>' +
+            '<div class="xpArr">›</div>' +
+          '</div>' +
+        '</div>' +
+        '<button class="xpWide" id="xpRegen" style="margin-top:16px">' +
+          '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#111" stroke-width="1.5" stroke-linejoin="round"><path d="M11 3.6l1.5 4.4 4.4 1.5-4.4 1.5L11 15.4 9.5 11 5.1 9.5 9.5 8z"/><path d="M18 15.4l.8 2.1 2.1.8-2.1.8-.8 2.1-.8-2.1-2.1-.8 2.1-.8z"/></svg>' +
+          '重新生成余额' +
+        '</button>' +
+        '<div class="xpSec">零钱账单</div>' +
+        '<div id="xpBills"></div>' +
+      '</div>';
+    document.body.appendChild(d);
+
+    d.querySelector('#xpBack').onclick = close;
+    d.querySelector('#xpIn').onclick = function(){ move(1); };
+    d.querySelector('#xpOut').onclick = function(){ move(-1); };
+    d.querySelector('#xpRegen').onclick = function(){
+      var o = load();
+      o.bal = Math.round((Math.random() * 4900 + 100) * 100) / 100;
+      o.bills.unshift({ t: Date.now(), amt: 0, title: '重新生成余额' });
+      save(o); render(); tip('余额已重新生成');
+    };
+    var rows = d.querySelectorAll('.xpRow');
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].onclick = (function(r){
+        return function(){
+          if (typeof window.showBankPage === 'function') {
+            try { window.showBankPage(r.getAttribute('data-bank')); return; } catch(e){}
+          }
+          tip('银行还没装上');
+        };
+      })(rows[i]);
+    }
+  }
+
+(function(){
+  var s = document.createElement('style');
+  s.textContent = '.xpIco svg,.xpAv svg{display:block}';
+  document.head.appendChild(s);
+})();
