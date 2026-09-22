@@ -5196,5 +5196,5 @@ window.xmAsk = xmAsk;
 
 fix();
 new MutationObserver(function(){ setTimeout(fix, 30); }).observe(document.body, { childList: true, subtree: true });
-setInterval(fix, 1500);
+setInterval(fix, 400);
 })();
