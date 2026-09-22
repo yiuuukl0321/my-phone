@@ -3624,3 +3624,41 @@ window.xmAsk = xmAsk;
     fix();
   }, 300);
 })();
+
+
+(function(){
+  function openWallet(){
+    try {
+      if (window.APPS && APPS.bank && typeof openApp === 'function'){ openApp('bank'); return; }
+      if (window.XM_DC){
+        var f = XM_DC.open || XM_DC.openPage || XM_DC.sheet;
+        if (typeof f === 'function'){ f.call(XM_DC); return; }
+      }
+      if (window.toast) toast('银行还没装上'); else alert('银行还没装上');
+    } catch(e){}
+  }
+
+  function fix(){
+    var wx = document.getElementById('wx');
+    if (!wx) return;
+    var all = wx.querySelectorAll('div,span');
+    var src = null;
+    for (var i = 0; i < all.length; i++){
+      var el = all[i];
+      if (el.children.length) continue;
+      if (String(el.textContent || '').trim() === 'Favourites'){ src = el; break; }
+    }
+    if (!src) return;
+    var row = src.parentNode;
+    if (!row || row.querySelector('.xmWallet')) return;
+    var w = src.cloneNode(true);
+    w.className = (w.className || '') + ' xmWallet';
+    w.textContent = 'Wallet';
+    w.removeAttribute('data-me');
+    w.removeAttribute('onclick');
+    w.onclick = function(e){ e.preventDefault(); e.stopPropagation(); openWallet(); };
+    row.appendChild(w);
+  }
+
+  setInterval(fix, 400);
+})();
