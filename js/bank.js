@@ -11,7 +11,7 @@
 
   var HUABEI_PHONE = 'HUABEI_ASSISTANT'
   var HUABEI_NAME = '花呗助手'
-  var FINANCE_PHONE = 'WANWAN_FINANCE'
+  var FINANCE_PHONE = 'VIA_FINANCE'
   var FINANCE_NAME = '理财经理'
 
   var LEVEL_MULTIPLIER = { 1: 1.0, 2: 1.5, 3: 2.0, 4: 3.0, 5: 5.0 }
@@ -755,7 +755,7 @@
 
         '<div class="bank-card-visual checking">' +
           '<div class="bank-card-top">' +
-            '<div class="bank-card-bank-name"><i class="fa-solid fa-money-bill"></i> WanWan Bank</div>' +
+            '<div class="bank-card-bank-name"><i class="fa-solid fa-money-bill"></i> VIA Bank</div>' +
             '<div class="bank-card-type-badge">CHECKING</div>' +
           '</div>' +
           '<div class="bank-card-chip"></div>' +
@@ -836,7 +836,7 @@
 
         '<div class="bank-card-visual saving">' +
           '<div class="bank-card-top">' +
-            '<div class="bank-card-bank-name"><i class="fa-solid fa-coins"></i> WanWan Bank</div>' +
+            '<div class="bank-card-bank-name"><i class="fa-solid fa-coins"></i> VIA Bank</div>' +
             '<div class="bank-card-type-badge">SAVING</div>' +
           '</div>' +
           '<div class="bank-card-chip"></div>' +
