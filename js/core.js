@@ -155,6 +155,23 @@
   document.head.appendChild(s);
 })();
 
+(function(){
+  function fix(){
+    var h = Math.max(
+      window.innerHeight || 0,
+      (window.screen && screen.height) || 0,
+      document.documentElement.clientHeight || 0
+    );
+    document.documentElement.style.setProperty('height', h + 'px', 'important');
+    document.body.style.setProperty('min-height', h + 'px', 'important');
+  }
+  fix();
+  window.addEventListener('resize', fix);
+  window.addEventListener('orientationchange', function(){ setTimeout(fix, 300); });
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) fix(); });
+  setInterval(fix, 1200);
+})();
+
 
 /* ---------- 微信皮肤 / 红包 / 语音条 / 扫码样式 ----------
    原本这段 CSS 直接裸放在文件末尾（不在任何函数里），
