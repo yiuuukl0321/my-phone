@@ -1717,73 +1717,8 @@ if (location.search.indexOf('chat=1') > -1){
 </script>
 
 
-<script>
-window.__log = [];
-window.addEventListener('error', function(e){
-  var t = e.target;
-  window.__log.push(t && t.tagName === 'SCRIPT'
-    ? '✗ 加载失败 ' + String(t.src).split('/').pop()
-    : '✗ ' + e.message + ' @ ' + String(e.filename||'').split('/').pop() + ':' + e.lineno);
-  window.__show && window.__show();
-}, true);
-window.__show = function(){
-  var d = document.getElementById('__log');
-  if (!d){ d = document.createElement('div'); d.id='__log'; document.body.appendChild(d); }
-  d.style.cssText = 'position:fixed;left:6px;top:6px;z-index:99999;background:#000;color:#0f0;'+
-    'font-size:11px;padding:8px;border-radius:8px;max-width:92vw;white-space:pre-wrap;'+
-    'word-break:break-all;line-height:1.55';
-  d.textContent = (window.__log.length ? window.__log.join('\n') : '没有报错') + '\n---\n' +
-    'pauseThink: ' + (window.pauseThink ? '有' : '没有');
-};
-setTimeout(window.__show, 3500);
-</script>
 
-<script src="https://cdn.jsdelivr.net/npm/acorn@8.11.3/dist/acorn.js"></script>
-<script>
-setTimeout(function(){
-  var out = [];
-  function chk(u){
-    return fetch(u).then(function(r){ return r.text(); }).then(function(t){
-      try {
-        acorn.parse(t, { ecmaVersion: 2020 });
-        out.push(u + '  ✓ 没问题 (' + t.length + ' 字符)');
-      } catch(e){
-        out.push(u + '  ✗ ' + e.message);
-      }
-    }).catch(function(){ out.push(u + '  取不到'); });
-  }
-  chk('js/wechat.js?v=67').then(function(){
-    return chk('js/bank.js?v=1');
-  }).then(function(){
-    window.__log = out;
-    window.__show();
-  });
-}, 900);
-</script>
-
-<script>
-setTimeout(function(){
-  var l = document.querySelectorAll('.ico');
-  for (var i = 0; i < l.length; i++) l[i].style.opacity = '1';
-}, 2000);
-</script>
   
-
-<script>
-setTimeout(function(){
-  var rows = [
-    'wx层: ' + (document.getElementById('wx') ? '有' : '没有'),
-    'db: ' + (window.db ? '有' : '没有'),
-    'bank图标补丁: ' + (window.__bkIcon ? '有' : '没有'),
-    'openApp: ' + (typeof window.openApp)
-  ];
-  var d = document.createElement('div');
-  d.style.cssText = 'position:fixed;left:6px;top:6px;z-index:99999;background:#000;color:#0f0;' +
-    'font-size:12px;padding:8px;border-radius:8px;white-space:pre;line-height:1.6';
-  d.textContent = rows.join('\n');
-  document.body.appendChild(d);
-}, 3000);
-</script>
 
   
 <!-- JS 加载顺序：改哪个文件就把那个文件的数字加一 -->
