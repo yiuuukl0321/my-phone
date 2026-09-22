@@ -2170,3 +2170,357 @@
   if (document.body) new MutationObserver(soon).observe(document.body, { childList: true, subtree: true });
   setInterval(run, 1500);
 })();
+
+
+/* ---------- ② 外壳：toast / 页面栈 / modal 容器 ---------- */
+(function(){
+  if (window.__bkShell) return;
+  window.__bkShell = 1;
+
+  window.toast = function(msg){
+    var el = document.getElementById('xmToast');
+    if (!el){
+      el = document.createElement('div');
+      el.id = 'xmToast';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.classList.add('on');
+    clearTimeout(el._t);
+    el._t = setTimeout(function(){ el.classList.remove('on'); }, 1800);
+  };
+
+  if (!document.getElementById('app')){
+    var ap = document.createElement('div');
+    ap.id = 'app';
+    document.body.appendChild(ap);
+  }
+
+  var stack = [];
+
+  function layer(){
+    var l = document.getElementById('xmBankLayer');
+    if (!l){
+      l = document.createElement('div');
+      l.id = 'xmBankLayer';
+      document.body.appendChild(l);
+    }
+    return l;
+  }
+
+  function paint(anim){
+    var l = layer();
+    l.innerHTML = '';
+    if (!stack.length){
+      l.classList.remove('on');
+      setTimeout(function(){ if (!stack.length) l.innerHTML = ''; }, 320);
+      return;
+    }
+    for (var i = 0; i < stack.length; i++){
+      var p = stack[i];
+      p.style.zIndex = String(i + 1);
+      if (anim && i === stack.length - 1) p.classList.add('slide');
+      else p.classList.remove('slide');
+      l.appendChild(p);
+    }
+    l.classList.add('on');
+  }
+
+  window.openPage = function(el){
+    if (!el) return;
+    var i = stack.indexOf(el);
+    if (i > -1) stack.splice(i, 1);
+    stack.push(el);
+    paint(true);
+  };
+
+  window.closePage = function(id){
+    if (!id){ stack = []; paint(); return; }
+    for (var i = stack.length - 1; i >= 0; i--){
+      if (stack[i].id === id){ stack = stack.slice(0, i); paint(); return; }
+    }
+    stack = [];
+    paint();
+  };
+
+  window.closeAllBankPages = function(){ stack = []; paint(); };
+})();
+
+
+/* ---------- ③ 样式（黑白灰，跟咩&砚一套） ---------- */
+(function(){
+  if (document.getElementById('xmBankCss')) return;
+  var st = document.createElement('style');
+  st.id = 'xmBankCss';
+  st.textContent = `
+#xmBankLayer{position:fixed;inset:0;z-index:120;background:#f4f4f2;
+transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);pointer-events:none}
+#xmBankLayer.on{transform:translateX(0);pointer-events:auto}
+#xmBankLayer>.full-page{position:absolute;inset:0;display:flex;flex-direction:column;
+background:#f4f4f2;overflow:hidden}
+.full-page.slide{animation:bkIn .28s cubic-bezier(.4,0,.2,1)}
+@keyframes bkIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+#xmToast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(8px);
+z-index:9999;max-width:78vw;padding:10px 18px;border-radius:20px;background:rgba(0,0,0,.82);
+color:#fff;font-size:13.5px;line-height:1.5;text-align:center;opacity:0;pointer-events:none;
+transition:opacity .2s,transform .2s}
+#xmToast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.full-page .page-header{flex:0 0 auto;display:flex;align-items:center;gap:8px;
+padding:calc(env(safe-area-inset-top) + 8px) 10px 10px;border-bottom:1px solid rgba(0,0,0,.06);
+background:#f4f4f2;position:relative;z-index:3}
+.full-page .header-back{width:38px;height:38px;display:grid;place-items:center;border:0;
+background:none;color:#0b0b0b;border-radius:50%;padding:0}
+.full-page .header-back:active{background:rgba(0,0,0,.06)}
+.full-page .header-title{font-size:16px;font-weight:600;color:#0b0b0b}
+.full-page .header-action{margin-left:auto;border:0;background:none;display:inline-flex;
+align-items:center;gap:5px}
+.bank-overview-scroll,.bank-detail-scroll{flex:1;min-height:0;overflow-y:auto;
+-webkit-overflow-scrolling:touch;padding:16px 16px calc(env(safe-area-inset-bottom) + 26px)}
+.bank-overview-section-label{font-size:10.5px;letter-spacing:.18em;color:#a0a09c;
+text-transform:uppercase;margin:4px 0 12px}
+.bank-asset-card{width:100%;display:flex;align-items:center;justify-content:space-between;
+gap:12px;background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:20px;padding:15px 16px;
+margin-bottom:10px;text-align:left;color:#0b0b0b;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+button.bank-asset-card{cursor:pointer}
+button.bank-asset-card:active{background:#fafaf8}
+.bank-asset-left{display:flex;align-items:center;gap:12px;min-width:0}
+.bank-asset-icon{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;
+flex:0 0 auto;background:#f2f2ef;color:#0b0b0b}
+.bank-icon-cash{background:#f0efec}
+.bank-icon-checking{background:#eeeef0}
+.bank-icon-saving{background:#f1f0ed}
+.bank-asset-info{min-width:0}
+.bank-asset-name{font-size:15px;font-weight:600;line-height:1.2}
+.bank-asset-sub{font-size:11.5px;color:#a0a09c;margin-top:3px}
+.bank-asset-right{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.bank-asset-amount{font-size:16px;font-weight:500;letter-spacing:-.2px;
+font-variant-numeric:tabular-nums}
+.bank-asset-arrow{color:#c8c8c4}
+.bank-card-visual{border-radius:20px;padding:18px;color:#fff;position:relative;overflow:hidden;
+background:linear-gradient(140deg,#1b1b1d,#3d3d40);box-shadow:0 6px 18px rgba(0,0,0,.14)}
+.bank-card-visual.saving{background:linear-gradient(140deg,#2a2a2d,#5b5b60)}
+.bank-card-top{display:flex;align-items:center;justify-content:space-between}
+.bank-card-bank-name{display:inline-flex;align-items:center;gap:7px;font-size:13px;opacity:.94}
+.bank-card-type-badge{font-size:9.5px;letter-spacing:.18em;padding:3px 9px;border-radius:20px;
+background:rgba(255,255,255,.16)}
+.bank-card-chip{width:34px;height:25px;border-radius:6px;margin:18px 0 12px;
+background:linear-gradient(140deg,#dcdcd8,#b6b6b1)}
+.bank-card-number{font-size:16.5px;letter-spacing:.14em;font-variant-numeric:tabular-nums}
+.bank-card-bottom{display:flex;align-items:flex-end;justify-content:space-between;margin-top:16px}
+.bank-card-holder{font-size:11.5px;letter-spacing:.1em;opacity:.85}
+.bank-card-brand{font-size:11px;letter-spacing:.16em;opacity:.7}
+.bank-balance-block{padding:22px 2px 20px;text-align:center}
+.bank-balance-label{font-size:11px;letter-spacing:.16em;color:#a0a09c;text-transform:uppercase}
+.bank-balance-value{font-size:32px;font-weight:300;letter-spacing:-1px;margin-top:8px;
+font-variant-numeric:tabular-nums}
+.bank-section-title{font-size:11px;letter-spacing:.16em;color:#a0a09c;text-transform:uppercase;
+margin:22px 2px 10px}
+.bank-list-card{background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:18px;
+overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+.bank-empty-hint{font-size:12.5px;color:#a0a09c;padding:22px 16px;text-align:center}
+.bank-feature-row{display:flex;align-items:center;gap:12px;padding:14px 15px;
+border-bottom:1px solid rgba(0,0,0,.06);cursor:pointer}
+.bank-feature-row:last-child{border-bottom:0}
+.bank-feature-row:active{background:#fafaf8}
+.bank-feature-icon{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;
+flex:0 0 auto;background:#f2f2ef;color:#0b0b0b}
+.bank-feature-icon.fund{background:#f1f1ee}
+.bank-feature-icon.deposit{background:#efefec}
+.bank-feature-icon.gold{background:#f3f1ec}
+.bank-feature-info{flex:1;min-width:0}
+.bank-feature-name{font-size:14.5px;font-weight:500}
+.bank-feature-sub{font-size:11.5px;color:#a0a09c;margin-top:2px}
+.bank-feature-arrow{color:#c8c8c4}
+.bank-bill-item{display:flex;align-items:center;gap:12px;padding:13px 15px;
+border-bottom:1px solid rgba(0,0,0,.06)}
+.bank-bill-item:last-child{border-bottom:0}
+.bank-bill-icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+flex:0 0 auto;background:#f2f2ef;color:#0b0b0b}
+.bank-bill-main{flex:1;min-width:0}
+.bank-bill-desc{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bank-bill-date{font-size:11px;color:#b0b0ac;margin-top:2px}
+.bank-bill-amount{font-size:14.5px;font-weight:500;font-variant-numeric:tabular-nums;flex:0 0 auto}
+.bank-bills-expand{width:100%;border:0;background:none;padding:14px;font-size:12.5px;
+color:#8a8a86;display:flex;align-items:center;justify-content:center;gap:6px;
+border-top:1px solid rgba(0,0,0,.06)}
+.bank-bills-expand:active{background:#fafaf8}
+.bank-sparkline{width:100%;height:80px;display:block}
+.bank-chart-empty{font-size:12.5px;color:#a0a09c;text-align:center;padding:26px 0}
+.invest-hero{background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:20px;padding:22px 18px;
+text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+.invest-hero-label{font-size:11px;letter-spacing:.16em;color:#a0a09c;text-transform:uppercase}
+.invest-hero-amount{font-size:32px;font-weight:300;letter-spacing:-1px;margin-top:8px;
+font-variant-numeric:tabular-nums}
+.invest-hero-return{font-size:13.5px;margin-top:8px;color:#8a8a86}
+.invest-info-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.invest-info-cell{background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:16px;
+padding:14px 8px;text-align:center}
+.invest-info-val{font-size:15px;font-weight:500;font-variant-numeric:tabular-nums}
+.invest-info-label{font-size:10.5px;color:#a0a09c;margin-top:5px}
+.invest-actions{display:flex;gap:10px;margin-top:22px}
+.invest-btn{flex:1;border:0;border-radius:16px;padding:15px;font-size:15px;background:#111;color:#fff}
+.invest-btn:disabled{background:#e6e6e2;color:#b0b0ac}
+.invest-btn-sell{background:#fff;color:#0b0b0b;border:1px solid rgba(0,0,0,.12)}
+.invest-btn-sell:disabled{background:#f4f4f2;color:#b0b0ac;border-color:rgba(0,0,0,.06)}
+.sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.34);opacity:0;transition:opacity .2s}
+.sheet-overlay.show{opacity:1}
+.center-modal{position:fixed;left:50%;top:50%;width:calc(100% - 40px);max-width:400px;
+transform:translate(-50%,-46%) scale(.96);opacity:0;
+transition:opacity .2s,transform .24s cubic-bezier(.2,.9,.3,1);background:#fff;border-radius:22px;
+padding:20px 18px;box-shadow:0 18px 50px rgba(0,0,0,.2);max-height:82vh;overflow-y:auto;
+-webkit-overflow-scrolling:touch}
+.center-modal.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.sheet-title{font-size:16.5px;font-weight:600;text-align:center;margin-bottom:16px}
+.invest-modal-info{background:#f7f7f5;border-radius:14px;padding:12px 14px;margin-bottom:14px}
+.invest-modal-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;
+color:#8a8a86;padding:5px 0}
+.invest-modal-row span:last-child{color:#0b0b0b;font-variant-numeric:tabular-nums}
+.bank-transfer-input-wrap{display:flex;align-items:center;gap:10px;border:1px solid rgba(0,0,0,.1);
+border-radius:16px;padding:14px 16px;margin-bottom:14px;background:#fbfbfa}
+.bank-transfer-yen{font-size:20px;color:#a0a09c}
+.bank-transfer-input{flex:1;min-width:0;border:0;background:transparent;font-size:19px;
+color:#0b0b0b;outline:none;font-variant-numeric:tabular-nums}
+.bank-transfer-input::placeholder{color:#c9c9c5;font-size:15px}
+.bank-modal-actions{display:flex;gap:10px;margin-top:6px}
+.bank-modal-btn{flex:1;border:0;border-radius:15px;padding:14px;font-size:15px}
+.bank-modal-btn-cancel{background:#f2f2ef;color:#6a6a66}
+.bank-modal-btn-confirm{background:#111;color:#fff}
+.bank-transfer-info{text-align:center;padding:4px 0 16px}
+.bank-transfer-direction{display:flex;align-items:center;justify-content:center;font-size:14px;
+font-weight:500}
+.bank-transfer-avail{font-size:12px;color:#a0a09c;margin-top:8px}
+.huabei-hero{background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:20px;padding:22px 18px;
+text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.03)}
+.huabei-hero-label{font-size:11px;letter-spacing:.16em;color:#a0a09c;text-transform:uppercase}
+.huabei-hero-amount{font-size:34px;font-weight:300;letter-spacing:-1.2px;margin-top:8px;
+font-variant-numeric:tabular-nums}
+.huabei-hero-sub{font-size:12px;color:#a0a09c;margin-top:6px}
+.huabei-progress-track{height:6px;border-radius:6px;background:#eee;margin-top:16px;overflow:hidden}
+.huabei-progress-fill{height:100%;border-radius:6px;background:#111;transition:width .3s}
+.huabei-bill-card{padding:16px}
+.huabei-bill-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-size:13.5px}
+.huabei-bill-label{color:#8a8a86}
+.huabei-bill-val{font-weight:500;font-variant-numeric:tabular-nums}
+.huabei-bill-val.is-overdue{color:#c0392b}
+.huabei-overdue-badge{font-size:10px;padding:2px 6px;border-radius:8px;background:#fdeceb;
+color:#c0392b;margin-left:5px;font-weight:400}
+.huabei-repay-btn{width:100%;margin-top:14px;border:0;border-radius:14px;padding:14px;
+background:#111;color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center}
+.huabei-repay-info{background:#f7f7f5;border-radius:14px;padding:12px 14px;margin-bottom:14px}
+.huabei-repay-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;
+color:#8a8a86;padding:5px 0}
+.huabei-repay-row span:last-child{font-variant-numeric:tabular-nums}
+.huabei-repay-owed{font-weight:600}
+.huabei-repay-shortcuts{display:flex;gap:10px;margin-bottom:14px}
+.huabei-repay-shortcut{flex:1;border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:12px;
+padding:10px;font-size:12.5px}
+.huabei-pending-card{display:flex;justify-content:space-between;align-items:center;padding:16px}
+.huabei-pending-label{font-size:13.5px;color:#8a8a86}
+.huabei-pending-val{font-size:15px;font-weight:500;font-variant-numeric:tabular-nums}
+.huabei-activate-icon{width:76px;height:76px;border-radius:26px;background:#fff;
+border:1px solid rgba(0,0,0,.07);display:grid;place-items:center;color:#0b0b0b;
+box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.huabei-activate-icon svg{width:36px;height:36px}
+.huabei-activate-title{font-size:22px;font-weight:600;margin-top:18px}
+.huabei-activate-desc{font-size:13px;color:#a0a09c;margin-top:6px}
+.huabei-activate-limit{font-size:11px;letter-spacing:.16em;color:#a0a09c;
+text-transform:uppercase;margin-top:36px}
+.huabei-activate-amount{font-size:40px;font-weight:300;letter-spacing:-1.5px;margin-top:8px;
+font-variant-numeric:tabular-nums}
+.huabei-activate-info{font-size:12px;color:#a0a09c;margin-top:10px}
+.huabei-activate-btn{margin-top:36px;border:0;border-radius:16px;padding:15px 56px;background:#111;
+color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center}
+.deposit-list{display:flex;flex-direction:column;gap:10px}
+.deposit-card{background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:18px;padding:15px 16px;
+box-shadow:0 1px 3px rgba(0,0,0,.03)}
+.deposit-card.is-matured{border-color:rgba(0,0,0,.16)}
+.deposit-card-top{display:flex;justify-content:space-between;align-items:center}
+.deposit-term{font-size:14.5px;font-weight:600}
+.deposit-rate{font-size:12.5px;background:#f2f2ef;padding:3px 9px;border-radius:10px}
+.deposit-card-mid{margin:12px 0 14px}
+.deposit-principal{font-size:13px;color:#8a8a86}
+.deposit-interest{font-size:12.5px;color:#a0a09c;margin-top:4px}
+.deposit-card-bottom{display:flex;justify-content:space-between;align-items:center;
+border-top:1px solid rgba(0,0,0,.06);padding-top:12px}
+.deposit-status{font-size:12px;color:#a0a09c}
+.deposit-status.is-matured{color:#0b0b0b;font-weight:500}
+.deposit-claim-btn,.deposit-withdraw-btn{border:0;border-radius:12px;padding:9px 18px;font-size:13px;
+background:#111;color:#fff;display:inline-flex;align-items:center;justify-content:center}
+.deposit-withdraw-btn{background:#f2f2ef;color:#0b0b0b}
+.deposit-product-row{display:flex;align-items:center;gap:10px;padding:13px 15px;font-size:13px;
+border-bottom:1px solid rgba(0,0,0,.06)}
+.deposit-product-row:last-child{border-bottom:0}
+.deposit-product-term{width:56px}
+.deposit-product-rate{width:56px;font-weight:600;font-variant-numeric:tabular-nums}
+.deposit-product-example{flex:1;text-align:right;color:#a0a09c;font-size:12px}
+.deposit-term-selector{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.deposit-term-option{border:1px solid rgba(0,0,0,.1);background:#fff;border-radius:14px;
+padding:12px 6px;font-size:13px;line-height:1.5}
+.deposit-term-option.is-selected{background:#111;color:#fff;border-color:#111}
+.deposit-term-rate{font-size:11px;color:#a0a09c}
+.deposit-term-option.is-selected .deposit-term-rate{color:rgba(255,255,255,.7)}
+.deposit-preview{font-size:12.5px;color:#8a8a86;text-align:center;margin:-4px 0 14px}
+.gold-hero{padding:20px 18px 16px;text-align:center}
+.gold-price-now{display:flex;align-items:baseline;justify-content:center;gap:8px;flex-wrap:wrap}
+.gold-price-label{font-size:11px;letter-spacing:.16em;color:#a0a09c;text-transform:uppercase;
+width:100%;margin-bottom:6px}
+.gold-price-value{font-size:32px;font-weight:300;letter-spacing:-1px;
+font-variant-numeric:tabular-nums}
+.gold-price-unit{font-size:13px;color:#a0a09c;margin-left:2px}
+.gold-price-arrow{display:inline-flex;color:#8a8a86}
+.gold-countdown{font-size:11.5px;color:#a0a09c;margin-top:10px}
+`;
+  document.head.appendChild(st);
+})();
+
+
+/* ---------- ④ 桌面入口 + 图标 ---------- */
+(function(){
+  if (window.__bkEntry) return;
+  window.__bkEntry = 1;
+
+  var svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'>` +
+    `<rect width='512' height='512' fill='#F0EBE2'/>` +
+    `<path d='M256 108L426 228H86Z' fill='#35322E'/>` +
+    `<rect x='130' y='240' width='42' height='146' rx='19' fill='#35322E'/>` +
+    `<rect x='235' y='240' width='42' height='146' rx='19' fill='#35322E'/>` +
+    `<rect x='340' y='240' width='42' height='146' rx='19' fill='#35322E'/>` +
+    `<rect x='98' y='400' width='316' height='40' rx='20' fill='#35322E'/>` +
+    `</svg>`;
+
+  var st = document.createElement('style');
+  st.id = 'xmBankEntryCss';
+  st.textContent = '.tile[data-k=bank] .ico{background-image:url(data:image/svg+xml,' +
+    encodeURIComponent(svg) +
+    ') !important;background-size:cover !important;background-position:center !important;' +
+    'opacity:1 !important}';
+  document.head.appendChild(st);
+
+  var _open = window.openApp;
+  if (typeof _open === 'function' && !_open.__bk){
+    var f = function(k){
+      if (k === 'bank'){
+        if (window.showBankPage) window.showBankPage(window.__bankUser);
+        else window.toast('银行还在加载，等一下再点');
+        return;
+      }
+      return _open.apply(this, arguments);
+    };
+    f.__bk = 1;
+    window.openApp = f;
+  }
+
+  function tile(){
+    try {
+      if (typeof APPS === 'undefined' || typeof GRID === 'undefined') return;
+      if (!APPS.bank) return;
+      if (GRID.indexOf('bank') > -1 || DOCK.indexOf('bank') > -1) return;
+      GRID.push('bank');
+      if (typeof saveAll === 'function') saveAll();
+      if (typeof renderHome === 'function') renderHome();
+    } catch(e){}
+  }
+  tile();
+  setTimeout(tile, 600);
+  setTimeout(tile, 2000);
+})();
