@@ -5204,7 +5204,68 @@ setInterval(fix, 400);
 })();
 
 
-function build(){
+/* ============================================================
+   微信 · 微信支付页（照 wanwan 那一页）
+   ============================================================ */
+(function(){
+  var KEY = 'xm_wxpay_v1';
+  var built = false;
+
+  function load(){
+    try {
+      var o = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (o && typeof o.bal === 'number') { o.bills = o.bills || []; return o; }
+    } catch(e){}
+    return { bal: 800, bills: [] };
+  }
+  function save(o){ try { localStorage.setItem(KEY, JSON.stringify(o)); } catch(e){} }
+  function money(n){ return '¥' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+\.)/g, ','); }
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+      return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c];
+    });
+  }
+  function tip(m){ if (typeof window.toast === 'function') { try { window.toast(m); return; } catch(e){} } }
+
+  function css(){
+    if (document.getElementById('xmPayCss')) return;
+    var s = document.createElement('style');
+    s.id = 'xmPayCss';
+    s.textContent = `
+#xmPay{position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;z-index:9999;display:none;flex-direction:column;color:#111;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;-webkit-font-smoothing:antialiased}
+#xmPay.on{display:flex}
+.xpTop{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top)) 14px 8px;border-bottom:1px solid #eee;background:#fff}
+.xpBack{font-size:26px;line-height:1;padding:0 6px 4px 0;cursor:pointer}
+.xpTitle{font-size:17px;font-weight:500}
+.xpBody{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px calc(30px + env(safe-area-inset-bottom))}
+.xpCard{background:#fff;border:1px solid #f0f0f0;border-radius:16px;padding:18px 16px}
+.xpLab{font-size:13px;color:#8a8a8a;display:flex;align-items:center;gap:7px}
+.xpIco{width:20px;height:20px;border-radius:6px;background:#f2f2f2;display:flex;align-items:center;justify-content:center}
+.xpIco svg,.xpAv svg{display:block}
+.xpBal{font-size:34px;font-weight:600;letter-spacing:-.5px;margin:14px 0 18px}
+.xpBtns{display:flex;gap:12px}
+.xpBtn{flex:1;height:46px;border-radius:12px;border:0;font-size:15px;font-weight:500;font-family:inherit;cursor:pointer}
+.xpBtn.main{background:#111;color:#fff}
+.xpBtn.ghost{background:#f4f4f4;color:#111}
+.xpSec{font-size:13px;color:#8a8a8a;margin:22px 0 10px}
+.xpRow{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer}
+.xpRow+.xpRow{border-top:1px solid #f2f2f2}
+.xpAv{width:40px;height:40px;border-radius:10px;flex:0 0 auto;display:flex;align-items:center;justify-content:center}
+.xpMain{flex:1;min-width:0}
+.xpName{font-size:15px;display:flex;align-items:center;gap:7px}
+.xpTag{font-size:10px;letter-spacing:.4px;color:#7a7a7a;background:#f1f1f1;border-radius:4px;padding:2px 6px}
+.xpSub{font-size:12px;color:#a0a0a0;margin-top:4px;letter-spacing:.5px}
+.xpArr{color:#c4c4c4;font-size:18px}
+.xpWide{width:100%;height:50px;border:0;border-radius:14px;background:#f4f4f4;font-size:15px;color:#111;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.xpEmpty{text-align:center;color:#b5b5b5;font-size:14px;padding:26px 0;border:1px solid #f0f0f0;border-radius:16px}
+.xpBill{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;font-size:14px}
+.xpBill+.xpBill{border-top:1px solid #f2f2f2}
+.xpBt{color:#a0a0a0;font-size:12px;margin-top:3px}
+`;
+    document.head.appendChild(s);
+  }
+
+  function build(){
     if (built) return;
     built = true;
     var d = document.createElement('div');
@@ -5264,8 +5325,62 @@ function build(){
     }
   }
 
-(function(){
-  var s = document.createElement('style');
-  s.textContent = '.xpIco svg,.xpAv svg{display:block}';
-  document.head.appendChild(s);
+  function move(dir){
+    var o = load();
+    var s = prompt(dir > 0 ? '转入金额' : '转出金额', '');
+    if (s == null) return;
+    var n = parseFloat(s);
+    if (isNaN(n) || n <= 0) { tip('金额不对'); return; }
+    if (dir < 0 && n > o.bal) { tip('零钱不够'); return; }
+    o.bal = Math.round((o.bal + dir * n) * 100) / 100;
+    o.bills.unshift({ t: Date.now(), amt: dir * n, title: dir > 0 ? '转入' : '转出' });
+    if (o.bills.length > 60) o.bills.length = 60;
+    save(o); render();
+  }
+
+  function render(){
+    var o = load();
+    var b = document.getElementById('xpBal');
+    if (b) b.textContent = money(o.bal);
+    var box = document.getElementById('xpBills');
+    if (!box) return;
+    if (!o.bills.length) { box.innerHTML = '<div class="xpEmpty">暂无账单</div>'; return; }
+    box.innerHTML = '<div class="xpCard" style="padding:0;overflow:hidden">' +
+      o.bills.map(function(it){
+        var d = new Date(it.t);
+        var tm = (d.getMonth() + 1) + '/' + d.getDate() + ' ' +
+                 String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+        var amt = it.amt === 0 ? '' : (it.amt > 0 ? '+' : '-') + money(Math.abs(it.amt));
+        return '<div class="xpBill"><div><div>' + esc(it.title) + '</div><div class="xpBt">' + tm + '</div></div><div>' + amt + '</div></div>';
+      }).join('') + '</div>';
+  }
+
+  function open(){ css(); build(); render(); var el = document.getElementById('xmPay'); if (el) el.classList.add('on'); }
+  function close(){ var el = document.getElementById('xmPay'); if (el) el.classList.remove('on'); }
+
+  window.xmOpenWxPay = open;
+  window.xmWxPay = { open: open, load: load, save: save, money: money };
+
+  /* 接管「我」页面的 Wallet */
+  function hookWallet(){
+    var list = document.querySelectorAll('.xmWallet');
+    for (var i = 0; i < list.length; i++){
+      if (list[i].__xmPay) continue;
+      list[i].__xmPay = 1;
+      list[i].onclick = function(e){
+        if (e && e.preventDefault) e.preventDefault();
+        if (e && e.stopPropagation) e.stopPropagation();
+        open();
+        return false;
+      };
+    }
+  }
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if (!t || !t.closest) return;
+    if (!t.closest('.xmWallet')) return;
+    e.preventDefault(); e.stopPropagation();
+    open();
+  }, true);
+  setInterval(hookWallet, 800);
 })();
