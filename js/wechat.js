@@ -5194,6 +5194,6 @@ window.xmAsk = xmAsk;
     row.appendChild(w);
   }
 
-  fix();
+fix();
 new MutationObserver(function(){ setTimeout(fix, 30); }).observe(document.body, { childList: true, subtree: true });
 setInterval(fix, 1500);
