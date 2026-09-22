@@ -1,7 +1,699 @@
-/* ============================================================
-   咩&砚 · js/wechat.js
-   微信 · 朋友圈 · 我页面 · 键盘与消息贴底
-   ============================================================ */
+/* ---------- 后台生成：切后台也照样把回复收回来 ---------- */
+
+
+  // ① 清掉僵尸「···」。SENDING 为真说明是正在等的那个，别动
+  function cleanTyping(){
+    try {
+      if (typeof SENDING !== 'undefined' && SENDING) return;
+      if (!Array.isArray(CHAT) || !CHAT.length) return;
+      var last = CHAT[CHAT.length - 1];
+      if (last && last.typing){
+        CHAT.pop(); saveChat();
+        if (typeof renderChat === 'function') renderChat(true);
+      }
+    } catch(e){}
+  }
+  cleanTyping();
+
+  // ② 推送到了 / 点了通知 → 立刻去拉
+  if ('serviceWorker' in navigator){
+    navigator.serviceWorker.addEventListener('message', function(e){
+      var d = e.data || {};
+      if (d.type === 'kai-new' || d.type === 'open-chat'){
+        setTimeout(function(){
+          try { if (typeof pullOutbox === 'function') pullOutbox(); } catch(err){}
+        }, 400);
+      }
+    });
+  }
+
+  // ③ 回到前台：先清僵尸，再拉
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden) return;
+    cleanTyping();
+    setTimeout(function(){
+      try { if (typeof pullOutbox === 'function') pullOutbox(); } catch(e){}
+    }, 500);
+  });
+
+  // ④ 前台每 25 秒兜底拉一次
+  setInterval(function(){
+    if (document.hidden) return;
+    try {
+      if (typeof SENDING !== 'undefined' && SENDING) return;
+      if (typeof pullOutbox === 'function') pullOutbox();
+    } catch(e){}
+  }, 25000);
+
+  // ⑤ 拉回来真回复时，把之前那句「没等到回复」抹掉
+  var _po = window.pullOutbox;
+  if (typeof _po === 'function' && !_po.__bg){
+    var fn = async function(){
+      var before = Array.isArray(CHAT) ? CHAT.length : 0;
+      var r = await _po.apply(this, arguments);
+      try {
+        if (Array.isArray(CHAT) && CHAT.length > before){
+          for (var i = CHAT.length - 2; i >= 0; i--){
+            var m = CHAT[i];
+            if (m && m.role === 'assistant' && m.text && m.text.indexOf('没等到回复') > -1){
+              CHAT.splice(i, 1);
+            }
+          }
+          saveChat();
+          if (typeof renderChat === 'function') renderChat(true);
+        }
+      } catch(e){}
+      return r;
+    };
+    fn.__bg = true;
+    window.pullOutbox = fn;
+  }
+})();
+
+/* ---------- 计算器：不用算就一趟，要算才两趟 ---------- */
+
+
+(function(){
+  var TAG = /\[\[\s*(?:算|calc)\s*\]\]([\s\S]?)\[\[\s\/\s*(?:算|calc)\s*\]\]/g;
+
+  /* ---------- 引擎 ---------- */
+  function fmt(n){
+    if (typeof n !== 'number' || !isFinite(n)) return String(n);
+    if (Number.isInteger(n) && Math.abs(n) < 1e15) return String(n);
+    var s = n.toPrecision(12);
+    if (s.indexOf('e') < 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+    return String(parseFloat(s));
+  }
+  function fact(n){
+    if (n < 0 || n !== Math.floor(n) || n > 170) throw new Error('bad');
+    var r = 1; for (var i = 2; i <= n; i++) r *= i; return r;
+  }
+  var OK = ['sqrt','cbrt','abs','sin','cos','tan','asin','acos','atan','atan2','ln','log','log2','log10',
+            'exp','pow','floor','ceil','round','min','max','sign','sgn','fact','pi','PI','e','E'];
+  function ev(src){
+    var s = String(src).replace(/[，,\s]/g,'').replace(/×/g,'*').replace(/÷/g,'/')
+      .replace(/−/g,'-').replace(/（/g,'(').replace(/）/g,')').replace(/π/g,'pi')
+      .replace(/(\d)[eE]([+-]?\d)/g,'$1*10**$2').replace(/\^/g,'**');
+    if (!/^[0-9a-zA-Z_+\-*/%.()!<>=]+$/.test(s)) throw new Error('bad');
+    var names = s.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || [];
+    for (var i = 0; i < names.length; i++) if (OK.indexOf(names[i]) < 0) throw new Error('bad');
+    s = s.replace(/(\d+(?:\.\d+)?)!/g, 'fact($1)');
+    var v = Function(
+      'var fact=arguments[0],PI=Math.PI,pi=Math.PI,E=Math.E,e=Math.E,'+
+      'sqrt=Math.sqrt,cbrt=Math.cbrt,abs=Math.abs,sign=Math.sign,sgn=Math.sign,'+
+      'sin=Math.sin,cos=Math.cos,tan=Math.tan,asin=Math.asin,acos=Math.acos,'+
+      'atan=Math.atan,atan2=Math.atan2,ln=Math.log,exp=Math.exp,pow=Math.pow,'+
+      'floor=Math.floor,ceil=Math.ceil,round=Math.round,min=Math.min,max=Math.max,'+
+      'log=function(a,b){return b===undefined?Math.log10(a):Math.log(b)/Math.log(a)},'+
+      'log2=Math.log2,log10=Math.log10;return ('+s+');'
+    )(fact);
+    if (typeof v !== 'number' || !isFinite(v)) throw new Error('bad');
+    return v;
+  }
+  function hasTag(t){ return /\[\[\s*(?:算|calc)\s*\]\]/.test(String(t || '')); }
+  function exprsIn(t){
+    var out = [], m; TAG.lastIndex = 0;
+    while ((m = TAG.exec(String(t)))) out.push(m[1]);
+    return out;
+  }
+  function fixText(t){
+    if (!t || !hasTag(t)) return t;
+    return String(t).replace(TAG, function(all, e){
+      try { return fmt(ev(e)); } catch(err){ return '（算不了）'; }
+    });
+  }
+
+  /* ---------- 渲染兜底：把残留标签就地换成数字 ---------- */
+  var _rc = window.renderChat;
+  if (typeof _rc === 'function' && !_rc.__calc){
+    var fr = function(){
+      try {
+        if (Array.isArray(CHAT)){
+          var hit = false;
+          CHAT.forEach(function(m){
+            if (!m || m.role !== 'assistant') return;
+            var a = fixText(m.text);  if (a !== m.text){  m.text = a;  hit = true; }
+            var b = fixText(m.think); if (b !== m.think){ m.think = b; hit = true; }
+          });
+          if (hit) saveChat();
+        }
+      } catch(e){}
+      return _rc.apply(this, arguments);
+    };
+    fr.__calc = true;
+    window.renderChat = fr;
+  }
+
+  /* ---------- 第一趟：告诉模型两种写法 ---------- */
+  var MARK = '【计算器 · 两种用法】';
+  var _bm = window.buildMessages;
+  if (typeof _bm === 'function' && !_bm.__calc){
+    var fb = function(){
+      var m = _bm.apply(this, arguments);
+      try {
+        if (m && m[0] && m[0].role === 'system' && m[0].content.indexOf(MARK) < 0){
+          m[0].content += '\n\n' + MARK + '\n'
+            + '要算数就写成 [[算]]算式[[/算]]，程序会算好。两种写法，按需要选：\n'
+            + 'A. 只是报个数字 → 照常写句子，标签嵌在中间。\n'
+            + '   例：一共 [[算]]3128.5+289.9[[/算]] 元。\n'
+            + 'B. 算出来的数你后面还要用（要比较、要判断、要接着算）→ '
+            + '整条回复只写算式标签，一行一个，别的什么都不要写。'
+            + '程序算完会把结果发回来，你再写正式回复。\n'
+            + '   例：[[算]]3.5*42[[/算]]\n'
+            + '拿不准就用 B。不要自己心算，也不要猜结果。\n'
+            + '支持 + - * / % ^ ! 和括号；函数 sqrt cbrt abs sin cos tan asin acos atan '
+            + 'ln log log2 log10 exp pow floor ceil round min max sgn；常量 pi e。log(base, value)。';
+        }
+      } catch(e){}
+      return m;
+    };
+    fb.__calc = true;
+    window.buildMessages = fb;
+  }
+
+  /* ---------- 第二趟：带着算好的数再问一次 ---------- */
+  async function pass2(){
+    var last = CHAT[CHAT.length - 1];
+    if (!last || last.role !== 'assistant' || !hasTag(last.text)) return;
+    var exprs = exprsIn(last.text);
+    if (!exprs.length) return;
+
+    var lines = exprs.map(function(e){
+      try { return '· ' + String(e).trim() + ' = ' + fmt(ev(e)); }
+      catch(err){ return '· ' + String(e).trim() + ' = （算不了）'; }
+    });
+
+    var keep = last.text, msgs;
+    try {
+      last.typing = true;
+      saveChat();
+      if (document.getElementById('msgs')) renderChat(true);
+      msgs = buildMessages();
+      msgs.push({ role: 'assistant', content: keep });
+      msgs.push({ role: 'user', content: '【程序算好的结果】\n' + lines.join('\n')
+        + '\n\n现在用这些数写正式回复。已经算好了，别再写 [[算]] 标签。' });
+    } catch(e){ delete last.typing; return; }
+
+    SENDING = true;
+    var rid = 'r2' + Date.now() + Math.random().toString(36).slice(2, 7);
+    try {
+      await api('/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: rid, inboxId: S.inbox, messages: msgs,
+          settings: { mainApiUrl: S.apiUrl, mainApiKey: S.apiKey, mainApiModel: S.model,
+                      apiType: S.apiType || 'openai', temperature: 0.9 },
+          meta: { charName: '祁砚', charId: 'kai' }
+        })
+      });
+      var hit = null;
+      for (var i = 0; i < 24; i++){
+        await sleep(i ? 2000 : 400);
+        try {
+          var j = await api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
+          var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
+          if (f){
+            await api('/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] }) }).catch(function(){});
+            hit = f; break;
+          }
+        } catch(e){}
+      }
+      if (CHAT[CHAT.length - 1] === last && hit && hit.content){
+        var r = parseReply(hit.content);
+        last.text = r.text || keep;
+        last.think = r.think || last.think;
+        if (S.autoMem) r.mems.forEach(function(m){ addMemAuto(m); });
+        if (r.alarms.length){
+          r.alarms.forEach(function(a){ addAlarmLocal(a.hh, a.mm, a.label); });
+          pushAlarmsToCloud(r.alarms);
+        }
+      }
+    } catch(e){
+    } finally {
+      delete last.typing;
+      SENDING = false;
+      saveChat();
+      if (document.getElementById('msgs')) renderChat(true);
+    }
+  }
+
+  /* ---------- 挂在 sendChat 后面 ---------- */
+  var _send = window.sendChat;
+  if (typeof _send === 'function' && !_send.__calc){
+    var fs = async function(){
+      var r = await _send.apply(this, arguments);
+      try { await pass2(); } catch(e){}
+      return r;
+    };
+    fs.__calc = true;
+    window.sendChat = fs;
+  }
+})();
+
+/* ---------- 暂停思考 ---------- */
+
+
+(function(){
+  var ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
+    'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+
+    '<path d="M9.4 5.5v13"/><path d="M14.6 5.5v13"/></svg>';
+
+  var st = document.createElement('style');
+  st.textContent =
+    '.bub.kai.typing{display:inline-flex;align-items:center;gap:11px}'+
+    '.pauseBtn{border:0;background:transparent;padding:0;margin:0;display:flex;align-items:center;'+
+      'justify-content:center;color:inherit;opacity:.42;transition:opacity .15s;'+
+      '-webkit-tap-highlight-color:transparent}'+
+    '.pauseBtn:active{opacity:.85}';
+  document.head.appendChild(st);
+
+  /* 暂停后把还在等的长延时压掉，让那条链子两秒内收尾 */
+  var _st = window.setTimeout, fastOn = false;
+  function fast(on){
+    if (on && !fastOn){
+      fastOn = true;
+      window.setTimeout = function(fn, ms){
+        return _st(fn, (window.__pauseHit && ms >= 300) ? 0 : ms);
+      };
+    } else if (!on && fastOn){
+      fastOn = false;
+      window.setTimeout = _st;
+    }
+  }
+
+  function pauseThink(){
+    window.__pauseHit = true;
+    fast(true);
+    try {
+      if (Array.isArray(CHAT)){
+        var last = CHAT[CHAT.length - 1];
+        if (last && last.typing) last.hidden = true;
+      }
+      if (document.getElementById('msgs')) renderChat(true);
+    } catch(e){}
+    _st(function(){ fast(false); }, 20000);
+  }
+  window.pauseThink = pauseThink;
+
+  function decorate(){
+    var box = document.getElementById('msgs');
+    if (!box) return;
+    var ty = box.querySelector('.bub.kai.typing');
+    if (!ty) return;
+    var last = Array.isArray(CHAT) ? CHAT[CHAT.length - 1] : null;
+    if (last && last.typing && last.hidden){ ty.remove(); return; }
+    if (ty.querySelector('.pauseBtn')) return;
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pauseBtn';
+    b.setAttribute('aria-label', '暂停思考');
+    b.innerHTML = ICON;
+    b.onclick = function(e){ e.preventDefault(); e.stopPropagation(); pauseThink(); };
+    ty.appendChild(b);
+  }
+
+  var _rc = window.renderChat;
+  if (typeof _rc === 'function' && !_rc.__pause){
+    var fr = function(){
+      var r = _rc.apply(this, arguments);
+      try { decorate(); } catch(e){}
+      return r;
+    };
+    fr.__pause = true;
+    window.renderChat = fr;
+  }
+
+  var _send = window.sendChat;
+  if (typeof _send === 'function' && !_send.__pause){
+    var fs = async function(){
+      window.__pauseHit = false;
+      var r = await _send.apply(this, arguments);
+      if (window.__pauseHit){
+        try {
+          var last = CHAT[CHAT.length - 1];
+          if (last && last.role === 'assistant' && !last.typing) CHAT.pop();
+          for (var i = CHAT.length - 1; i >= 0; i--){
+            if (CHAT[i] && CHAT[i].hidden){ CHAT.splice(i, 1); break; }
+          }
+          saveChat();
+          if (document.getElementById('msgs')) renderChat(true);
+        } catch(e){}
+      }
+      window.__pauseHit = false;
+      fast(false);
+      return r;
+    };
+    fs.__pause = true;
+    window.sendChat = fs;
+  }
+
+  try { if (document.getElementById('msgs')) decorate(); } catch(e){}
+})();
+
+/* ---------- 输入栏改造：贴/说/🔍 删掉，+ 当发送 ---------- */
+
+
+(function(){
+  var WAVE = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
+    'stroke-width="1.8" stroke-linecap="round"><path d="M4 10.5v3"/><path d="M8 7.5v9"/>'+
+    '<path d="M12 5v14"/><path d="M16 8v8"/><path d="M20 10.5v3"/></svg>';
+  var PLUS = '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
+    'stroke-width="1.9" stroke-linecap="round"><path d="M12 5.6v12.8"/><path d="M5.6 12h12.8"/></svg>';
+
+  var st = document.createElement('style');
+  st.textContent =
+    '.inputbar{gap:9px;padding:11px 13px calc(env(safe-area-inset-bottom) + 15px);'+
+      'background:transparent;border-top:0}'+
+    '.inputbar .ibField{flex:1;min-width:0;display:flex;align-items:center;gap:9px;'+
+      'background:#fff;border-radius:24px;padding:0 13px;height:46px}'+
+    '.inputbar .ibField .wave{color:#b9b9b5;display:flex;flex:0 0 auto}'+
+    '.inputbar .ibField input{flex:1;min-width:0;border:0;background:transparent;padding:0;'+
+      'font-size:16px;font-weight:200;letter-spacing:.02em;'+
+      'font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif}'+
+    '.inputbar .ibField input::placeholder{color:#c4c4c0;font-weight:200}'+
+    '.inputbar .ibField .ibPlus{border:0;background:transparent;color:#8f8f8b;padding:4px;'+
+      'display:flex;align-items:center}'+
+    '.inputbar button.send{width:46px;height:46px;min-width:46px;padding:0;border-radius:50%;'+
+      'background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:0}';
+  document.head.appendChild(st);
+
+  function build(){
+    var bar = document.querySelector('.inputbar');
+    if (!bar || bar.dataset.xm) return;
+    var inp = document.getElementById('mIn');
+    if (!inp) return;
+    bar.dataset.xm = '1';
+
+    if (inp.parentNode) inp.parentNode.removeChild(inp);   // 保住输入框本身
+    bar.innerHTML = '';
+
+    inp.placeholder = '在想什么...';
+    inp.autocomplete = 'off';
+    inp.autocorrect = 'off';
+    inp.autocapitalize = 'off';
+    inp.spellcheck = false;
+    inp.setAttribute('autocapitalize', 'off');
+    inp.setAttribute('autocorrect', 'off');
+
+    var field = document.createElement('div');
+    field.className = 'ibField';
+
+    var w = document.createElement('span');
+    w.className = 'wave';
+    w.innerHTML = WAVE;
+
+    var plus = document.createElement('button');
+    plus.type = 'button';
+    plus.className = 'ibPlus';
+    plus.innerHTML = PLUS;
+    plus.onclick = function(e){ e.preventDefault(); sendChat(); };
+
+    field.appendChild(w);
+    inp.autocomplete = 'off';
+    inp.name = 'xm-msg';
+    field.appendChild(inp);
+    field.appendChild(plus);
+
+    var send = document.createElement('button');
+    send.type = 'button';
+    send.className = 'send';
+    send.innerHTML = PLUS;
+    send.onclick = function(e){ e.preventDefault(); sendChat(); };
+
+    bar.appendChild(field);
+    bar.appendChild(send);
+
+    inp.addEventListener('keydown', function(e){
+      if (e.key === 'Enter'){ e.preventDefault(); sendChat(); }
+    });
+  }
+
+
+function toBottom(){
+    var m = document.getElementById('msgs');
+    if (!m) return;
+    m.scrollTop = m.scrollHeight;
+    var p = m.parentNode;
+    if (p && p.scrollHeight > p.clientHeight) p.scrollTop = p.scrollHeight;
+  }
+  build();
+  var _oa = window.openApp;
+  if (typeof _oa === 'function' && !_oa.__ib){
+    var fo = function(k){
+      var r = _oa.apply(this, arguments);
+      try { build(); } catch(e){}
+      if (k === 'chat'){
+        toBottom();
+        setTimeout(toBottom, 60);
+        setTimeout(toBottom, 260);
+        setTimeout(toBottom, 700);
+      }
+      return r;
+    };
+    fo.__ib = true;
+    window.openApp = fo;
+  }
+  setInterval(build, 50);
+
+
+ /* ---------- 聊天 + 面板：图片 / 拍摄 / 收藏 / 位置（照片真送进模型） ---------- */
+
+
+(function(){
+  if (S.vision === undefined){ S.vision = 1; try { save(); } catch(e){} }
+
+  var S1 = 'fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"';
+  var IC = {
+    pic:'<svg width="23" height="23" viewBox="0 0 24 24" '+S1+'><rect x="3.2" y="4.8" width="17.6" height="14.4" rx="3"/><circle cx="8.7" cy="9.7" r="1.5"/><path d="M3.6 16.6l4.6-4.2 3.3 3 3.1-2.8 5.8 5.2"/></svg>',
+    cam:'<svg width="23" height="23" viewBox="0 0 24 24" '+S1+'><path d="M3.4 8.8a2.6 2.6 0 0 1 2.6-2.6h1.4l1.3-2h6.6l1.3 2H18a2.6 2.6 0 0 1 2.6 2.6v7.8a2.6 2.6 0 0 1-2.6 2.6H6a2.6 2.6 0 0 1-2.6-2.6z"/><circle cx="12" cy="12.7" r="3.5"/></svg>',
+    fav:'<svg width="23" height="23" viewBox="0 0 24 24" '+S1+'><path d="M6.6 3.9h10.8a1.5 1.5 0 0 1 1.5 1.5v14.7L12 16.3l-6.9 3.8V5.4a1.5 1.5 0 0 1 1.5-1.5z"/></svg>',
+    loc:'<svg width="23" height="23" viewBox="0 0 24 24" '+S1+'><path d="M12 21.3s6.5-6 6.5-10.7A6.5 6.5 0 0 0 5.5 10.6c0 4.7 6.5 10.7 6.5 10.7z"/><circle cx="12" cy="10.4" r="2.4"/></svg>'
+  };
+
+  var st = document.createElement('style');
+  st.textContent =
+    '.xmPanel{flex:0 0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:14px 0;'+
+      'padding:0 8px;background:#f2f2f0;border-top:1px solid var(--line);'+
+      'max-height:0;overflow:hidden;opacity:0;transition:max-height .22s ease,opacity .16s,padding .22s}'+
+    '.xmPanel.on{max-height:200px;opacity:1;padding:16px 8px 12px}'+
+    '.xmItem{display:flex;flex-direction:column;align-items:center;gap:7px;font-size:11px;'+
+      'color:#5d5d59;-webkit-tap-highlight-color:transparent}'+
+    '.xmItem .box{width:54px;height:54px;border-radius:16px;background:#fff;display:flex;'+
+      'align-items:center;justify-content:center;color:#3a3a37;box-shadow:0 1px 4px rgba(0,0,0,.05);'+
+      'transition:transform .12s}'+
+    '.xmItem:active .box{transform:scale(.93)}'+
+    '.xmBar{position:fixed;left:50%;bottom:130px;transform:translateX(-50%);z-index:95;'+
+      'background:rgba(0,0,0,.82);color:#fff;font-size:12.5px;padding:9px 16px;border-radius:14px;'+
+      'max-width:82vw;text-align:center;display:none}'+
+    'img.xmPic{display:block;max-width:190px;max-height:250px;border-radius:13px;cursor:zoom-in}';
+  document.head.appendChild(st);
+
+  var tEl = null, tTimer = 0;
+  function toast(t){
+    if (!tEl){ tEl = document.createElement('div'); tEl.className = 'xmBar'; document.body.appendChild(tEl); }
+    tEl.textContent = t; tEl.style.display = 'block';
+    clearTimeout(tTimer);
+    tTimer = setTimeout(function(){ tEl.style.display = 'none'; }, 2400);
+  }
+  function closePanel(){ var p = document.querySelector('.xmPanel'); if (p) p.classList.remove('on'); }
+
+  /* ---------- 附件库：IndexedDB，不占 localStorage ---------- */
+  var DB = null, IMGC = {};
+  function idb(){
+    return new Promise(function(res, rej){
+      if (DB) return res(DB);
+      var r = indexedDB.open('xmimg', 1);
+      r.onupgradeneeded = function(){ r.result.createObjectStore('img'); };
+      r.onsuccess = function(){ DB = r.result; res(DB); };
+      r.onerror = function(){ rej(r.error); };
+    });
+  }
+  function idbPut(k, v){
+    return idb().then(function(d){ return new Promise(function(res){
+      var t = d.transaction('img', 'readwrite');
+      t.objectStore('img').put(v, k);
+      t.oncomplete = res; t.onerror = res;
+    }); }).catch(function(){});
+  }
+  function idbGet(k){
+    return idb().then(function(d){ return new Promise(function(res){
+      var q = d.transaction('img', 'readonly').objectStore('img').get(k);
+      q.onsuccess = function(){ res(q.result || null); };
+      q.onerror = function(){ res(null); };
+    }); }).catch(function(){ return null; });
+  }
+
+  /* ---------- 选图 / 拍照 ---------- */
+  var fPic = document.createElement('input');
+  fPic.type = 'file'; fPic.accept = 'image/*'; fPic.multiple = true; fPic.style.display = 'none';
+  var fCam = document.createElement('input');
+  fCam.type = 'file'; fCam.accept = 'image/*'; fCam.capture = 'environment'; fCam.style.display = 'none';
+  document.body.appendChild(fPic); document.body.appendChild(fCam);
+
+  function shrink(file, cb){
+    var fr = new FileReader();
+    fr.onload = function(){
+      var im = new Image();
+      im.onload = function(){
+        function mk(mx, q){
+          var s = Math.min(1, mx / im.naturalWidth, mx / im.naturalHeight);
+          var c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(im.naturalWidth * s));
+          c.height = Math.max(1, Math.round(im.naturalHeight * s));
+          c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+          return c.toDataURL('image/jpeg', q);
+        }
+        cb({ full: mk(1600, .85), thumb: mk(260, .55) });
+      };
+      im.onerror = function(){ cb(null); };
+      im.src = fr.result;
+    };
+    fr.onerror = function(){ cb(null); };
+    fr.readAsDataURL(file);
+  }
+
+  function handleFiles(files){
+    var list = Array.prototype.slice.call(files || []).slice(0, 4);
+    if (!list.length) return;
+    var done = 0;
+    list.forEach(function(f){
+      shrink(f, function(o){
+        if (o){
+          var id = 'i' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+          IMGC[id] = o.full;
+          idbPut(id, o.full);
+          CHAT.push({ role:'user', imgId:id, thumb:o.thumb, text:'', t:Date.now() });
+        }
+        if (++done === list.length) finish();
+      });
+    });
+    function finish(){
+      saveChat();
+      if (document.getElementById('msgs')) renderChat(true);
+      closePanel();
+      var inp = document.getElementById('mIn');
+      if (!inp) return;
+      if (!inp.value.trim()) inp.value = '（我发了张照片）';
+      try { sendChat(); } catch(e){}
+    }
+  }
+  fPic.onchange = function(){ handleFiles(fPic.files); fPic.value = ''; };
+  fCam.onchange = function(){ handleFiles(fCam.files); fCam.value = ''; };
+
+  /* ---------- 全屏看 ---------- */
+  function view(m){
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.94);'+
+      'display:flex;align-items:center;justify-content:center';
+    var im = document.createElement('img');
+    im.src = IMGC[m.imgId] || m.thumb;
+    im.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain';
+    d.appendChild(im);
+    d.onclick = function(){ d.remove(); };
+    document.body.appendChild(d);
+    if (m.imgId && !IMGC[m.imgId]){
+      idbGet(m.imgId).then(function(v){ if (v){ IMGC[m.imgId] = v; im.src = v; } });
+    }
+  }
+
+  /* ---------- 收藏 ---------- */
+  function favs(){ try { return JSON.parse(localStorage.getItem('xm_favs') || '[]'); } catch(e){ return []; } }
+  function saveFavs(a){ try { localStorage.setItem('xm_favs', JSON.stringify(a)); } catch(e){} }
+  function favSheet(){
+    var old = document.getElementById('xmFav'); if (old) old.remove();
+    var list = favs();
+    var d = document.createElement('div');
+    d.id = 'xmFav';
+    d.style.cssText = 'position:fixed;inset:0;z-index:85;background:rgba(0,0,0,.3);display:flex;align-items:flex-end';
+    d.innerHTML = '<div style="width:100%;max-height:68vh;overflow-y:auto;background:#f4f4f2;'+
+      'border-radius:20px 20px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 18px)">'+
+      '<div style="font-size:15px;font-weight:600;margin-bottom:6px">收藏</div>'+
+      (list.length ? list.map(function(t, i){
+        return '<div class="item"><span>' + esc(t) + '</span><em><b class="x" data-d="' + i + '">×</b></em></div>';
+      }).join('') : '<div class="empty">还没有收藏。在输入框里写好，点「收藏」就存下来了。</div>')+
+      '</div>';
+    d.onclick = function(e){
+      if (e.target === d){ d.remove(); return; }
+      var del = e.target.closest('[data-d]');
+      if (del){ var a = favs(); a.splice(+del.dataset.d, 1); saveFavs(a); favSheet(); return; }
+      var row = e.target.closest('.item');
+      if (row){
+        var t = (row.querySelector('span') || {}).textContent || '';
+        var inp = document.getElementById('mIn');
+        if (inp){ inp.value = inp.value.trim() ? inp.value.trim() + ' ' + t : t; inp.focus(); }
+        d.remove();
+      }
+    };
+    document.body.appendChild(d);
+  }
+  function doFav(){
+    var inp = document.getElementById('mIn');
+    var t = inp ? inp.value.trim() : '';
+    if (t){
+      var a = favs();
+      if (a.indexOf(t) < 0) a.unshift(t);
+      saveFavs(a.slice(0, 50));
+      inp.value = ''; toast('已收藏');
+    } else favSheet();
+    closePanel();
+  }
+
+  /* ---------- 位置 ---------- */
+  function doLoc(){
+    if (!navigator.geolocation){ toast('这台设备不给定位'); return; }
+    toast('定位中…');
+    navigator.geolocation.getCurrentPosition(function(p){
+      var la = p.coords.latitude, lo = p.coords.longitude;
+      var send = function(name){
+        var t = '我在' + (name ? name : '这里') + '（' + la.toFixed(4) + ', ' + lo.toFixed(4) + '）';
+        var inp = document.getElementById('mIn');
+        if (inp){ inp.value = t; try { sendChat(); } catch(e){} }
+        closePanel();
+      };
+      fetch('https://nominatim.openstreetmap.org/reverse?format=json&zoom=16&accept-language=zh-CN&lat='
+        + la + '&lon=' + lo)
+        .then(function(r){ return r.json(); })
+        .then(function(j){
+          var a = (j && j.address) || {};
+          var n = a.road || a.suburb || a.neighbourhood || a.village || a.town || a.city_district || '';
+          send(n ? n + '附近' : '');
+        })
+        .catch(function(){ send(''); });
+    }, function(){
+      toast('拿不到位置。去 iPhone 设置 → 隐私与安全性 → 定位服务 里给 Safari 打开。');
+    }, { timeout: 9000, enableHighAccuracy: true });
+  }
+
+  /* ---------- 挂到输入栏 ---------- */
+  function build(){
+    var bar = document.querySelector('.inputbar');
+    if (!bar) return;
+    var plus = bar.querySelector('.ibPlus');
+    if (!plus || bar.dataset.xm2 === '1') return;
+    bar.dataset.xm2 = '1';
+    var panel = document.createElement('div');
+    panel.className = 'xmPanel';
+    panel.innerHTML = [['pic','图片'], ['cam','拍摄'], ['fav','收藏'], ['loc','位置']]
+      .map(function(x){
+        return '<div class="xmItem" data-a="' + x[0] + '"><span class="box">' + IC[x[0]] + '</span>' + x[1] + '</div>';
+      }).join('');
+    bar.parentNode.insertBefore(panel, bar);
+    panel.onclick = function(e){
+      var it = e.target.closest('[data-a]');
+      if (!it) return;
+      var a = it.dataset.a;
+      if (a === 'pic') fPic.click();
+      else if (a === 'cam') fCam.click();
+      else if (a === 'fav') doFav();
+      else if (a === 'loc') doLoc();
+    };
+    plus.onclick = function(e){ e.preventDefault(); e.stopPropagation(); panel.classList.toggle('on'); };
+    var inp = bar.querySelector('#mIn');
+    if (inp) inp.addEventListener('focus', closePanel);
+  }
+  build();
+  setInterval(build, 50);
 
   /* ---------- 渲染缩略图 ---------- */
   var _rc = window.renderChat;
@@ -40,6 +732,30 @@
   setTimeout(preload, 1200);
   setInterval(preload, 60000);
 
+  /* ---------- 带图的消息改成 OpenAI content 数组 ---------- */
+  var _bm = window.buildMessages;
+  if (typeof _bm === 'function' && !_bm.__vis){
+    var fb = function(){
+      var m = _bm.apply(this, arguments);
+      try {
+        if (!Array.isArray(m)) return m;
+        var src = CHAT.filter(function(x){ return !x.typing; }).slice(-12);
+        for (var i = 0; i < src.length; i++){
+          var c = src[i], t = m[i + 1];
+          if (!c || !t || t.role !== 'user') continue;
+          var txt = String(t.content || '').trim();
+          if (!txt || txt === '（图片）') txt = '（我发了张照片）';
+          var url = c.imgId ? (IMGC[c.imgId] || c.thumb) : (c.img || null);
+          t.content = (url && +S.vision)
+            ? [{ type:'text', text: txt }, { type:'image_url', image_url:{ url: url } }]
+            : txt;
+        }
+      } catch(e){}
+      return m;
+    };
+    fb.__vis = true;
+    window.buildMessages = fb;
+  }
 
   /* ---------- 发带图的请求时，临时换成视觉模型 ---------- */
   var _api = window.api;
@@ -126,8 +842,7 @@
     window.sendChat = fs;
   }
 
-
- /* ---------- 聊天详情里的视觉设置 ---------- */
+  /* ---------- 聊天详情里的视觉设置 ---------- */
   var _oci = window.openChatInfo;
   if (typeof _oci === 'function' && !_oci.__vis){
     var fo = function(){
@@ -169,8 +884,105 @@
   }
 })();
 
+/* 暗度归零 */
+if (+S.dim !== 0){ S.dim = 0; save(); }
+setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400);
 
 
+/* ---------- 回到底部按钮（不在底部时才出现） ---------- */
+
+
+(function(){
+  var DOWN = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
+    'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">'+
+    '<path d="M7 7.8 12 12.8l5-5"/><path d="M7 13.6 12 18.6l5-5"/></svg>';
+
+  var st = document.createElement('style');
+  st.textContent = '#ovbody{position:relative}'+
+    '#xmDown:active{transform:scale(.9)!important}';
+  document.head.appendChild(st);
+
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'xmDown';
+  btn.innerHTML = DOWN;
+  btn.style.cssText =
+    'position:absolute;right:16px;width:38px;height:38px;padding:0;border:0;border-radius:50%;'+
+    'background:rgba(0,0,0,.42);color:#fff;display:flex;align-items:center;justify-content:center;'+
+    'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);'+
+    'box-shadow:0 4px 16px rgba(0,0,0,.18);z-index:12;'+
+    'opacity:0;transform:scale(.7);pointer-events:none;transition:opacity .18s,transform .18s';
+
+  function box(){ return document.getElementById('msgs'); }
+  function atBottom(){
+    var b = box();
+    if (!b) return true;
+    return b.scrollHeight - b.scrollTop - b.clientHeight < 90;
+  }
+  function place(){
+    var bar = document.querySelector('.inputbar');
+    var panel = document.querySelector('.xmPanel');
+    var h = (bar ? bar.offsetHeight : 62) +
+            (panel && panel.classList.contains('on') ? panel.offsetHeight : 0);
+    btn.style.bottom = (h + 14) + 'px';
+  }
+  function sync(){
+    var b = box(), ob = document.getElementById('ovbody');
+    if (!b || !ob || !ob.classList.contains('ovchat')) return;
+    if (btn.parentNode !== ob) ob.appendChild(btn);
+    place();
+    var show = !atBottom();
+    btn.style.opacity = show ? '1' : '0';
+    btn.style.transform = show ? 'scale(1)' : 'scale(.7)';
+    btn.style.pointerEvents = show ? 'auto' : 'none';
+  }
+
+  btn.onclick = function(e){
+    e.preventDefault(); e.stopPropagation();
+    var b = box();
+    if (b) b.scrollTo({ top: b.scrollHeight, behavior: 'smooth' });
+  };
+
+  var _rc = window.renderChat;
+  if (typeof _rc === 'function' && !_rc.__dn){
+    var fr = function(){
+      var r = _rc.apply(this, arguments);
+      try { sync(); } catch(e){}
+      return r;
+    };
+    fr.__dn = true;
+    window.renderChat = fr;
+  }
+
+  document.addEventListener('scroll', function(e){
+    if (e.target && e.target.id === 'msgs') sync();
+  }, true);
+  setInterval(sync, 50);
+})();
+
+
+
+
+/* ---------- 长按消息：复制 / 引用 / 朗读 / 翻译 / 思考（心声）/ 收藏 / 重新生成 / 删除 ---------- */
+   
+(function(){
+  'use strict';
+
+  var st = document.createElement('style');
+  st.textContent =
+    '#msgs .think{display:none!important}' +
+    '#msgs .acts button{display:none!important}' +
+
+    /* 长按菜单 */
+    '#xmMenu{position:fixed;z-index:126;background:#2c2c2e;border-radius:17px;padding:13px 8px 11px;' +
+      'box-shadow:0 16px 44px rgba(0,0,0,.34);display:grid;grid-template-columns:repeat(4,70px);' +
+      'transform-origin:center bottom;animation:xmIn .14s ease-out}' +
+    '@keyframes xmIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}' +
+    '#xmMenu .mi{display:flex;flex-direction:column;align-items:center;gap:7px;color:#fff;' +
+      'font-size:11.5px;line-height:1;padding:8px 0;border-radius:12px}' +
+    '#xmMenu .mi:active{background:rgba(255,255,255,.14)}' +
+    '#xmMenu .mi svg{width:21px;height:21px}' +
+    '#xmMask{position:fixed;inset:0;z-index:125;background:transparent}' +
 
     /* 引用：贴在消息下面 */
     '#msgs .xmQ{margin-top:7px;border:1px solid rgba(0,0,0,.15);border-radius:14px;' +
@@ -716,261 +1528,12 @@
   all();
   setInterval(all, 500);
 })();
+;
 
-
-/* ---------- 后台生成：切后台也照样把回复收回来 ---------- */
-
-
-  // ① 清掉僵尸「···」。SENDING 为真说明是正在等的那个，别动
-  function cleanTyping(){
-    try {
-      if (typeof SENDING !== 'undefined' && SENDING) return;
-      if (!Array.isArray(CHAT) || !CHAT.length) return;
-      var last = CHAT[CHAT.length - 1];
-      if (last && last.typing){
-        CHAT.pop(); saveChat();
-        if (typeof renderChat === 'function') renderChat(true);
-      }
-    } catch(e){}
-  }
-  cleanTyping();
-
-  // ② 推送到了 / 点了通知 → 立刻去拉
-  if ('serviceWorker' in navigator){
-    navigator.serviceWorker.addEventListener('message', function(e){
-      var d = e.data || {};
-      if (d.type === 'kai-new' || d.type === 'open-chat'){
-        setTimeout(function(){
-          try { if (typeof pullOutbox === 'function') pullOutbox(); } catch(err){}
-        }, 400);
-      }
-    });
-  }
-
-  // ③ 回到前台：先清僵尸，再拉
-  document.addEventListener('visibilitychange', function(){
-    if (document.hidden) return;
-    cleanTyping();
-    setTimeout(function(){
-      try { if (typeof pullOutbox === 'function') pullOutbox(); } catch(e){}
-    }, 500);
-  });
-
-  // ④ 前台每 25 秒兜底拉一次
-  setInterval(function(){
-    if (document.hidden) return;
-    try {
-      if (typeof SENDING !== 'undefined' && SENDING) return;
-      if (typeof pullOutbox === 'function') pullOutbox();
-    } catch(e){}
-  }, 25000);
-
-  // ⑤ 拉回来真回复时，把之前那句「没等到回复」抹掉
-  var _po = window.pullOutbox;
-  if (typeof _po === 'function' && !_po.__bg){
-    var fn = async function(){
-      var before = Array.isArray(CHAT) ? CHAT.length : 0;
-      var r = await _po.apply(this, arguments);
-      try {
-        if (Array.isArray(CHAT) && CHAT.length > before){
-          for (var i = CHAT.length - 2; i >= 0; i--){
-            var m = CHAT[i];
-            if (m && m.role === 'assistant' && m.text && m.text.indexOf('没等到回复') > -1){
-              CHAT.splice(i, 1);
-            }
-          }
-          saveChat();
-          if (typeof renderChat === 'function') renderChat(true);
-        }
-      } catch(e){}
-      return r;
-    };
-    fn.__bg = true;
-    window.pullOutbox = fn;
-  }
-})();
-
-
-/* ---------- 计算器：不用算就一趟，要算才两趟 ---------- */
-
-
-(function(){
-  var TAG = /\[\[\s*(?:算|calc)\s*\]\]([\s\S]?)\[\[\s\/\s*(?:算|calc)\s*\]\]/g;
-
-  /* ---------- 引擎 ---------- */
-  function fmt(n){
-    if (typeof n !== 'number' || !isFinite(n)) return String(n);
-    if (Number.isInteger(n) && Math.abs(n) < 1e15) return String(n);
-    var s = n.toPrecision(12);
-    if (s.indexOf('e') < 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
-    return String(parseFloat(s));
-  }
-  function fact(n){
-    if (n < 0 || n !== Math.floor(n) || n > 170) throw new Error('bad');
-    var r = 1; for (var i = 2; i <= n; i++) r *= i; return r;
-  }
-  var OK = ['sqrt','cbrt','abs','sin','cos','tan','asin','acos','atan','atan2','ln','log','log2','log10',
-            'exp','pow','floor','ceil','round','min','max','sign','sgn','fact','pi','PI','e','E'];
-  function ev(src){
-    var s = String(src).replace(/[，,\s]/g,'').replace(/×/g,'*').replace(/÷/g,'/')
-      .replace(/−/g,'-').replace(/（/g,'(').replace(/）/g,')').replace(/π/g,'pi')
-      .replace(/(\d)[eE]([+-]?\d)/g,'$1*10**$2').replace(/\^/g,'**');
-    if (!/^[0-9a-zA-Z_+\-*/%.()!<>=]+$/.test(s)) throw new Error('bad');
-    var names = s.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || [];
-    for (var i = 0; i < names.length; i++) if (OK.indexOf(names[i]) < 0) throw new Error('bad');
-    s = s.replace(/(\d+(?:\.\d+)?)!/g, 'fact($1)');
-    var v = Function(
-      'var fact=arguments[0],PI=Math.PI,pi=Math.PI,E=Math.E,e=Math.E,'+
-      'sqrt=Math.sqrt,cbrt=Math.cbrt,abs=Math.abs,sign=Math.sign,sgn=Math.sign,'+
-      'sin=Math.sin,cos=Math.cos,tan=Math.tan,asin=Math.asin,acos=Math.acos,'+
-      'atan=Math.atan,atan2=Math.atan2,ln=Math.log,exp=Math.exp,pow=Math.pow,'+
-      'floor=Math.floor,ceil=Math.ceil,round=Math.round,min=Math.min,max=Math.max,'+
-      'log=function(a,b){return b===undefined?Math.log10(a):Math.log(b)/Math.log(a)},'+
-      'log2=Math.log2,log10=Math.log10;return ('+s+');'
-    )(fact);
-    if (typeof v !== 'number' || !isFinite(v)) throw new Error('bad');
-    return v;
-  }
-  function hasTag(t){ return /\[\[\s*(?:算|calc)\s*\]\]/.test(String(t || '')); }
-  function exprsIn(t){
-    var out = [], m; TAG.lastIndex = 0;
-    while ((m = TAG.exec(String(t)))) out.push(m[1]);
-    return out;
-  }
-  function fixText(t){
-    if (!t || !hasTag(t)) return t;
-    return String(t).replace(TAG, function(all, e){
-      try { return fmt(ev(e)); } catch(err){ return '（算不了）'; }
-    });
-  }
-
-  /* ---------- 渲染兜底：把残留标签就地换成数字 ---------- */
-  var _rc = window.renderChat;
-  if (typeof _rc === 'function' && !_rc.__calc){
-    var fr = function(){
-      try {
-        if (Array.isArray(CHAT)){
-          var hit = false;
-          CHAT.forEach(function(m){
-            if (!m || m.role !== 'assistant') return;
-            var a = fixText(m.text);  if (a !== m.text){  m.text = a;  hit = true; }
-            var b = fixText(m.think); if (b !== m.think){ m.think = b; hit = true; }
-          });
-          if (hit) saveChat();
-        }
-      } catch(e){}
-      return _rc.apply(this, arguments);
-    };
-    fr.__calc = true;
-    window.renderChat = fr;
-  }
-
-  /* ---------- 第一趟：告诉模型两种写法 ---------- */
-  var MARK = '【计算器 · 两种用法】';
-  var _bm = window.buildMessages;
-  if (typeof _bm === 'function' && !_bm.__calc){
-    var fb = function(){
-      var m = _bm.apply(this, arguments);
-      try {
-        if (m && m[0] && m[0].role === 'system' && m[0].content.indexOf(MARK) < 0){
-          m[0].content += '\n\n' + MARK + '\n'
-            + '要算数就写成 [[算]]算式[[/算]]，程序会算好。两种写法，按需要选：\n'
-            + 'A. 只是报个数字 → 照常写句子，标签嵌在中间。\n'
-            + '   例：一共 [[算]]3128.5+289.9[[/算]] 元。\n'
-            + 'B. 算出来的数你后面还要用（要比较、要判断、要接着算）→ '
-            + '整条回复只写算式标签，一行一个，别的什么都不要写。'
-            + '程序算完会把结果发回来，你再写正式回复。\n'
-            + '   例：[[算]]3.5*42[[/算]]\n'
-            + '拿不准就用 B。不要自己心算，也不要猜结果。\n'
-            + '支持 + - * / % ^ ! 和括号；函数 sqrt cbrt abs sin cos tan asin acos atan '
-            + 'ln log log2 log10 exp pow floor ceil round min max sgn；常量 pi e。log(base, value)。';
-        }
-      } catch(e){}
-      return m;
-    };
-    fb.__calc = true;
-    window.buildMessages = fb;
-  }
-
-  /* ---------- 第二趟：带着算好的数再问一次 ---------- */
-  async function pass2(){
-    var last = CHAT[CHAT.length - 1];
-    if (!last || last.role !== 'assistant' || !hasTag(last.text)) return;
-    var exprs = exprsIn(last.text);
-    if (!exprs.length) return;
-
-    var lines = exprs.map(function(e){
-      try { return '· ' + String(e).trim() + ' = ' + fmt(ev(e)); }
-      catch(err){ return '· ' + String(e).trim() + ' = （算不了）'; }
-    });
-
-    var keep = last.text, msgs;
-    try {
-      last.typing = true;
-      saveChat();
-      if (document.getElementById('msgs')) renderChat(true);
-      msgs = buildMessages();
-      msgs.push({ role: 'assistant', content: keep });
-      msgs.push({ role: 'user', content: '【程序算好的结果】\n' + lines.join('\n')
-        + '\n\n现在用这些数写正式回复。已经算好了，别再写 [[算]] 标签。' });
-    } catch(e){ delete last.typing; return; }
-
-    SENDING = true;
-    var rid = 'r2' + Date.now() + Math.random().toString(36).slice(2, 7);
-    try {
-      await api('/generate', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requestId: rid, inboxId: S.inbox, messages: msgs,
-          settings: { mainApiUrl: S.apiUrl, mainApiKey: S.apiKey, mainApiModel: S.model,
-                      apiType: S.apiType || 'openai', temperature: 0.9 },
-          meta: { charName: '祁砚', charId: 'kai' }
-        })
-      });
-      var hit = null;
-      for (var i = 0; i < 24; i++){
-        await sleep(i ? 2000 : 400);
-        try {
-          var j = await api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
-          var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
-          if (f){
-            await api('/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] }) }).catch(function(){});
-            hit = f; break;
-          }
-        } catch(e){}
-      }
-      if (CHAT[CHAT.length - 1] === last && hit && hit.content){
-        var r = parseReply(hit.content);
-        last.text = r.text || keep;
-        last.think = r.think || last.think;
-        if (S.autoMem) r.mems.forEach(function(m){ addMemAuto(m); });
-        if (r.alarms.length){
-          r.alarms.forEach(function(a){ addAlarmLocal(a.hh, a.mm, a.label); });
-          pushAlarmsToCloud(r.alarms);
-        }
-      }
-    } catch(e){
-    } finally {
-      delete last.typing;
-      SENDING = false;
-      saveChat();
-      if (document.getElementById('msgs')) renderChat(true);
-    }
-  }
-
-  /* ---------- 挂在 sendChat 后面 ---------- */
-  var _send = window.sendChat;
-  if (typeof _send === 'function' && !_send.__calc){
-    var fs = async function(){
-      var r = await _send.apply(this, arguments);
-      try { await pass2(); } catch(e){}
-      return r;
-    };
-    fs.__calc = true;
-    window.sendChat = fs;
-  }
-})();
+/* ============================================================
+   咩&砚 · js/wechat.js
+   微信 · 朋友圈 · 我页面 · 键盘与消息贴底
+   ============================================================ */
 
 
 /* ---------- 底部栏毛玻璃 ---------- */
@@ -4631,3 +5194,4 @@ window.xmAsk = xmAsk;
 
   setInterval(fix, 400);
 })();
+//# sourceMappingURL=/sm/61630e508774ce8816722c8388174f16452a45f223b2719f85b65d890eea371a.map
