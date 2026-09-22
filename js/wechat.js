@@ -4,6 +4,362 @@
    ============================================================ */
 
 
+/* ---------- 后台生成：切后台也照样把回复收回来 ---------- */
+
+
+  // ① 清掉僵尸「···」。SENDING 为真说明是正在等的那个，别动
+  function cleanTyping(){
+    try {
+      if (typeof SENDING !== 'undefined' && SENDING) return;
+      if (!Array.isArray(CHAT) || !CHAT.length) return;
+      var last = CHAT[CHAT.length - 1];
+      if (last && last.typing){
+        CHAT.pop(); saveChat();
+        if (typeof renderChat === 'function') renderChat(true);
+      }
+    } catch(e){}
+  }
+  cleanTyping();
+
+  // ② 推送到了 / 点了通知 → 立刻去拉
+  if ('serviceWorker' in navigator){
+    navigator.serviceWorker.addEventListener('message', function(e){
+      var d = e.data || {};
+      if (d.type === 'kai-new' || d.type === 'open-chat'){
+        setTimeout(function(){
+          try { if (typeof pullOutbox === 'function') pullOutbox(); } catch(err){}
+        }, 400);
+      }
+    });
+  }
+
+  // ③ 回到前台：先清僵尸，再拉
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden) return;
+    cleanTyping();
+    setTimeout(function(){
+      try { if (typeof pullOutbox === 'function') pullOutbox(); } catch(e){}
+    }, 500);
+  });
+
+  // ④ 前台每 25 秒兜底拉一次
+  setInterval(function(){
+    if (document.hidden) return;
+    try {
+      if (typeof SENDING !== 'undefined' && SENDING) return;
+      if (typeof pullOutbox === 'function') pullOutbox();
+    } catch(e){}
+  }, 25000);
+
+  // ⑤ 拉回来真回复时，把之前那句「没等到回复」抹掉
+  var _po = window.pullOutbox;
+  if (typeof _po === 'function' && !_po.__bg){
+    var fn = async function(){
+      var before = Array.isArray(CHAT) ? CHAT.length : 0;
+      var r = await _po.apply(this, arguments);
+      try {
+        if (Array.isArray(CHAT) && CHAT.length > before){
+          for (var i = CHAT.length - 2; i >= 0; i--){
+            var m = CHAT[i];
+            if (m && m.role === 'assistant' && m.text && m.text.indexOf('没等到回复') > -1){
+              CHAT.splice(i, 1);
+            }
+          }
+          saveChat();
+          if (typeof renderChat === 'function') renderChat(true);
+        }
+      } catch(e){}
+      return r;
+    };
+    fn.__bg = true;
+    window.pullOutbox = fn;
+  }
+})();
+
+
+/* ---------- 计算器：不用算就一趟，要算才两趟 ---------- */
+
+
+(function(){
+  var TAG = /\[\[\s*(?:算|calc)\s*\]\]([\s\S]?)\[\[\s\/\s*(?:算|calc)\s*\]\]/g;
+
+  /* ---------- 引擎 ---------- */
+  function fmt(n){
+    if (typeof n !== 'number' || !isFinite(n)) return String(n);
+    if (Number.isInteger(n) && Math.abs(n) < 1e15) return String(n);
+    var s = n.toPrecision(12);
+    if (s.indexOf('e') < 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+    return String(parseFloat(s));
+  }
+  function fact(n){
+    if (n < 0 || n !== Math.floor(n) || n > 170) throw new Error('bad');
+    var r = 1; for (var i = 2; i <= n; i++) r *= i; return r;
+  }
+  var OK = ['sqrt','cbrt','abs','sin','cos','tan','asin','acos','atan','atan2','ln','log','log2','log10',
+            'exp','pow','floor','ceil','round','min','max','sign','sgn','fact','pi','PI','e','E'];
+  function ev(src){
+    var s = String(src).replace(/[，,\s]/g,'').replace(/×/g,'*').replace(/÷/g,'/')
+      .replace(/−/g,'-').replace(/（/g,'(').replace(/）/g,')').replace(/π/g,'pi')
+      .replace(/(\d)[eE]([+-]?\d)/g,'$1*10**$2').replace(/\^/g,'**');
+    if (!/^[0-9a-zA-Z_+\-*/%.()!<>=]+$/.test(s)) throw new Error('bad');
+    var names = s.match(/[a-zA-Z_][a-zA-Z0-9_]*/g) || [];
+    for (var i = 0; i < names.length; i++) if (OK.indexOf(names[i]) < 0) throw new Error('bad');
+    s = s.replace(/(\d+(?:\.\d+)?)!/g, 'fact($1)');
+    var v = Function(
+      'var fact=arguments[0],PI=Math.PI,pi=Math.PI,E=Math.E,e=Math.E,'+
+      'sqrt=Math.sqrt,cbrt=Math.cbrt,abs=Math.abs,sign=Math.sign,sgn=Math.sign,'+
+      'sin=Math.sin,cos=Math.cos,tan=Math.tan,asin=Math.asin,acos=Math.acos,'+
+      'atan=Math.atan,atan2=Math.atan2,ln=Math.log,exp=Math.exp,pow=Math.pow,'+
+      'floor=Math.floor,ceil=Math.ceil,round=Math.round,min=Math.min,max=Math.max,'+
+      'log=function(a,b){return b===undefined?Math.log10(a):Math.log(b)/Math.log(a)},'+
+      'log2=Math.log2,log10=Math.log10;return ('+s+');'
+    )(fact);
+    if (typeof v !== 'number' || !isFinite(v)) throw new Error('bad');
+    return v;
+  }
+  function hasTag(t){ return /\[\[\s*(?:算|calc)\s*\]\]/.test(String(t || '')); }
+  function exprsIn(t){
+    var out = [], m; TAG.lastIndex = 0;
+    while ((m = TAG.exec(String(t)))) out.push(m[1]);
+    return out;
+  }
+  function fixText(t){
+    if (!t || !hasTag(t)) return t;
+    return String(t).replace(TAG, function(all, e){
+      try { return fmt(ev(e)); } catch(err){ return '（算不了）'; }
+    });
+  }
+
+  /* ---------- 渲染兜底：把残留标签就地换成数字 ---------- */
+  var _rc = window.renderChat;
+  if (typeof _rc === 'function' && !_rc.__calc){
+    var fr = function(){
+      try {
+        if (Array.isArray(CHAT)){
+          var hit = false;
+          CHAT.forEach(function(m){
+            if (!m || m.role !== 'assistant') return;
+            var a = fixText(m.text);  if (a !== m.text){  m.text = a;  hit = true; }
+            var b = fixText(m.think); if (b !== m.think){ m.think = b; hit = true; }
+          });
+          if (hit) saveChat();
+        }
+      } catch(e){}
+      return _rc.apply(this, arguments);
+    };
+    fr.__calc = true;
+    window.renderChat = fr;
+  }
+
+  /* ---------- 第一趟：告诉模型两种写法 ---------- */
+  var MARK = '【计算器 · 两种用法】';
+  var _bm = window.buildMessages;
+  if (typeof _bm === 'function' && !_bm.__calc){
+    var fb = function(){
+      var m = _bm.apply(this, arguments);
+      try {
+        if (m && m[0] && m[0].role === 'system' && m[0].content.indexOf(MARK) < 0){
+          m[0].content += '\n\n' + MARK + '\n'
+            + '要算数就写成 [[算]]算式[[/算]]，程序会算好。两种写法，按需要选：\n'
+            + 'A. 只是报个数字 → 照常写句子，标签嵌在中间。\n'
+            + '   例：一共 [[算]]3128.5+289.9[[/算]] 元。\n'
+            + 'B. 算出来的数你后面还要用（要比较、要判断、要接着算）→ '
+            + '整条回复只写算式标签，一行一个，别的什么都不要写。'
+            + '程序算完会把结果发回来，你再写正式回复。\n'
+            + '   例：[[算]]3.5*42[[/算]]\n'
+            + '拿不准就用 B。不要自己心算，也不要猜结果。\n'
+            + '支持 + - * / % ^ ! 和括号；函数 sqrt cbrt abs sin cos tan asin acos atan '
+            + 'ln log log2 log10 exp pow floor ceil round min max sgn；常量 pi e。log(base, value)。';
+        }
+      } catch(e){}
+      return m;
+    };
+    fb.__calc = true;
+    window.buildMessages = fb;
+  }
+
+  /* ---------- 第二趟：带着算好的数再问一次 ---------- */
+  async function pass2(){
+    var last = CHAT[CHAT.length - 1];
+    if (!last || last.role !== 'assistant' || !hasTag(last.text)) return;
+    var exprs = exprsIn(last.text);
+    if (!exprs.length) return;
+
+    var lines = exprs.map(function(e){
+      try { return '· ' + String(e).trim() + ' = ' + fmt(ev(e)); }
+      catch(err){ return '· ' + String(e).trim() + ' = （算不了）'; }
+    });
+
+    var keep = last.text, msgs;
+    try {
+      last.typing = true;
+      saveChat();
+      if (document.getElementById('msgs')) renderChat(true);
+      msgs = buildMessages();
+      msgs.push({ role: 'assistant', content: keep });
+      msgs.push({ role: 'user', content: '【程序算好的结果】\n' + lines.join('\n')
+        + '\n\n现在用这些数写正式回复。已经算好了，别再写 [[算]] 标签。' });
+    } catch(e){ delete last.typing; return; }
+
+    SENDING = true;
+    var rid = 'r2' + Date.now() + Math.random().toString(36).slice(2, 7);
+    try {
+      await api('/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: rid, inboxId: S.inbox, messages: msgs,
+          settings: { mainApiUrl: S.apiUrl, mainApiKey: S.apiKey, mainApiModel: S.model,
+                      apiType: S.apiType || 'openai', temperature: 0.9 },
+          meta: { charName: '祁砚', charId: 'kai' }
+        })
+      });
+      var hit = null;
+      for (var i = 0; i < 24; i++){
+        await sleep(i ? 2000 : 400);
+        try {
+          var j = await api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
+          var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
+          if (f){
+            await api('/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] }) }).catch(function(){});
+            hit = f; break;
+          }
+        } catch(e){}
+      }
+      if (CHAT[CHAT.length - 1] === last && hit && hit.content){
+        var r = parseReply(hit.content);
+        last.text = r.text || keep;
+        last.think = r.think || last.think;
+        if (S.autoMem) r.mems.forEach(function(m){ addMemAuto(m); });
+        if (r.alarms.length){
+          r.alarms.forEach(function(a){ addAlarmLocal(a.hh, a.mm, a.label); });
+          pushAlarmsToCloud(r.alarms);
+        }
+      }
+    } catch(e){
+    } finally {
+      delete last.typing;
+      SENDING = false;
+      saveChat();
+      if (document.getElementById('msgs')) renderChat(true);
+    }
+  }
+
+  /* ---------- 挂在 sendChat 后面 ---------- */
+  var _send = window.sendChat;
+  if (typeof _send === 'function' && !_send.__calc){
+    var fs = async function(){
+      var r = await _send.apply(this, arguments);
+      try { await pass2(); } catch(e){}
+      return r;
+    };
+    fs.__calc = true;
+    window.sendChat = fs;
+  }
+})();
+
+/* ---------- 暂停思考 ---------- */
+
+
+(function(){
+  var ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
+    'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+
+    '<path d="M9.4 5.5v13"/><path d="M14.6 5.5v13"/></svg>';
+
+  var st = document.createElement('style');
+  st.textContent =
+    '.bub.kai.typing{display:inline-flex;align-items:center;gap:11px}'+
+    '.pauseBtn{border:0;background:transparent;padding:0;margin:0;display:flex;align-items:center;'+
+      'justify-content:center;color:inherit;opacity:.42;transition:opacity .15s;'+
+      '-webkit-tap-highlight-color:transparent}'+
+    '.pauseBtn:active{opacity:.85}';
+  document.head.appendChild(st);
+
+  /* 暂停后把还在等的长延时压掉，让那条链子两秒内收尾 */
+  var _st = window.setTimeout, fastOn = false;
+  function fast(on){
+    if (on && !fastOn){
+      fastOn = true;
+      window.setTimeout = function(fn, ms){
+        return _st(fn, (window.__pauseHit && ms >= 300) ? 0 : ms);
+      };
+    } else if (!on && fastOn){
+      fastOn = false;
+      window.setTimeout = _st;
+    }
+  }
+
+  function pauseThink(){
+    window.__pauseHit = true;
+    fast(true);
+    try {
+      if (Array.isArray(CHAT)){
+        var last = CHAT[CHAT.length - 1];
+        if (last && last.typing) last.hidden = true;
+      }
+      if (document.getElementById('msgs')) renderChat(true);
+    } catch(e){}
+    _st(function(){ fast(false); }, 20000);
+  }
+  window.pauseThink = pauseThink;
+
+  function decorate(){
+    var box = document.getElementById('msgs');
+    if (!box) return;
+    var ty = box.querySelector('.bub.kai.typing');
+    if (!ty) return;
+    var last = Array.isArray(CHAT) ? CHAT[CHAT.length - 1] : null;
+    if (last && last.typing && last.hidden){ ty.remove(); return; }
+    if (ty.querySelector('.pauseBtn')) return;
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pauseBtn';
+    b.setAttribute('aria-label', '暂停思考');
+    b.innerHTML = ICON;
+    b.onclick = function(e){ e.preventDefault(); e.stopPropagation(); pauseThink(); };
+    ty.appendChild(b);
+  }
+
+  var _rc = window.renderChat;
+  if (typeof _rc === 'function' && !_rc.__pause){
+    var fr = function(){
+      var r = _rc.apply(this, arguments);
+      try { decorate(); } catch(e){}
+      return r;
+    };
+    fr.__pause = true;
+    window.renderChat = fr;
+  }
+
+  var _send = window.sendChat;
+  if (typeof _send === 'function' && !_send.__pause){
+    var fs = async function(){
+      window.__pauseHit = false;
+      var r = await _send.apply(this, arguments);
+      if (window.__pauseHit){
+        try {
+          var last = CHAT[CHAT.length - 1];
+          if (last && last.role === 'assistant' && !last.typing) CHAT.pop();
+          for (var i = CHAT.length - 1; i >= 0; i--){
+            if (CHAT[i] && CHAT[i].hidden){ CHAT.splice(i, 1); break; }
+          }
+          saveChat();
+          if (document.getElementById('msgs')) renderChat(true);
+        } catch(e){}
+      }
+      window.__pauseHit = false;
+      fast(false);
+      return r;
+    };
+    fs.__pause = true;
+    window.sendChat = fs;
+  }
+
+  try { if (document.getElementById('msgs')) decorate(); } catch(e){}
+})();
+
+
+
 /* ---------- 底部栏毛玻璃 ---------- */
 
 
