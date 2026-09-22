@@ -1738,6 +1738,24 @@ setTimeout(function(){
 }, 2000);
 </script>
   
+
+<script>
+setTimeout(function(){
+  var rows = [
+    'wx层: ' + (document.getElementById('wx') ? '有' : '没有'),
+    'db: ' + (window.db ? '有' : '没有'),
+    'bank图标补丁: ' + (window.__bkIcon ? '有' : '没有'),
+    'openApp: ' + (typeof window.openApp)
+  ];
+  var d = document.createElement('div');
+  d.style.cssText = 'position:fixed;left:6px;top:6px;z-index:99999;background:#000;color:#0f0;' +
+    'font-size:12px;padding:8px;border-radius:8px;white-space:pre;line-height:1.6';
+  d.textContent = rows.join('\n');
+  document.body.appendChild(d);
+}, 3000);
+</script>
+
+
   
 </body>
 </html>
