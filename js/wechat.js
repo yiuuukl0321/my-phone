@@ -5439,3 +5439,38 @@ window.xmAsk = xmAsk;
   setInterval(fix, 1500);
   fix();
 })();
+
+
+/* ============================================================
+   Wallet · 死锁：任何阶段都不许导航
+   ============================================================ */
+(function(){
+  var last = 0;
+
+  function hit(e){
+    var t = e.target;
+    if (!t || !t.closest) return null;
+    var w = t.closest('.xmWallet');
+    if (w) return w;
+    var a = t.closest('a');
+    if (a && String(a.textContent || '').trim() === 'Wallet') return a;
+    return null;
+  }
+
+  function go(e){
+    var w = hit(e);
+    if (!w) return;
+    try { if (e.cancelable) e.preventDefault(); } catch(err){}
+    e.stopPropagation();
+    if (w.tagName === 'A') w.removeAttribute('href');
+    var now = Date.now();
+    if (now - last < 250) return;
+    last = now;
+    if (typeof window.xmOpenWxPay === 'function') window.xmOpenWxPay();
+    else if (window.toast) toast('钱包还没接上');
+  }
+
+  ['touchstart', 'pointerdown', 'mousedown', 'click'].forEach(function(t){
+    document.addEventListener(t, go, true);
+  });
+})();
