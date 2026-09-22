@@ -5210,6 +5210,7 @@ setInterval(fix, 400);
 (function(){
   var KEY = 'xm_wxpay_v1';
   var built = false;
+  var HIDE = ['home', 'wx', 'ov', 'sh'];
 
   function load(){
     try {
@@ -5232,7 +5233,7 @@ setInterval(fix, 400);
     var s = document.createElement('style');
     s.id = 'xmPayCss';
     s.textContent = `
-#xmPay{position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;z-index:9999;display:none;flex-direction:column;color:#111;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;-webkit-font-smoothing:antialiased}
+#xmPay{position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;z-index:9999;display:none;flex-direction:column;color:#111;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;-webkit-font-smoothing:antialiased;transform:translateZ(0);will-change:transform;contain:layout paint style;isolation:isolate;overscroll-behavior:contain}
 #xmPay.on{display:flex}
 .xpTop{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top)) 14px 8px;border-bottom:1px solid #eee;background:#fff}
 .xpBack{font-size:26px;line-height:1;padding:0 6px 4px 0;cursor:pointer}
@@ -5355,26 +5356,28 @@ setInterval(fix, 400);
       }).join('') + '</div>';
   }
 
-  function open(){ css(); build(); render(); var el = document.getElementById('xmPay'); if (el) el.classList.add('on'); }
-  function close(){ var el = document.getElementById('xmPay'); if (el) el.classList.remove('on'); }
+  function open(){
+    css(); build(); render();
+    var el = document.getElementById('xmPay');
+    if (el) el.classList.add('on');
+    for (var i = 0; i < HIDE.length; i++){
+      var e = document.getElementById(HIDE[i]);
+      if (e && e.__xmHid === undefined){ e.__xmHid = e.style.visibility; e.style.visibility = 'hidden'; }
+    }
+  }
+
+  function close(){
+    var el = document.getElementById('xmPay');
+    if (el) el.classList.remove('on');
+    for (var i = 0; i < HIDE.length; i++){
+      var e = document.getElementById(HIDE[i]);
+      if (e && e.__xmHid !== undefined){ e.style.visibility = e.__xmHid; e.__xmHid = undefined; }
+    }
+  }
 
   window.xmOpenWxPay = open;
   window.xmWxPay = { open: open, load: load, save: save, money: money };
 
-  /* 接管「我」页面的 Wallet */
-  function hookWallet(){
-    var list = document.querySelectorAll('.xmWallet');
-    for (var i = 0; i < list.length; i++){
-      if (list[i].__xmPay) continue;
-      list[i].__xmPay = 1;
-      list[i].onclick = function(e){
-        if (e && e.preventDefault) e.preventDefault();
-        if (e && e.stopPropagation) e.stopPropagation();
-        open();
-        return false;
-      };
-    }
-  }
   document.addEventListener('click', function(e){
     var t = e.target;
     if (!t || !t.closest) return;
@@ -5382,5 +5385,4 @@ setInterval(fix, 400);
     e.preventDefault(); e.stopPropagation();
     open();
   }, true);
-  setInterval(hookWallet, 800);
 })();
