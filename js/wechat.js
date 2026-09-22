@@ -5161,21 +5161,20 @@ window.xmAsk = xmAsk;
 
 
 (function(){
+/* ============================================================
+   微信「我」页面 · Wallet 入口（不用 <a>，点了只开微信支付）
+   ============================================================ */
+(function(){
   function openWallet(){
-    try {
-      if (window.APPS && APPS.bank && typeof openApp === 'function'){ openApp('bank'); return; }
-      if (window.XM_DC){
-        var f = XM_DC.open || XM_DC.openPage || XM_DC.sheet;
-        if (typeof f === 'function'){ f.call(XM_DC); return; }
-      }
-      if (window.toast) toast('银行还没装上'); else alert('银行还没装上');
-    } catch(e){}
+    if (typeof window.xmOpenWxPay === 'function'){ window.xmOpenWxPay(); return; }
+    if (window.toast) toast('钱包还没接上'); else alert('钱包还没接上');
   }
 
   function fix(){
     var wx = document.getElementById('wx');
     if (!wx) return;
-    var all = wx.querySelectorAll('div,span');
+
+    var all = wx.querySelectorAll('div,span,a');
     var src = null;
     for (var i = 0; i < all.length; i++){
       var el = all[i];
@@ -5183,24 +5182,47 @@ window.xmAsk = xmAsk;
       if (String(el.textContent || '').trim() === 'Favourites'){ src = el; break; }
     }
     if (!src) return;
+
     var row = src.parentNode;
-    if (!row || row.querySelector('.xmWallet')) return;
-    var w = src.cloneNode(true);
-    w.className = (w.className || '') + ' xmWallet';
+    if (!row) return;
+
+    var old = row.querySelector('.xmWallet');
+    if (old){
+      if (old.tagName === 'A'){
+        var nd = document.createElement('div');
+        nd.className = old.className;
+        nd.textContent = 'Wallet';
+        old.parentNode.replaceChild(nd, old);
+      }
+      return;
+    }
+
+    var c = src.cloneNode(false);
+    var w = document.createElement('div');
+    w.className = (c.className || '');
+    for (var k = 0; k < c.attributes.length; k++){
+      var at = c.attributes[k];
+      var nm = at.name.toLowerCase();
+      if (nm === 'href' || nm === 'target' || nm === 'rel' || nm.indexOf('on') === 0) continue;
+      try { w.setAttribute(at.name, at.value); } catch(e){}
+    }
+    w.classList.add('xmWallet');
     w.textContent = 'Wallet';
-    w.removeAttribute('data-me');
-    w.removeAttribute('onclick');
-    w.onclick = function(e){ e.preventDefault(); e.stopPropagation(); openWallet(); };
+    w.setAttribute('role', 'button');
+    w.onclick = function(e){ e.preventDefault(); e.stopPropagation(); openWallet(); return false; };
     row.appendChild(w);
   }
 
-fix();
-var _pend = false;
-new MutationObserver(function(){
-  if (_pend) return; _pend = true;
-  requestAnimationFrame(function(){ _pend = false; fix(); });
-}).observe(document.body, { childList: true, subtree: true });
-setInterval(fix, 400);
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if (!t || !t.closest) return;
+    if (!t.closest('.xmWallet')) return;
+    e.preventDefault(); e.stopPropagation();
+    openWallet();
+  }, true);
+
+  setInterval(fix, 700);
+  fix();
 })();
 
 
