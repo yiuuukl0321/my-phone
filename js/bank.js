@@ -2524,3 +2524,323 @@ font-variant-numeric:tabular-nums}
   setTimeout(tile, 600);
   setTimeout(tile, 2000);
 })();
+
+
+(function(){
+  if (window.__bkPlus) return;
+  window.__bkPlus = 1;
+
+  var ME = 'me';
+  var WORK_KEY = 'work_state_' + ME;
+  var WALLET_KEY = 'wechat_wallet_' + ME;
+  var GATE = [0, 50, 100, 150, 200];
+  var MULT = { 1: 1.0, 2: 1.5, 3: 2.0, 4: 3.0, 5: 5.0 };
+
+  function T(m){ if (window.toast) window.toast(m); }
+  function r2(n){ return Math.round((+n || 0) * 100) / 100; }
+  function money(n){ return '¥' + r2(n).toFixed(2); }
+  function rd(a, b){ return a + Math.random() * (b - a); }
+  function el(id){ return document.getElementById(id); }
+
+  async function cfgGet(k){
+    try { var r = await window.db.config.get(k); return r ? r.value : null; }
+    catch(e){ return null; }
+  }
+  async function cfgPut(k, v){
+    try { await window.db.config.put({ key: k, value: v }); } catch(e){}
+  }
+  async function wallet(){ return await cfgGet(WALLET_KEY); }
+  async function saveWallet(v){ await cfgPut(WALLET_KEY, v); }
+
+  function paintCash(){
+    wallet().then(function(v){
+      if (!v) return;
+      var e = document.querySelector('#bank-overview-page .bank-asset-cash .bank-asset-amount');
+      if (e) e.textContent = money(v.wechatBalance);
+    });
+  }
+
+  /* ---------- ③ 零钱 与 微信钱包 对账 ---------- */
+  async function reconcile(){
+    if (!window.XM_DC) return;
+    try {
+      var w = await XM_DC.getWallet();
+      var v = await wallet();
+      if (!v) return;
+      var b = r2(v.wechatBalance), x = r2(w.balance);
+      if (x === 0 && b !== 0){ w.balance = b; await XM_DC.saveWallet(w); }
+      else if (Math.abs(x - b) > 0.001){ v.wechatBalance = x; await saveWallet(v); paintCash(); }
+    } catch(e){}
+  }
+
+  /* ---------- ④ 微信支付：零钱不够就走花呗 ---------- */
+  if (window.XM_DC && !XM_DC.__bk){
+    var _tx = XM_DC.tx;
+    XM_DC.tx = async function(amount, note){
+      amount = +amount || 0;
+      if (amount < 0 && window.huabeiSpend){
+        var w0 = await XM_DC.getWallet();
+        if (r2(w0.balance) + amount < 0){
+          var res = await window.huabeiSpend(ME, Math.abs(amount), note || '微信支付');
+          if (res && res.ok){ T('零钱不够，这单走花呗 ' + money(Math.abs(amount))); return w0; }
+          if (res && res.msg) T(res.msg);
+        }
+      }
+      var w = await _tx.apply(this, arguments);
+      var v = await wallet();
+      if (v){ v.wechatBalance = r2(w.balance); await saveWallet(v); paintCash(); }
+      return w;
+    };
+    XM_DC.__bk = 1;
+
+    var _open = XM_DC.open;
+    XM_DC.open = function(){
+      var args = arguments, self = this;
+      reconcile().then(function(){ _open.apply(self, args); });
+    };
+  }
+
+  /* ---------- ① 打工 ---------- */
+  var JOBS = [
+    { id:'flyer', n:'发传单',     lv:1, pay:[60,110],    exp:[6,10],  min:2, d:'地铁口站一小时' },
+    { id:'cafe',  n:'咖啡店帮工', lv:1, pay:[90,150],    exp:[8,13],  min:2, d:'端盘子、擦桌子' },
+    { id:'store', n:'便利店夜班', lv:2, pay:[140,220],   exp:[12,18], min:3, d:'看店、补货、关灯' },
+    { id:'tutor', n:'家教',       lv:2, pay:[180,300],   exp:[14,22], min:3, d:'给初中生补数学' },
+    { id:'shoot', n:'接拍照单',   lv:3, pay:[300,520],   exp:[20,30], min:4, d:'拍一组写真' },
+    { id:'code',  n:'外包写码',   lv:3, pay:[450,900],   exp:[26,40], min:5, d:'改一个小程序' },
+    { id:'talk',  n:'线上讲课',   lv:4, pay:[800,1500],  exp:[36,55], min:6, d:'一小时的分享' },
+    { id:'proj',  n:'接正式项目', lv:5, pay:[1500,3000], exp:[50,80], min:8, d:'一整个月的活' }
+  ];
+
+  function lvOf(exp){
+    if (exp >= 200) return 5;
+    if (exp >= 150) return 4;
+    if (exp >= 100) return 3;
+    if (exp >= 50) return 2;
+    return 1;
+  }
+  function getWork(){
+    return cfgGet(WORK_KEY).then(function(s){
+      s = s || {};
+      s.exp = +s.exp || 0;
+      s.cd = s.cd || {};
+      s.log = s.log || [];
+      return s;
+    });
+  }
+  function saveWork(s){ return cfgPut(WORK_KEY, s); }
+
+  function renderWork(page, st){
+    var lv = lvOf(st.exp);
+    var lo = GATE[lv - 1];
+    var hi = lv >= 5 ? 0 : GATE[lv];
+    var pct = hi ? Math.max(5, Math.min(100, Math.round((st.exp - lo) / (hi - lo) * 100))) : 100;
+    var now = Date.now();
+
+    var jobs = JOBS.map(function(j){
+      var left = Math.ceil((j.min * 60000 - (now - (st.cd[j.id] || 0))) / 60000);
+      var lock = lv < j.lv;
+      var wait = !lock && left > 0;
+      var label = lock ? ('要 Lv.' + j.lv) : (wait ? (left + ' 分钟') : '去做');
+      return `<div class='bank-feature-row'>
+        <div class='bank-feature-info'>
+          <div class='bank-feature-name'>${j.n}</div>
+          <div class='bank-feature-sub'>${j.d}　经验 +${j.exp[0]}~${j.exp[1]}</div>
+        </div>
+        <span style='font-size:12.5px;color:#8a8a86;margin-right:8px'>${money(j.pay[0])}~${money(j.pay[1])}</span>
+        <button class='deposit-withdraw-btn' data-job='${j.id}'${lock || wait ? " disabled style='opacity:.42'" : ''}>${label}</button>
+      </div>`;
+    }).join('');
+
+    var logs = st.log.slice(0, 12).map(function(l){
+      return `<div class='bank-bill-item'>
+        <div class='bank-bill-icon income'><span class='bk-ico' data-ic='moneyIn'></span></div>
+        <div class='bank-bill-main'>
+          <div class='bank-bill-desc'>${l.n}</div>
+          <div class='bank-bill-date'>经验 +${l.exp}</div>
+        </div>
+        <div class='bank-bill-amount income'>+${money(l.pay)}</div>
+      </div>`;
+    }).join('') || `<div class='bank-empty-hint'>还没干过活</div>`;
+
+    page.innerHTML = `
+      <div class='page-header'>
+        <button class='header-back' id='work-back'><i class='fa fa-angle-left'></i></button>
+        <span class='header-title'>打工</span>
+      </div>
+      <div class='bank-detail-scroll'>
+        <div class='invest-hero' style='text-align:center;padding:20px 16px 18px'>
+          <div class='huabei-activate-limit' style='margin-top:0'>WORK LEVEL</div>
+          <div class='huabei-activate-amount'>Lv.${lv}</div>
+          <div class='huabei-activate-info'>经验 ${st.exp}${hi ? ' / ' + hi : '　已满级'}　·　花呗额度倍率 ×${MULT[lv]}</div>
+          <div style='height:6px;border-radius:3px;background:#e6e6e2;margin:16px 20px 0;overflow:hidden'>
+            <i style='display:block;height:100%;width:${pct}%;background:#111'></i>
+          </div>
+        </div>
+        <div class='bank-section-title'>能接的活</div>
+        <div class='bank-list-card'>${jobs}</div>
+        <div class='bank-section-title'>干活记录</div>
+        <div class='bank-list-card'>${logs}</div>
+        <div class='bank-section-title'>说明</div>
+        <div class='bank-list-card'><div class='sub' style='margin:0;padding:14px 16px'>
+          等级越高能接的活越贵，花呗额度也按等级翻倍（额度 = 总资产 × 30% × 倍率）。
+          工钱直接进 CHECKING，账单里能看到。同一份活干完要歇一会儿再干。</div></div>
+      </div>`;
+  }
+
+  async function openWork(){
+    var st = await getWork();
+    var page = document.createElement('div');
+    page.id = 'bank-work-page';
+    page.className = 'full-page bank-detail-page';
+    renderWork(page, st);
+    window.openPage(page);
+
+    page.addEventListener('click', async function(e){
+      if (e.target.closest('#work-back')){ window.closePage('bank-work-page'); return; }
+      var b = e.target.closest('[data-job]');
+      if (!b || b.disabled) return;
+      var job = null, i;
+      for (i = 0; i < JOBS.length; i++) if (JOBS[i].id === b.dataset.job) job = JOBS[i];
+      if (!job) return;
+      if (lvOf(st.exp) < job.lv) return;
+      if (Date.now() - (st.cd[job.id] || 0) < job.min * 60000) return;
+
+      b.textContent = '干着…';
+      b.disabled = true;
+      var pay = r2(rd(job.pay[0], job.pay[1]));
+      var exp = Math.round(rd(job.exp[0], job.exp[1]));
+
+      setTimeout(async function(){
+        var v = await wallet();
+        if (v){ v.checkingBalance = r2(r2(v.checkingBalance) + pay); await saveWallet(v); }
+        try {
+          await window.db.finance.add({ charId: ME, amount: pay, desc: job.n,
+            type: 'income', source: 'checking', createdAt: Date.now() });
+        } catch(err){}
+        var before = lvOf(st.exp);
+        st.exp += exp;
+        st.cd[job.id] = Date.now();
+        st.log.unshift({ n: job.n, pay: pay, exp: exp, ts: Date.now() });
+        if (st.log.length > 30) st.log.pop();
+        await saveWork(st);
+        var after = lvOf(st.exp);
+        T('+' + money(pay) + '　经验 +' + exp + (after > before ? '　升到 Lv.' + after : ''));
+        renderWork(page, st);
+      }, 1200 + Math.random() * 1600);
+    });
+  }
+
+  /* ---------- ② 总览页快捷入口 ---------- */
+  var swallow = null;
+  var _openPage = window.openPage;
+  if (typeof _openPage === 'function' && !_openPage.__bkPlus){
+    var wrapPage = function(p){
+      if (swallow && p && p.id === swallow){ window.__bkTmp = p; return; }
+      return _openPage.apply(this, arguments);
+    };
+    wrapPage.__bkPlus = 1;
+    window.openPage = wrapPage;
+  }
+
+  function hop(mid, sel){
+    var start = el(mid === 'bank-checking-page' ? 'bank-go-checking' : 'bank-go-saving');
+    if (!start) return;
+    swallow = mid;
+    window.__bkTmp = null;
+    start.click();
+    setTimeout(function(){
+      swallow = null;
+      var tmp = window.__bkTmp;
+      window.__bkTmp = null;
+      if (!tmp) return;
+      var e = tmp.querySelector(sel);
+      if (e) e.click();
+    }, 280);
+  }
+
+  var ROWS = [
+    ['huabei',   '花呗',     '先消费，后付款',           'fa-hand-holding-dollar'],
+    ['fund',     '基金理财', '稳健收益，灵活申赎',       'fa-chart-line'],
+    ['deposit',  '定期存款', '安全稳定，利率优惠',       'fa-vault'],
+    ['gold',     '黄金投资', '实物黄金与积存金',         'fa-gem'],
+    ['work',     '打工',     '接活赚钱，升级涨额度',     'fa-money-bill'],
+    ['transfer', '转账',     'CHECKING 与 SAVING 互转',  'fa-arrow-right-arrow-left']
+  ];
+
+  function inject(){
+    var page = el('bank-overview-page');
+    if (!page || page.querySelector('.bkplus')) return;
+    var scroll = page.querySelector('.bank-overview-scroll');
+    if (!scroll) return;
+
+    var rows = ROWS.map(function(r){
+      return `<div class='bank-feature-row' data-hop='${r[0]}'>
+        <div class='bank-feature-icon'><i class='fa-solid ${r[3]}'></i></div>
+        <div class='bank-feature-info'>
+          <div class='bank-feature-name'>${r[1]}</div>
+          <div class='bank-feature-sub'>${r[2]}</div>
+        </div>
+        <i class='fa fa-angle-right bank-feature-arrow'></i>
+      </div>`;
+    }).join('');
+
+    var box = document.createElement('div');
+    box.className = 'bkplus';
+    box.innerHTML = `<div class='bank-overview-section-label'>常用</div>
+      <div class='bank-list-card'>${rows}</div>`;
+    scroll.appendChild(box);
+
+    box.addEventListener('click', function(e){
+      var row = e.target.closest('[data-hop]');
+      if (!row) return;
+      var k = row.dataset.hop;
+      if (k === 'huabei') hop('bank-checking-page', '#bank-huabei-entry');
+      else if (k === 'transfer') hop('bank-checking-page', '#bank-transfer-btn');
+      else if (k === 'fund') hop('bank-saving-page', '#bank-fund-entry');
+      else if (k === 'deposit') hop('bank-saving-page', '#bank-deposit-entry');
+      else if (k === 'gold') hop('bank-saving-page', '#bank-gold-entry');
+      else if (k === 'work') openWork();
+    });
+
+    var cash = page.querySelector('.bank-asset-cash');
+    if (cash && !cash.__bk){
+      cash.__bk = 1;
+      cash.addEventListener('click', function(){ if (window.XM_DC) XM_DC.open(); });
+    }
+    reconcile();
+  }
+
+  /* ---------- 桌面「打工」图标 ---------- */
+  var TILE_SVG = "<svg viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='#F0EBE2'/>" +
+    "<rect x='20' y='36' width='60' height='40' rx='9' fill='#35322E'/>" +
+    "<rect x='39' y='24' width='22' height='12' rx='5' fill='#35322E'/>" +
+    "<rect x='20' y='50' width='60' height='4' fill='#F0EBE2'/></svg>";
+
+  function workTile(){
+    var g = el('grid');
+    if (!g || g.querySelector('[data-xk=work]')) return;
+    var t = document.createElement('div');
+    t.className = 'tile';
+    t.setAttribute('data-xk', 'work');
+    t.innerHTML = "<div class='ico' style='opacity:1;display:grid;place-items:center'>" +
+      TILE_SVG + "</div><div class='nm'>打工</div>";
+    g.appendChild(t);
+  }
+
+  document.addEventListener('click', function(e){
+    var t = e.target.closest && e.target.closest('[data-xk=work]');
+    if (!t) return;
+    if (document.body.classList.contains('edit')) return;
+    if (document.body.classList.contains('dragging')) return;
+    openWork();
+  });
+
+  new MutationObserver(function(){
+    setTimeout(function(){ inject(); workTile(); }, 60);
+  }).observe(document.body, { childList: true, subtree: true });
+  setTimeout(function(){ inject(); workTile(); }, 500);
+  setInterval(function(){ inject(); workTile(); }, 1500);
+
+  window.XM_WORK = { open: openWork };
+})();
