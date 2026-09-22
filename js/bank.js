@@ -2055,3 +2055,118 @@
   bootBankAutoRefresh()
 
 })()
+
+
+/* ============================================================
+   银行 · 黑白图标（自绘 SVG，替换 Font Awesome）
+   ============================================================ */
+(function(){
+  if (window.__bkIcon) return;
+  window.__bkIcon = 1;
+
+  var W = 'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
+  function sv(p, s){ return '<svg width="' + (s || 18) + '" height="' + (s || 18) + '" viewBox="0 0 24 24" ' + W + '>' + p + '</svg>'; }
+  function fl(p, s){ return '<svg width="' + (s || 13) + '" height="' + (s || 13) + '" viewBox="0 0 24 24"><path d="' + p + '" fill="currentColor"/></svg>'; }
+
+  var IC = {
+    back:      sv('<path d="M14.6 5.4 8 12l6.6 6.6"/>', 20),
+    right:     sv('<path d="M9.4 5.4 16 12l-6.6 6.6"/>', 15),
+    down:      sv('<path d="M6 9.4 12 15.4l6-6"/>', 15),
+    caretUp:   fl('M12 8.4 17.4 15.6H6.6z'),
+    caretDown: fl('M12 15.6 6.6 8.4h10.8z'),
+    transfer:  sv('<path d="M3.8 8.6h12.8"/><path d="M13.6 5.6l3 3-3 3"/><path d="M20.2 15.4H7.4"/><path d="M10.4 12.4l-3 3 3 3"/>', 16),
+    arrow:     sv('<path d="M4.2 12h15"/><path d="M14.2 7.2 19 12l-4.8 4.8"/>', 16),
+    moneyOut:  sv('<path d="M12 19V5.4"/><path d="M6.6 10.8 12 5.4l5.4 5.4"/>', 15),
+    moneyIn:   sv('<path d="M12 5v13.6"/><path d="M17.4 13.2 12 18.6l-5.4-5.4"/>', 15),
+    plus:      sv('<path d="M12 5.4v13.2"/><path d="M5.4 12h13.2"/>', 15),
+    cash:      sv('<rect x="3" y="6.6" width="18" height="12" rx="2.6"/><path d="M3 10.6h18"/><circle cx="16.6" cy="14.8" r="1.1" fill="currentColor" stroke="none"/>'),
+    checking:  sv('<rect x="2.8" y="6.8" width="18.4" height="10.4" rx="2.2"/><circle cx="12" cy="12" r="2.4"/>'),
+    saving:    sv('<ellipse cx="12" cy="7.4" rx="6" ry="2.6"/><path d="M6 7.4v4.2c0 1.4 2.7 2.6 6 2.6s6-1.2 6-2.6V7.4"/><path d="M6 11.6v4.2c0 1.4 2.7 2.6 6 2.6s6-1.2 6-2.6v-4.2"/>'),
+    huabei:    sv('<path d="M4.2 16.4h2.8l3 2.1h4.1a1.3 1.3 0 0 0 0-2.6h-2.5"/><path d="M4.2 20.5h15.6"/><circle cx="13.8" cy="8.8" r="3.4"/><path d="M13.8 6.9v3.8"/><path d="M12.3 7.9h3"/>'),
+    fund:      sv('<path d="M3.6 19.4h16.8"/><path d="M3.6 19.4V5"/><path d="M6.6 15.4l3.4-4 2.9 2.3 4-5.2"/>'),
+    deposit:   sv('<rect x="3.6" y="5" width="16.8" height="14" rx="2.4"/><circle cx="11.2" cy="12" r="3.2"/><path d="M11.2 8.8v6.4"/><path d="M18 9.8v4.4"/>'),
+    gold:      sv('<path d="M8.2 4.8h7.6l3.4 4.6L12 19.4 2.8 9.4z"/><path d="M2.8 9.4h18.4"/><path d="M12 19.4 9.4 9.4l1.6-4.6"/><path d="M12 19.4l2.6-10-1.6-4.6"/>'),
+    buy:       sv('<path d="M12 4.6v10.2"/><path d="M7.6 10.4 12 14.8l4.4-4.4"/><path d="M5 19.4h14"/>', 16),
+    sell:      sv('<path d="M12 19.4V9.2"/><path d="M16.4 13.6 12 9.2l-4.4 4.4"/><path d="M5 4.6h14"/>', 16),
+    repay:     sv('<path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4.6V10h-5.4"/>', 16),
+    open:      sv('<circle cx="12" cy="12" r="8"/><path d="M12 8.4v7.2"/><path d="M8.4 12h7.2"/>', 16),
+    claim:     sv('<path d="M5 12.6V19h14v-6.4"/><path d="M12 4.6v9.2"/><path d="M8 10 12 14l4-4"/>', 16),
+    takeout:   sv('<path d="M5 5h14"/><path d="M12 19.4V10"/><path d="M8 14 12 10l4 4"/>', 16)
+  };
+
+  var MAP = {
+    'fa-angle-left': 'back',
+    'fa-angle-right': 'right',
+    'fa-angle-down': 'down',
+    'fa-caret-up': 'caretUp',
+    'fa-caret-down': 'caretDown',
+    'fa-arrow-right-arrow-left': 'transfer',
+    'fa-arrow-right': 'arrow',
+    'fa-arrow-up': 'moneyOut',
+    'fa-arrow-down': 'moneyIn',
+    'fa-plus': 'plus',
+    'fa-piggy-bank': 'cash',
+    'fa-money-bill': 'checking',
+    'fa-coins': 'saving',
+    'fa-hand-holding-dollar': 'huabei',
+    'fa-chart-line': 'fund',
+    'fa-vault': 'deposit',
+    'fa-gem': 'gold'
+  };
+
+  function make(name, extra){
+    var s = document.createElement('span');
+    s.className = 'bk-ico' + (extra ? ' ' + extra : '');
+    s.setAttribute('data-ic', name);
+    s.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;vertical-align:-.14em';
+    s.innerHTML = IC[name];
+    return s;
+  }
+
+  function swap(root){
+    var list = (root || document).querySelectorAll('i.fa, i.fa-solid, i.fas, i.far');
+    for (var i = 0; i < list.length; i++){
+      var el = list[i];
+      var cls = el.getAttribute('class') || '';
+      var keys = cls.match(/fa-[a-z0-9-]+/g) || [];
+      var hit = '';
+      for (var k = 0; k < keys.length; k++){ if (MAP[keys[k]]){ hit = MAP[keys[k]]; break; } }
+      if (!hit) continue;
+      var extra = cls.replace(/fa-[a-z0-9-]+/g, '').replace(/\b(fa|fas|far|fab)\b/g, '').replace(/\s+/g, ' ').trim();
+      el.parentNode.replaceChild(make(hit, extra), el);
+    }
+  }
+
+  var BTNS = [
+    ['#huabei-repay-btn', 'repay'],
+    ['#huabei-activate-btn', 'open'],
+    ['#fund-buy-btn', 'buy'],
+    ['#fund-sell-btn', 'sell'],
+    ['#gold-buy-btn', 'buy'],
+    ['#gold-sell-btn', 'sell'],
+    ['.deposit-claim-btn', 'claim'],
+    ['.deposit-withdraw-btn', 'takeout']
+  ];
+
+  function buttons(){
+    for (var i = 0; i < BTNS.length; i++){
+      var els = document.querySelectorAll(BTNS[i][0]);
+      for (var j = 0; j < els.length; j++){
+        var el = els[j];
+        if (el.querySelector('.bk-ico')) continue;
+        var s = make(BTNS[i][1]);
+        s.style.marginRight = '7px';
+        el.insertBefore(s, el.firstChild);
+      }
+    }
+  }
+
+  function run(){ try { swap(document); buttons(); } catch(e){} }
+
+  var pend = 0;
+  function soon(){ if (pend) return; pend = setTimeout(function(){ pend = 0; run(); }, 80); }
+
+  run();
+  if (document.body) new MutationObserver(soon).observe(document.body, { childList: true, subtree: true });
+  setInterval(run, 1500);
+})();
