@@ -3,97 +3,174 @@
    微信 · 朋友圈 · 我页面 · 键盘与消息贴底
    ============================================================ */
 
-/* ---------- 回到底部按钮（不在底部时才出现） ---------- */
-
-
-(function(){
-  var DOWN = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
-    'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">'+
-    '<path d="M7 7.8 12 12.8l5-5"/><path d="M7 13.6 12 18.6l5-5"/></svg>';
-
-  var st = document.createElement('style');
-  st.textContent = '#ovbody{position:relative}'+
-    '#xmDown:active{transform:scale(.9)!important}';
-  document.head.appendChild(st);
-
-  var btn = document.createElement('button');
-  btn.type = 'button';
-  btn.id = 'xmDown';
-  btn.innerHTML = DOWN;
-  btn.style.cssText =
-    'position:absolute;right:16px;width:38px;height:38px;padding:0;border:0;border-radius:50%;'+
-    'background:rgba(0,0,0,.42);color:#fff;display:flex;align-items:center;justify-content:center;'+
-    'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);'+
-    'box-shadow:0 4px 16px rgba(0,0,0,.18);z-index:12;'+
-    'opacity:0;transform:scale(.7);pointer-events:none;transition:opacity .18s,transform .18s';
-
-  function box(){ return document.getElementById('msgs'); }
-  function atBottom(){
-    var b = box();
-    if (!b) return true;
-    return b.scrollHeight - b.scrollTop - b.clientHeight < 90;
-  }
-  function place(){
-    var bar = document.querySelector('.inputbar');
-    var panel = document.querySelector('.xmPanel');
-    var h = (bar ? bar.offsetHeight : 62) +
-            (panel && panel.classList.contains('on') ? panel.offsetHeight : 0);
-    btn.style.bottom = (h + 14) + 'px';
-  }
-  function sync(){
-    var b = box(), ob = document.getElementById('ovbody');
-    if (!b || !ob || !ob.classList.contains('ovchat')) return;
-    if (btn.parentNode !== ob) ob.appendChild(btn);
-    place();
-    var show = !atBottom();
-    btn.style.opacity = show ? '1' : '0';
-    btn.style.transform = show ? 'scale(1)' : 'scale(.7)';
-    btn.style.pointerEvents = show ? 'auto' : 'none';
-  }
-
-  btn.onclick = function(e){
-    e.preventDefault(); e.stopPropagation();
-    var b = box();
-    if (b) b.scrollTo({ top: b.scrollHeight, behavior: 'smooth' });
-  };
-
+  /* ---------- 渲染缩略图 ---------- */
   var _rc = window.renderChat;
-  if (typeof _rc === 'function' && !_rc.__dn){
+  if (typeof _rc === 'function' && !_rc.__pic){
     var fr = function(){
       var r = _rc.apply(this, arguments);
-      try { sync(); } catch(e){}
+      try {
+        var box = document.getElementById('msgs');
+        if (box) CHAT.forEach(function(m, i){
+          if (!m || !m.thumb) return;
+          var el = box.querySelector('[data-i="' + i + '"]');
+          if (!el || el.querySelector('img.xmPic')) return;
+          var im = document.createElement('img');
+          im.className = 'xmPic';
+          im.src = m.thumb;
+          im.onclick = function(ev){ ev.stopPropagation(); view(m); };
+          el.insertBefore(im, el.firstChild);
+          if (el.classList.contains('bub')) el.style.padding = '7px';
+        });
+      } catch(e){}
       return r;
     };
-    fr.__dn = true;
+    fr.__pic = true;
     window.renderChat = fr;
   }
 
-  document.addEventListener('scroll', function(e){
-    if (e.target && e.target.id === 'msgs') sync();
-  }, true);
-  setInterval(sync, 50);
+  /* ---------- 启动时把最近的图预读进内存 ---------- */
+  function preload(){
+    var ids = [];
+    for (var i = CHAT.length - 1; i >= 0 && ids.length < 6; i--){
+      var m = CHAT[i];
+      if (m && m.imgId && !IMGC[m.imgId] && ids.indexOf(m.imgId) < 0) ids.push(m.imgId);
+    }
+    ids.forEach(function(k){ idbGet(k).then(function(v){ if (v) IMGC[k] = v; }); });
+  }
+  setTimeout(preload, 1200);
+  setInterval(preload, 60000);
+
+
+  /* ---------- 发带图的请求时，临时换成视觉模型 ---------- */
+  var _api = window.api;
+  if (typeof _api === 'function' && !_api.__vis){
+    var fa = function(path, opts){
+      try {
+        if (String(path).indexOf('/generate') > -1 && opts && opts.body){
+          var b = JSON.parse(opts.body);
+          var has = JSON.stringify(b.messages || []).indexOf('image_url') > -1;
+          if (has){
+            window.__lastGen = { settings: JSON.parse(JSON.stringify(b.settings || {})), meta: b.meta, messages: b.messages };
+            if (S.visModel && b.settings){
+              b.settings.mainApiUrl = S.visUrl || S.apiUrl;
+              b.settings.mainApiKey = S.visKey || S.apiKey;
+              b.settings.mainApiModel = S.visModel;
+              b.settings.apiType = 'openai';
+            }
+          } else window.__lastGen = null;
+          return _api.call(this, path, Object.assign({}, opts, { body: JSON.stringify(b) }));
+        }
+      } catch(e){}
+      return _api.apply(this, arguments);
+    };
+    fa.__vis = true;
+    window.api = fa;
+  }
+
+  /* ---------- 模型看不了图时，自动退回纯文字再发一次 ---------- */
+  async function degrade(){
+    var g = window.__lastGen; window.__lastGen = null;
+    if (!g) return;
+    var last = CHAT[CHAT.length - 1];
+    if (!last || last.role !== 'assistant' || last.typing) return;
+    if (!/出错了|error|invalid|image|400/i.test(String(last.text || ''))) return;
+    var msgs = (g.messages || []).map(function(x){
+      if (x && Array.isArray(x.content)){
+        var t = x.content.filter(function(c){ return c.type === 'text'; })
+                        .map(function(c){ return c.text; }).join(' ').trim();
+        return { role: x.role, content: t || '（我发了张照片）' };
+      }
+      return x;
+    });
+    var rid = 'rv' + Date.now() + Math.random().toString(36).slice(2, 7);
+    SENDING = true;
+    try {
+      await api('/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId: rid, inboxId: S.inbox, messages: msgs,
+                               settings: g.settings, meta: g.meta })
+      });
+      var hit = null;
+      for (var i = 0; i < 20; i++){
+        await sleep(i ? 2000 : 500);
+        try {
+          var j = await api('/outbox?inboxId=' + encodeURIComponent(S.inbox) + '&since=0');
+          var f = (j.items || []).filter(function(x){ return String(x.requestId) === String(rid); })[0];
+          if (f){
+            await api('/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ inboxId: S.inbox, ids: [f.id] }) }).catch(function(){});
+            hit = f; break;
+          }
+        } catch(e){}
+      }
+      if (hit && hit.content && CHAT[CHAT.length - 1] === last){
+        var r = parseReply(hit.content);
+        last.text = r.text || last.text;
+        last.think = r.think || last.think;
+        if (S.autoMem) r.mems.forEach(function(m){ addMemAuto(m); });
+      }
+    } catch(e){
+    } finally {
+      SENDING = false; saveChat();
+      if (document.getElementById('msgs')) renderChat(true);
+    }
+  }
+  var _send = window.sendChat;
+  if (typeof _send === 'function' && !_send.__vis){
+    var fs = async function(){
+      var r = await _send.apply(this, arguments);
+      try { await degrade(); } catch(e){}
+      return r;
+    };
+    fs.__vis = true;
+    window.sendChat = fs;
+  }
+
+
+ /* ---------- 聊天详情里的视觉设置 ---------- */
+  var _oci = window.openChatInfo;
+  if (typeof _oci === 'function' && !_oci.__vis){
+    var fo = function(){
+      _oci.apply(this, arguments);
+      try {
+        var b = document.getElementById('shbody'); if (!b) return;
+        var old = document.getElementById('xmVisCard'); if (old) old.remove();
+        var d = document.createElement('div');
+        d.id = 'xmVisCard';
+        d.className = 'card';
+        d.innerHTML =
+          '<div class="eyebrow">视觉</div>'+
+          '<div class="item"><span>让祁砚看到照片</span><em>'+
+            '<span class="sw ' + (+S.vision ? 'on' : '') + '" id="xmVisSw"><i></i></span></em></div>'+
+          '<div class="field"><span>视觉模型</span>'+
+            '<input id="xmVisModel" value="' + String(S.visModel || '') + '" placeholder="留空就用主模型"></div>'+
+          '<div class="field"><span>地址</span>'+
+            '<input id="xmVisUrl" value="' + String(S.visUrl || '') + '" placeholder="留空就同上"></div>'+
+          '<div class="field"><span>密钥</span>'+
+            '<input id="xmVisKey" type="password" value="' + String(S.visKey || '') + '" placeholder="留空就同上"></div>'+
+          '<div class="sub" style="margin:12px 0 0">主模型（DeepSeek 官方）看不见图，'+
+          '这里单独填一个支持看图的模型，只在发照片那一条用它。'+
+          '填错或失败会自动退回纯文字重发，不会卡住。</div>';
+        b.insertBefore(d, b.firstChild);
+        d.querySelector('#xmVisSw').onclick = function(){
+          S.vision = +S.vision ? 0 : 1; save();
+          this.classList.toggle('on', !!+S.vision);
+        };
+        var bind = function(id, key){
+          d.querySelector('#' + id).oninput = function(){ S[key] = this.value.trim(); save(); };
+        };
+        bind('xmVisModel', 'visModel');
+        bind('xmVisUrl', 'visUrl');
+        bind('xmVisKey', 'visKey');
+      } catch(e){}
+    };
+    fo.__vis = true;
+    window.openChatInfo = fo;
+  }
 })();
 
 
 
-(function(){
-  'use strict';
-
-  var st = document.createElement('style');
-  st.textContent =
-    '#msgs .think{display:none!important}' +
-    '#msgs .acts button{display:none!important}' +
-
-    /* 长按菜单 */
-    '#xmMenu{position:fixed;z-index:126;background:#2c2c2e;border-radius:17px;padding:13px 8px 11px;' +
-      'box-shadow:0 16px 44px rgba(0,0,0,.34);display:grid;grid-template-columns:repeat(4,70px);' +
-      'transform-origin:center bottom;animation:xmIn .14s ease-out}' +
-    '@keyframes xmIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}' +
-    '#xmMenu .mi{display:flex;flex-direction:column;align-items:center;gap:7px;color:#fff;' +
-      'font-size:11.5px;line-height:1;padding:8px 0;border-radius:12px}' +
-    '#xmMenu .mi:active{background:rgba(255,255,255,.14)}' +
-    '#xmMenu .mi svg{width:21px;height:21px}' +
-    '#xmMask{position:fixed;inset:0;z-index:125;background:transparent}' +
 
     /* 引用：贴在消息下面 */
     '#msgs .xmQ{margin-top:7px;border:1px solid rgba(0,0,0,.15);border-radius:14px;' +
@@ -894,107 +971,6 @@
     window.sendChat = fs;
   }
 })();
-
-/* ---------- 暂停思考 ---------- */
-
-
-(function(){
-  var ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" '+
-    'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">'+
-    '<path d="M9.4 5.5v13"/><path d="M14.6 5.5v13"/></svg>';
-
-  var st = document.createElement('style');
-  st.textContent =
-    '.bub.kai.typing{display:inline-flex;align-items:center;gap:11px}'+
-    '.pauseBtn{border:0;background:transparent;padding:0;margin:0;display:flex;align-items:center;'+
-      'justify-content:center;color:inherit;opacity:.42;transition:opacity .15s;'+
-      '-webkit-tap-highlight-color:transparent}'+
-    '.pauseBtn:active{opacity:.85}';
-  document.head.appendChild(st);
-
-  /* 暂停后把还在等的长延时压掉，让那条链子两秒内收尾 */
-  var _st = window.setTimeout, fastOn = false;
-  function fast(on){
-    if (on && !fastOn){
-      fastOn = true;
-      window.setTimeout = function(fn, ms){
-        return _st(fn, (window.__pauseHit && ms >= 300) ? 0 : ms);
-      };
-    } else if (!on && fastOn){
-      fastOn = false;
-      window.setTimeout = _st;
-    }
-  }
-
-  function pauseThink(){
-    window.__pauseHit = true;
-    fast(true);
-    try {
-      if (Array.isArray(CHAT)){
-        var last = CHAT[CHAT.length - 1];
-        if (last && last.typing) last.hidden = true;
-      }
-      if (document.getElementById('msgs')) renderChat(true);
-    } catch(e){}
-    _st(function(){ fast(false); }, 20000);
-  }
-  window.pauseThink = pauseThink;
-
-  function decorate(){
-    var box = document.getElementById('msgs');
-    if (!box) return;
-    var ty = box.querySelector('.bub.kai.typing');
-    if (!ty) return;
-    var last = Array.isArray(CHAT) ? CHAT[CHAT.length - 1] : null;
-    if (last && last.typing && last.hidden){ ty.remove(); return; }
-    if (ty.querySelector('.pauseBtn')) return;
-    var b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'pauseBtn';
-    b.setAttribute('aria-label', '暂停思考');
-    b.innerHTML = ICON;
-    b.onclick = function(e){ e.preventDefault(); e.stopPropagation(); pauseThink(); };
-    ty.appendChild(b);
-  }
-
-  var _rc = window.renderChat;
-  if (typeof _rc === 'function' && !_rc.__pause){
-    var fr = function(){
-      var r = _rc.apply(this, arguments);
-      try { decorate(); } catch(e){}
-      return r;
-    };
-    fr.__pause = true;
-    window.renderChat = fr;
-  }
-
-  var _send = window.sendChat;
-  if (typeof _send === 'function' && !_send.__pause){
-    var fs = async function(){
-      window.__pauseHit = false;
-      var r = await _send.apply(this, arguments);
-      if (window.__pauseHit){
-        try {
-          var last = CHAT[CHAT.length - 1];
-          if (last && last.role === 'assistant' && !last.typing) CHAT.pop();
-          for (var i = CHAT.length - 1; i >= 0; i--){
-            if (CHAT[i] && CHAT[i].hidden){ CHAT.splice(i, 1); break; }
-          }
-          saveChat();
-          if (document.getElementById('msgs')) renderChat(true);
-        } catch(e){}
-      }
-      window.__pauseHit = false;
-      fast(false);
-      return r;
-    };
-    fs.__pause = true;
-    window.sendChat = fs;
-  }
-
-  try { if (document.getElementById('msgs')) decorate(); } catch(e){}
-})();
-
 
 
 /* ---------- 底部栏毛玻璃 ---------- */
