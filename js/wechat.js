@@ -5195,6 +5195,10 @@ window.xmAsk = xmAsk;
   }
 
 fix();
-new MutationObserver(function(){ setTimeout(fix, 30); }).observe(document.body, { childList: true, subtree: true });
+var _pend = false;
+new MutationObserver(function(){
+  if (_pend) return; _pend = true;
+  requestAnimationFrame(function(){ _pend = false; fix(); });
+}).observe(document.body, { childList: true, subtree: true });
 setInterval(fix, 400);
 })();
