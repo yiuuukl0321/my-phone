@@ -3579,3 +3579,48 @@ window.xmAsk = xmAsk;
 
   window.XM_EMO = { open:function(){ p.classList.add('on'); render(); }, ins:ins };
 })();
+
+(function(){
+  var st = document.createElement('style');
+  st.textContent =
+    '.wxHome{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:32px;height:32px;' +
+      'display:flex;align-items:center;justify-content:center;color:#222;z-index:2}' +
+    '.wxHome:active{opacity:.45}';
+  document.head.appendChild(st);
+
+  var SVG = '<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M3.7 10.3 12 3.9l8.3 6.4"/><path d="M5.8 9.5v9.9h12.4V9.5"/>' +
+    '<path d="M9.9 19.4v-5.1h4.2v5.1"/></svg>';
+
+  function goHome(){
+    var wx = document.getElementById('wx');
+    if (wx) wx.classList.remove('on');
+    if (typeof closeSheet === 'function') closeSheet();
+    if (typeof closeOv === 'function') closeOv();
+  }
+
+  function fix(){
+    var wx = document.getElementById('wx');
+    if (!wx) return;
+    var top = wx.querySelector('.wxTop');
+    if (!top) return;
+    if (top.querySelector('.wxBack')) return;
+    if (top.querySelector('.wxHome')) return;
+    var b = document.createElement('div');
+    b.className = 'wxHome';
+    b.innerHTML = SVG;
+    b.onclick = function(e){ e.stopPropagation(); goHome(); };
+    top.insertBefore(b, top.firstChild);
+  }
+
+  setInterval(fix, 400);
+  var mo = new MutationObserver(function(){ setTimeout(fix, 30); });
+  var t = setInterval(function(){
+    var wx = document.getElementById('wx');
+    if (!wx) return;
+    clearInterval(t);
+    mo.observe(wx, { childList: true, subtree: true });
+    fix();
+  }, 300);
+})();
