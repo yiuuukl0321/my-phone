@@ -1890,3 +1890,79 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
     if (el) e.preventDefault();
   });
 })();
+
+
+(function(){
+  var MIC = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+    '<rect x="9" y="2.6" width="6" height="11.4" rx="3"/>' +
+    '<path d="M5.6 11.4a6.4 6.4 0 0 0 12.8 0"/><path d="M12 17.8v3.6"/><path d="M8.6 21.4h6.8"/></svg>';
+
+  var PLUS = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.8" stroke-linecap="round"><path d="M12 5.4v13.2"/><path d="M5.4 12h13.2"/></svg>';
+
+  var CLIP = '<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
+    '<rect x="7.6" y="3.6" width="8.8" height="16.8" rx="2.6"/><path d="M10.4 7.2h3.2"/></svg>';
+
+  var EMO = '<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
+    '<circle cx="12" cy="12" r="8.6"/><path d="M9 10.2v.02M15 10.2v.02"/>' +
+    '<path d="M8.6 14.4a4.2 4.2 0 0 0 6.8 0"/></svg>';
+
+  function fixMic(){
+    var mic = document.getElementById('micBtn');
+    if (!mic || mic.classList.contains('on')) return;
+    if (!mic.querySelector('svg')) mic.innerHTML = MIC;
+  }
+
+  function fixPlus(){
+    var bar = document.querySelector('.inputbar');
+    if (!bar) return;
+    var btns = bar.querySelectorAll('button.ib');
+    for (var i = 0; i < btns.length; i++){
+      var b = btns[i];
+      if (b.id === 'micBtn' || b.dataset.plus === '1') continue;
+      b.dataset.plus = '1';
+      b.classList.add('ibPlus');
+      b.removeAttribute('onclick');
+      b.innerHTML = PLUS;
+      b.onclick = function(e){
+        e.preventDefault(); e.stopPropagation();
+        var p = document.querySelector('.xmPanel');
+        if (p) p.classList.toggle('on');
+      };
+    }
+  }
+
+  function addItems(){
+    var p = document.querySelector('.xmPanel');
+    if (!p) return;
+    if (!p.querySelector('[data-a="paste"]')){
+      var a = document.createElement('div');
+      a.className = 'xmItem';
+      a.setAttribute('data-a', 'paste');
+      a.innerHTML = '<span class="box">' + CLIP + '</span>粘贴';
+      p.appendChild(a);
+    }
+    if (!p.querySelector('[data-a="emo"]')){
+      var b = document.createElement('div');
+      b.className = 'xmItem';
+      b.setAttribute('data-a', 'emo');
+      b.innerHTML = '<span class="box">' + EMO + '</span>表情';
+      p.appendChild(b);
+    }
+    if (p.dataset.mine === '1') return;
+    p.dataset.mine = '1';
+    p.addEventListener('click', function(e){
+      var it = e.target.closest('[data-a]');
+      if (!it) return;
+      if (it.dataset.a === 'paste'){ try { pasteClip(); } catch(err){} p.classList.remove('on'); }
+      if (it.dataset.a === 'emo'){ try { if (window.XM_EMO) XM_EMO.open(); } catch(err){} }
+    });
+  }
+
+  function all(){ fixMic(); fixPlus(); addItems(); }
+  all();
+  setInterval(all, 500);
+})();
