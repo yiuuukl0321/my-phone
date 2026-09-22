@@ -884,6 +884,8 @@ function toBottom(){
   }
 })();
 
+})();
+
 /* 暗度归零 */
 if (+S.dim !== 0){ S.dim = 0; save(); }
 setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400);
@@ -5194,4 +5196,3 @@ window.xmAsk = xmAsk;
 
   setInterval(fix, 400);
 })();
-//# sourceMappingURL=/sm/61630e508774ce8816722c8388174f16452a45f223b2719f85b65d890eea371a.map
