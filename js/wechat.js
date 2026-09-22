@@ -5386,3 +5386,35 @@ setInterval(fix, 400);
     open();
   }, true);
 })();
+
+/* ============================================================
+   Wallet 按钮 · 只开微信支付页，不许跳转
+   ============================================================ */
+(function(){
+  function fix(){
+    var list = document.querySelectorAll('.xmWallet');
+    for (var i = 0; i < list.length; i++){
+      var w = list[i];
+      if (w.__payFix) continue;
+      w.__payFix = 1;
+      w.removeAttribute('href');
+      w.removeAttribute('target');
+      w.setAttribute('role', 'button');
+      w.onclick = function(e){
+        if (e){ e.preventDefault(); e.stopPropagation(); }
+        if (typeof window.xmOpenWxPay === 'function') window.xmOpenWxPay();
+        else if (window.toast) toast('钱包还没接上');
+        return false;
+      };
+    }
+  }
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if (!t || !t.closest) return;
+    if (!t.closest('.xmWallet')) return;
+    e.preventDefault(); e.stopPropagation();
+    if (typeof window.xmOpenWxPay === 'function') window.xmOpenWxPay();
+  }, true);
+  setInterval(fix, 1500);
+  fix();
+})();
