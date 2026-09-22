@@ -340,7 +340,7 @@
       : TAB === 'find' ? findList() : mePage();
     wx.innerHTML =
       '<div class="wxTop">' + (SUB === 'moments' ? '<span class="wxBack" id="wxBack">' + IC.back + '</span>' : '') +
-        title + ((SUB === 'moments' ? '<span class="wxPlus" id="wxNew">' + IC.plus + '</span>' : '') + '</div>' +
+        title + (SUB === 'moments' ? '<span class="wxPlus" id="wxNew">' + IC.plus + '</span>' : '') + '</div>' +
       '<div class="wxBody">' + bd + '</div>' +
       '<div class="wxTabs">' +
         [['wx', IC.chat], ['book', IC.book], ['find', IC.find], ['me', IC.me]].map(function(t){
