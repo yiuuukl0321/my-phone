@@ -5230,105 +5230,92 @@ window.xmAsk = xmAsk;
   fix();
 })();
 
-
 /* ============================================================
-   微信 · 微信支付页（照 wanwan 那一页）
+   微信 · 微信支付页（全内联样式，不依赖任何注入的 CSS）
    ============================================================ */
 (function(){
   var KEY = 'xm_wxpay_v1';
-  var built = false;
   var HIDE = ['home', 'wx', 'ov', 'sh'];
+  var built = false;
 
   function load(){
     try {
       var o = JSON.parse(localStorage.getItem(KEY) || 'null');
-      if (o && typeof o.bal === 'number') { o.bills = o.bills || []; return o; }
+      if (o && typeof o.bal === 'number'){ o.bills = o.bills || []; return o; }
     } catch(e){}
     return { bal: 800, bills: [] };
   }
   function save(o){ try { localStorage.setItem(KEY, JSON.stringify(o)); } catch(e){} }
   function money(n){ return '¥' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+\.)/g, ','); }
+  function tip(m){ if (window.toast){ try { toast(m); } catch(e){} } }
   function esc(s){
     return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
       return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c];
     });
   }
-  function tip(m){ if (typeof window.toast === 'function') { try { window.toast(m); return; } catch(e){} } }
 
-  function css(){
-    if (document.getElementById('xmPayCss')) return;
-    var s = document.createElement('style');
-    s.id = 'xmPayCss';
-    s.textContent = `
-#xmPay{position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;z-index:9999;display:none;flex-direction:column;color:#111;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;-webkit-font-smoothing:antialiased;transform:translateZ(0);will-change:transform;contain:layout paint style;isolation:isolate;overscroll-behavior:contain}
-#xmPay.on{display:flex}
-.xpTop{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top)) 14px 8px;border-bottom:1px solid #eee;background:#fff}
-.xpBack{font-size:26px;line-height:1;padding:0 6px 4px 0;cursor:pointer}
-.xpTitle{font-size:17px;font-weight:500}
-.xpBody{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px calc(30px + env(safe-area-inset-bottom))}
-.xpCard{background:#fff;border:1px solid #f0f0f0;border-radius:16px;padding:18px 16px}
-.xpLab{font-size:13px;color:#8a8a8a;display:flex;align-items:center;gap:7px}
-.xpIco{width:20px;height:20px;border-radius:6px;background:#f2f2f2;display:flex;align-items:center;justify-content:center}
-.xpIco svg,.xpAv svg{display:block}
-.xpBal{font-size:34px;font-weight:600;letter-spacing:-.5px;margin:14px 0 18px}
-.xpBtns{display:flex;gap:12px}
-.xpBtn{flex:1;height:46px;border-radius:12px;border:0;font-size:15px;font-weight:500;font-family:inherit;cursor:pointer}
-.xpBtn.main{background:#111;color:#fff}
-.xpBtn.ghost{background:#f4f4f4;color:#111}
-.xpSec{font-size:13px;color:#8a8a8a;margin:22px 0 10px}
-.xpRow{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer}
-.xpRow+.xpRow{border-top:1px solid #f2f2f2}
-.xpAv{width:40px;height:40px;border-radius:10px;flex:0 0 auto;display:flex;align-items:center;justify-content:center}
-.xpMain{flex:1;min-width:0}
-.xpName{font-size:15px;display:flex;align-items:center;gap:7px}
-.xpTag{font-size:10px;letter-spacing:.4px;color:#7a7a7a;background:#f1f1f1;border-radius:4px;padding:2px 6px}
-.xpSub{font-size:12px;color:#a0a0a0;margin-top:4px;letter-spacing:.5px}
-.xpArr{color:#c4c4c4;font-size:18px}
-.xpWide{width:100%;height:50px;border:0;border-radius:14px;background:#f4f4f4;font-size:15px;color:#111;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
-.xpEmpty{text-align:center;color:#b5b5b5;font-size:14px;padding:26px 0;border:1px solid #f0f0f0;border-radius:16px}
-.xpBill{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;font-size:14px}
-.xpBill+.xpBill{border-top:1px solid #f2f2f2}
-.xpBt{color:#a0a0a0;font-size:12px;margin-top:3px}
-`;
-    document.head.appendChild(s);
+  var TOP  = 'flex:0 0 auto;display:flex;align-items:center;gap:10px;' +
+    'padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;border-bottom:1px solid #eee;background:#fff';
+  var BODY = 'flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;' +
+    'padding:16px 16px calc(env(safe-area-inset-bottom) + 30px)';
+  var CARD = 'background:#fff;border:1px solid #f0f0f0;border-radius:16px;padding:18px 16px';
+  var BTN  = 'flex:1;height:46px;border-radius:12px;border:0;font-size:15px;font-weight:500;font-family:inherit';
+
+  function bankRow(tag, num, svg, bg){
+    return '<div data-bank="' + tag + '" style="display:flex;align-items:center;gap:12px;padding:14px 16px">' +
+      '<div style="width:40px;height:40px;border-radius:10px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:' + bg + '">' + svg + '</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:15px;display:flex;align-items:center;gap:7px">弯弯银行' +
+          '<span style="font-size:10px;letter-spacing:.4px;color:#7a7a7a;background:#f1f1f1;border-radius:4px;padding:2px 6px">' + tag + '</span>' +
+        '</div>' +
+        '<div style="font-size:12px;color:#a0a0a0;margin-top:4px;letter-spacing:.5px">' + num + '</div>' +
+      '</div>' +
+      '<div style="color:#c4c4c4;font-size:18px">›</div>' +
+    '</div>';
   }
 
   function build(){
     if (built) return;
     built = true;
+
     var d = document.createElement('div');
     d.id = 'xmPay';
+    d.style.cssText =
+      'position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483646;background:#fff;display:none;' +
+      'flex-direction:column;color:#111;font:400 15px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;' +
+      '-webkit-font-smoothing:antialiased;overscroll-behavior:contain';
+
+    var COIN = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#8a8a8a" stroke-width="1.9"><circle cx="12" cy="12" r="8.5"/><path d="M9.2 9.6h5.6M9.2 12.2h5.6M12 9.6V17"/></svg>';
+    var SAV  = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#9c8348" stroke-width="1.6"><ellipse cx="12" cy="6.8" rx="6.8" ry="2.8"/><path d="M5.2 6.8v5.2c0 1.6 3 2.8 6.8 2.8s6.8-1.2 6.8-2.8V6.8"/><path d="M5.2 12v5.2c0 1.6 3 2.8 6.8 2.8s6.8-1.2 6.8-2.8V12"/></svg>';
+    var CHK  = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#5f7186" stroke-width="1.6"><rect x="2.6" y="5.2" width="18.8" height="13.6" rx="2.6"/><path d="M2.6 9.6h18.8"/><path d="M6.2 14.8h4.2"/></svg>';
+
     d.innerHTML =
-      '<div class="xpTop"><div class="xpBack" id="xpBack">‹</div><div class="xpTitle">微信支付</div></div>' +
-      '<div class="xpBody">' +
-        '<div class="xpCard">' +
-          '<div class="xpLab"><span class="xpIco"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#8a8a8a" stroke-width="1.9"><circle cx="12" cy="12" r="8.5"/><path d="M9.2 9.6h5.6M9.2 12.2h5.6M12 9.6V17"/></svg></span>零钱</div>' +
-          '<div class="xpBal" id="xpBal">¥0.00</div>' +
-          '<div class="xpBtns">' +
-            '<button class="xpBtn main" id="xpIn">转入</button>' +
-            '<button class="xpBtn ghost" id="xpOut">转出</button>' +
+      '<div style="' + TOP + '">' +
+        '<div id="xpBack" style="font-size:26px;line-height:1;padding:0 8px 4px 0">‹</div>' +
+        '<div style="font-size:17px;font-weight:500">微信支付</div>' +
+      '</div>' +
+      '<div style="' + BODY + '">' +
+        '<div style="' + CARD + '">' +
+          '<div style="font-size:13px;color:#8a8a8a;display:flex;align-items:center;gap:7px">' +
+            '<span style="width:20px;height:20px;border-radius:6px;background:#f2f2f2;display:flex;align-items:center;justify-content:center">' + COIN + '</span>零钱' +
+          '</div>' +
+          '<div id="xpBal" style="font-size:34px;font-weight:600;letter-spacing:-.5px;margin:14px 0 18px">¥0.00</div>' +
+          '<div style="display:flex;gap:12px">' +
+            '<button id="xpIn" style="' + BTN + ';background:#111;color:#fff">转入</button>' +
+            '<button id="xpOut" style="' + BTN + ';background:#f4f4f4;color:#111">转出</button>' +
           '</div>' +
         '</div>' +
-        '<div class="xpSec">银行卡</div>' +
-        '<div class="xpCard" style="padding:0;overflow:hidden">' +
-          '<div class="xpRow" data-bank="SAVING">' +
-            '<div class="xpAv" style="background:#f4ecdb"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#9c8348" stroke-width="1.6"><ellipse cx="12" cy="6.8" rx="6.8" ry="2.8"/><path d="M5.2 6.8v5.2c0 1.6 3 2.8 6.8 2.8s6.8-1.2 6.8-2.8V6.8"/><path d="M5.2 12v5.2c0 1.6 3 2.8 6.8 2.8s6.8-1.2 6.8-2.8V12"/></svg></div>' +
-            '<div class="xpMain"><div class="xpName">弯弯银行<span class="xpTag">SAVING</span></div><div class="xpSub">**** **** 7984</div></div>' +
-            '<div class="xpArr">›</div>' +
-          '</div>' +
-          '<div class="xpRow" data-bank="CHECKING">' +
-            '<div class="xpAv" style="background:#e9eef6"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#5f7186" stroke-width="1.6"><rect x="2.6" y="5.2" width="18.8" height="13.6" rx="2.6"/><path d="M2.6 9.6h18.8"/><path d="M6.2 14.8h4.2"/></svg></div>' +
-            '<div class="xpMain"><div class="xpName">弯弯银行<span class="xpTag">CHECKING</span></div><div class="xpSub">**** **** 2822</div></div>' +
-            '<div class="xpArr">›</div>' +
-          '</div>' +
+        '<div style="font-size:13px;color:#8a8a8a;margin:22px 0 10px">银行卡</div>' +
+        '<div style="border:1px solid #f0f0f0;border-radius:16px;overflow:hidden">' +
+          bankRow('SAVING', '**** **** 7984', SAV, '#f4ecdb') +
+          '<div style="height:1px;background:#f2f2f2"></div>' +
+          bankRow('CHECKING', '**** **** 2822', CHK, '#e9eef6') +
         '</div>' +
-        '<button class="xpWide" id="xpRegen" style="margin-top:16px">' +
-          '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#111" stroke-width="1.5" stroke-linejoin="round"><path d="M11 3.6l1.5 4.4 4.4 1.5-4.4 1.5L11 15.4 9.5 11 5.1 9.5 9.5 8z"/><path d="M18 15.4l.8 2.1 2.1.8-2.1.8-.8 2.1-.8-2.1-2.1-.8 2.1-.8z"/></svg>' +
-          '重新生成余额' +
-        '</button>' +
-        '<div class="xpSec">零钱账单</div>' +
+        '<button id="xpRegen" style="width:100%;height:50px;margin-top:16px;border:0;border-radius:14px;background:#f4f4f4;font-size:15px;color:#111;font-family:inherit">重新生成余额</button>' +
+        '<div style="font-size:13px;color:#8a8a8a;margin:22px 0 10px">零钱账单</div>' +
         '<div id="xpBills"></div>' +
       '</div>';
+
     document.body.appendChild(d);
 
     d.querySelector('#xpBack').onclick = close;
@@ -5340,16 +5327,14 @@ window.xmAsk = xmAsk;
       o.bills.unshift({ t: Date.now(), amt: 0, title: '重新生成余额' });
       save(o); render(); tip('余额已重新生成');
     };
-    var rows = d.querySelectorAll('.xpRow');
-    for (var i = 0; i < rows.length; i++) {
-      rows[i].onclick = (function(r){
-        return function(){
-          if (typeof window.showBankPage === 'function') {
-            try { window.showBankPage(r.getAttribute('data-bank')); return; } catch(e){}
-          }
-          tip('银行还没装上');
-        };
-      })(rows[i]);
+    var rows = d.querySelectorAll('[data-bank]');
+    for (var i = 0; i < rows.length; i++){
+      rows[i].onclick = function(){
+        if (typeof window.showBankPage === 'function'){
+          try { window.showBankPage(window.__bankUser); close(); return; } catch(e){}
+        }
+        tip('银行还没装上');
+      };
     }
   }
 
@@ -5358,8 +5343,8 @@ window.xmAsk = xmAsk;
     var s = prompt(dir > 0 ? '转入金额' : '转出金额', '');
     if (s == null) return;
     var n = parseFloat(s);
-    if (isNaN(n) || n <= 0) { tip('金额不对'); return; }
-    if (dir < 0 && n > o.bal) { tip('零钱不够'); return; }
+    if (isNaN(n) || n <= 0){ tip('金额不对'); return; }
+    if (dir < 0 && n > o.bal){ tip('零钱不够'); return; }
     o.bal = Math.round((o.bal + dir * n) * 100) / 100;
     o.bills.unshift({ t: Date.now(), amt: dir * n, title: dir > 0 ? '转入' : '转出' });
     if (o.bills.length > 60) o.bills.length = 60;
@@ -5372,79 +5357,115 @@ window.xmAsk = xmAsk;
     if (b) b.textContent = money(o.bal);
     var box = document.getElementById('xpBills');
     if (!box) return;
-    if (!o.bills.length) { box.innerHTML = '<div class="xpEmpty">暂无账单</div>'; return; }
-    box.innerHTML = '<div class="xpCard" style="padding:0;overflow:hidden">' +
+    if (!o.bills.length){
+      box.innerHTML = '<div style="text-align:center;color:#b5b5b5;font-size:14px;padding:26px 0;border:1px solid #f0f0f0;border-radius:16px">暂无账单</div>';
+      return;
+    }
+    box.innerHTML = '<div style="border:1px solid #f0f0f0;border-radius:16px;overflow:hidden">' +
       o.bills.map(function(it){
         var d = new Date(it.t);
         var tm = (d.getMonth() + 1) + '/' + d.getDate() + ' ' +
-                 String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+                 ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
         var amt = it.amt === 0 ? '' : (it.amt > 0 ? '+' : '-') + money(Math.abs(it.amt));
-        return '<div class="xpBill"><div><div>' + esc(it.title) + '</div><div class="xpBt">' + tm + '</div></div><div>' + amt + '</div></div>';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:13px 16px;font-size:14px">' +
+          '<div><div>' + esc(it.title) + '</div>' +
+          '<div style="color:#a0a0a0;font-size:12px;margin-top:3px">' + tm + '</div></div>' +
+          '<div>' + amt + '</div></div>';
       }).join('') + '</div>';
   }
 
   function open(){
-    css(); build(); render();
+    build();
+    render();
     var el = document.getElementById('xmPay');
-    if (el) el.classList.add('on');
+    if (el) el.style.display = 'flex';
     for (var i = 0; i < HIDE.length; i++){
       var e = document.getElementById(HIDE[i]);
-      if (e && e.__xmHid === undefined){ e.__xmHid = e.style.visibility; e.style.visibility = 'hidden'; }
+      if (e) e.style.visibility = 'hidden';
     }
   }
 
   function close(){
     var el = document.getElementById('xmPay');
-    if (el) el.classList.remove('on');
+    if (el) el.style.display = 'none';
     for (var i = 0; i < HIDE.length; i++){
       var e = document.getElementById(HIDE[i]);
-      if (e && e.__xmHid !== undefined){ e.style.visibility = e.__xmHid; e.__xmHid = undefined; }
+      if (e) e.style.visibility = '';
     }
   }
 
   window.xmOpenWxPay = open;
   window.xmWxPay = { open: open, load: load, save: save, money: money };
 
-  document.addEventListener('click', function(e){
+  /* ---------- 「我」页面的 Wallet：与 Favourites 同级，不在链接里 ---------- */
+  function openWallet(){
+    if (typeof window.xmOpenWxPay === 'function'){ window.xmOpenWxPay(); return; }
+    tip('钱包还没接上');
+  }
+
+  function fix(){
+    var wx = document.getElementById('wx');
+    if (!wx) return;
+
+    var nodes = wx.querySelectorAll('a,div,span,li');
+    var src = null;
+    for (var i = 0; i < nodes.length; i++){
+      var el = nodes[i];
+      if (el.children.length) continue;
+      if (String(el.textContent || '').trim() === 'Favourites'){ src = el; break; }
+    }
+    if (!src) return;
+
+    var link = (src.closest && src.closest('a')) || src;
+    var host = link.parentNode;
+    if (!host) return;
+
+    var olds = document.querySelectorAll('.xmWallet');
+    for (var j = 0; j < olds.length; j++){
+      if (olds[j].parentNode !== host) olds[j].remove();
+    }
+    for (var k = 0; k < host.children.length; k++){
+      var ch = host.children[k];
+      if (ch.classList && ch.classList.contains('xmWallet')) return;
+    }
+
+    var w = document.createElement('div');
+    w.className = 'xmWallet';
+    w.textContent = 'Wallet';
+    w.setAttribute('role', 'button');
+    w.style.cursor = 'pointer';
+    var cls = String(link.className || '').split(/\s+/);
+    for (var m = 0; m < cls.length; m++){
+      if (cls[m] && cls[m] !== 'xmWallet'){ try { w.classList.add(cls[m]); } catch(e){} }
+    }
+    w.onclick = function(e){ e.preventDefault(); e.stopPropagation(); openWallet(); return false; };
+    host.insertBefore(w, link.nextSibling);
+  }
+
+  function guard(e){
     var t = e.target;
     if (!t || !t.closest) return;
     if (!t.closest('.xmWallet')) return;
-    e.preventDefault(); e.stopPropagation();
-    open();
-  }, true);
-})();
-
-/* ============================================================
-   Wallet 按钮 · 只开微信支付页，不许跳转
-   ============================================================ */
-(function(){
-  function fix(){
-    var list = document.querySelectorAll('.xmWallet');
-    for (var i = 0; i < list.length; i++){
-      var w = list[i];
-      if (w.__payFix) continue;
-      w.__payFix = 1;
-      w.removeAttribute('href');
-      w.removeAttribute('target');
-      w.setAttribute('role', 'button');
-      w.onclick = function(e){
-        if (e){ e.preventDefault(); e.stopPropagation(); }
-        if (typeof window.xmOpenWxPay === 'function') window.xmOpenWxPay();
-        else if (window.toast) toast('钱包还没接上');
-        return false;
-      };
+    if (e.cancelable){ try { e.preventDefault(); } catch(err){} }
+    e.stopPropagation();
+    if (e.type === 'touchstart' || e.type === 'pointerdown'){
+      var now = Date.now();
+      if (guard._t && now - guard._t < 300) return;
+      guard._t = now;
+      openWallet();
     }
   }
-  document.addEventListener('click', function(e){
-    var t = e.target;
-    if (!t || !t.closest) return;
-    if (!t.closest('.xmWallet')) return;
-    e.preventDefault(); e.stopPropagation();
-    if (typeof window.xmOpenWxPay === 'function') window.xmOpenWxPay();
-  }, true);
-  setInterval(fix, 1500);
+  ['touchstart', 'pointerdown', 'click'].forEach(function(t){
+    document.addEventListener(t, guard, true);
+  });
+
+  var pend = 0;
+  function soon(){ if (pend) return; pend = setTimeout(function(){ pend = 0; fix(); }, 40); }
+  new MutationObserver(soon).observe(document.body, { childList: true, subtree: true });
+  setInterval(fix, 1200);
   fix();
 })();
+
 
 
 /* ============================================================
