@@ -5163,76 +5163,6 @@ window.xmAsk = xmAsk;
 
 
 /* ============================================================
-   微信「我」页面 · Wallet（与 Favourites 同级，不在链接里）
-   ============================================================ */
-(function(){
-  function openWallet(){
-    if (typeof window.xmOpenWxPay === 'function'){ window.xmOpenWxPay(); return; }
-    if (window.toast) toast('钱包还没接上'); else alert('钱包还没接上');
-  }
-
-  function fix(){
-    var wx = document.getElementById('wx');
-    if (!wx) return;
-
-    var nodes = wx.querySelectorAll('a,div,span,li');
-    var src = null;
-    for (var i = 0; i < nodes.length; i++){
-      var el = nodes[i];
-      if (el.children.length) continue;
-      if (String(el.textContent || '').trim() === 'Favourites'){ src = el; break; }
-    }
-    if (!src) return;
-
-    var link = (src.closest && src.closest('a')) || src;
-    var host = link.parentNode;
-    if (!host) return;
-
-    var olds = document.querySelectorAll('.xmWallet');
-    for (var j = 0; j < olds.length; j++){
-      if (olds[j].parentNode !== host) olds[j].remove();
-    }
-
-    for (var k = 0; k < host.children.length; k++){
-      var ch = host.children[k];
-      if (ch.classList && ch.classList.contains('xmWallet')) return;
-    }
-
-    var w = document.createElement('div');
-    w.className = 'xmWallet';
-    w.textContent = 'Wallet';
-    w.setAttribute('role', 'button');
-    w.style.cursor = 'pointer';
-    var cls = String(link.className || '').split(/\s+/);
-    for (var m = 0; m < cls.length; m++){
-      if (cls[m] && cls[m] !== 'xmWallet'){ try { w.classList.add(cls[m]); } catch(e){} }
-    }
-    w.onclick = function(e){ e.preventDefault(); e.stopPropagation(); openWallet(); return false; };
-    host.insertBefore(w, link.nextSibling);
-  }
-
-  function guard(e){
-    var t = e.target;
-    if (!t || !t.closest) return;
-    if (!t.closest('.xmWallet')) return;
-    if (e.cancelable) { try { e.preventDefault(); } catch(err){} }
-    e.stopPropagation();
-    if (e.type === 'touchstart' || e.type === 'pointerdown'){
-      var now = Date.now();
-      if (guard._t && now - guard._t < 300) return;
-      guard._t = now;
-      openWallet();
-    }
-  }
-  ['touchstart', 'pointerdown', 'click'].forEach(function(t){
-    document.addEventListener(t, guard, true);
-  });
-
-  setInterval(fix, 700);
-  fix();
-})();
-
-/* ============================================================
    微信 · 微信支付页（全内联样式，不依赖任何注入的 CSS）
    ============================================================ */
 (function(){
@@ -5433,5 +5363,5 @@ window.xmAsk = xmAsk;
   ['touchstart', 'pointerdown', 'mousedown', 'click'].forEach(function(t){
     document.addEventListener(t, go, true);
   });
-})();
+  })();
 })();
