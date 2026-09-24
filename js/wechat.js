@@ -1838,8 +1838,10 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
       '<div class="meBtns">' +
         '<div class="meBtn2" onclick="xmOpenFav()">Favourites</div>' +
         '<div class="meBtn2" onclick="xmOpenEdit()">Edit Profile</div>' +
+        '<div class="meBtn2" onclick="xmOpenWxPay()">Wallet</div>' +
         '<div class="meBtn2" onclick="openSet()">Settings</div>' +
       '</div></div>';
+
   }
   function momentsPage(){
     var list = MOM.slice().reverse();
@@ -5396,75 +5398,6 @@ window.xmAsk = xmAsk;
 
   window.xmOpenWxPay = open;
   window.xmWxPay = { open: open, load: load, save: save, money: money };
-
-  /* ---------- 「我」页面的 Wallet：与 Favourites 同级，不在链接里 ---------- */
-  function openWallet(){
-    if (typeof window.xmOpenWxPay === 'function'){ window.xmOpenWxPay(); return; }
-    tip('钱包还没接上');
-  }
-
-  function fix(){
-    var wx = document.getElementById('wx');
-    if (!wx) return;
-
-    var nodes = wx.querySelectorAll('a,div,span,li');
-    var src = null;
-    for (var i = 0; i < nodes.length; i++){
-      var el = nodes[i];
-      if (el.children.length) continue;
-      if (String(el.textContent || '').trim() === 'Favourites'){ src = el; break; }
-    }
-    if (!src) return;
-
-    var link = (src.closest && src.closest('a')) || src;
-    var host = link.parentNode;
-    if (!host) return;
-
-    var olds = document.querySelectorAll('.xmWallet');
-    for (var j = 0; j < olds.length; j++){
-      if (olds[j].parentNode !== host) olds[j].remove();
-    }
-    for (var k = 0; k < host.children.length; k++){
-      var ch = host.children[k];
-      if (ch.classList && ch.classList.contains('xmWallet')) return;
-    }
-
-    var w = document.createElement('div');
-    w.className = 'xmWallet';
-    w.textContent = 'Wallet';
-    w.setAttribute('role', 'button');
-    w.style.cursor = 'pointer';
-    var cls = String(link.className || '').split(/\s+/);
-    for (var m = 0; m < cls.length; m++){
-      if (cls[m] && cls[m] !== 'xmWallet'){ try { w.classList.add(cls[m]); } catch(e){} }
-    }
-    w.onclick = function(e){ e.preventDefault(); e.stopPropagation(); openWallet(); return false; };
-    host.insertBefore(w, link.nextSibling);
-  }
-
-  function guard(e){
-    var t = e.target;
-    if (!t || !t.closest) return;
-    if (!t.closest('.xmWallet')) return;
-    if (e.cancelable){ try { e.preventDefault(); } catch(err){} }
-    e.stopPropagation();
-    if (e.type === 'touchstart' || e.type === 'pointerdown'){
-      var now = Date.now();
-      if (guard._t && now - guard._t < 300) return;
-      guard._t = now;
-      openWallet();
-    }
-  }
-  ['touchstart', 'pointerdown', 'click'].forEach(function(t){
-    document.addEventListener(t, guard, true);
-  });
-
-  var pend = 0;
-  function soon(){ if (pend) return; pend = setTimeout(function(){ pend = 0; fix(); }, 40); }
-  new MutationObserver(soon).observe(document.body, { childList: true, subtree: true });
-  setInterval(fix, 1200);
-  fix();
-})();
 
 
 
