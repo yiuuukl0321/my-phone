@@ -187,6 +187,21 @@ background:rgba(0,0,0,.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blu
 .up{color:rgba(0,0,0,.32) !important}
 html,body{height:100%;width:100%;position:fixed;overflow:hidden;overscroll-behavior:none}
 </style>
+<style>
+/* 所有桌面图标：去掉图案，纯白 */
+.tile .ico.ico,
+.tile[data-k=bank] .ico.ico,
+.tile[data-xk=work] .ico.ico{
+  background-image:none !important;
+  background-color:#fff !important;
+  border-color:rgba(0,0,0,.05) !important;
+  opacity:1 !important;
+  font-size:0 !important;
+  color:transparent !important;
+}
+.tile .ico > *{ display:none !important; }
+</style>
+
 </head>
 <body>
 
