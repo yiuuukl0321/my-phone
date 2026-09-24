@@ -2613,7 +2613,6 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
     repaint();
   }).observe(document.body, { childList: true, subtree: true });
   window.openSet = openSet;
-  setInterval(repaint, 800);
 })();
 
 
