@@ -5265,7 +5265,7 @@ window.xmAsk = xmAsk;
     return '<div data-bank="' + tag + '" style="display:flex;align-items:center;gap:12px;padding:14px 16px">' +
       '<div style="width:40px;height:40px;border-radius:10px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:' + bg + '">' + svg + '</div>' +
       '<div style="flex:1;min-width:0">' +
-        '<div style="font-size:15px;display:flex;align-items:center;gap:7px">弯弯银行' +
+        '<div style="font-size:15px;display:flex;align-items:center;gap:7px">咩咩银行' +
           '<span style="font-size:10px;letter-spacing:.4px;color:#7a7a7a;background:#f1f1f1;border-radius:4px;padding:2px 6px">' + tag + '</span>' +
         '</div>' +
         '<div style="font-size:12px;color:#a0a0a0;margin-top:4px;letter-spacing:.5px">' + num + '</div>' +
