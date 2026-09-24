@@ -5364,3 +5364,46 @@ window.xmAsk = xmAsk;
   });
   })();
 })();
+
+/* ============================================================
+   Wallet 守护：谁重画「我」页面，都保证有一个 Wallet
+   ============================================================ */
+(function(){
+  if (window.__xmWalletGuard) return;
+  window.__xmWalletGuard = 1;
+
+  function openWallet(){
+    if (typeof window.xmOpenWxPay === 'function'){ window.xmOpenWxPay(); return; }
+    if (window.toast) toast('钱包还没接上');
+  }
+
+  function ensure(){
+    var wx = document.getElementById('wx');
+    if (!wx) return;
+    var me = wx.querySelector('.meBtns');
+    if (!me) return;
+
+    var hits = [];
+    var kids = me.children;
+    for (var i = 0; i < kids.length; i++){
+      if (String(kids[i].textContent || '').trim() === 'Wallet') hits.push(kids[i]);
+    }
+    for (var j = 1; j < hits.length; j++) hits[j].remove();
+    if (hits.length) return;
+
+    var d = document.createElement('div');
+    d.className = 'meBtn2 xmWallet';
+    d.textContent = 'Wallet';
+    d.style.cssText = 'padding:20px;border-radius:18px;background:#fff;' +
+      'border:1px solid rgba(0,0,0,.09);font-size:16.5px;font-weight:300;' +
+      'letter-spacing:.08em;color:#0b0b0b;box-shadow:0 1px 5px rgba(0,0,0,.03);text-align:center';
+    d.onclick = function(e){ e.preventDefault(); e.stopPropagation(); openWallet(); return false; };
+    me.appendChild(d);
+  }
+
+  new MutationObserver(function(){ setTimeout(ensure, 20); })
+    .observe(document.body, { childList: true, subtree: true });
+  setInterval(ensure, 500);
+  ensure();
+})();
+
