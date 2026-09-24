@@ -1841,8 +1841,8 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
         '<div class="meBtn2" onclick="xmOpenWxPay()">Wallet</div>' +
         '<div class="meBtn2" onclick="openSet()">Settings</div>' +
       '</div></div>';
-
   }
+  
   function momentsPage(){
     var list = MOM.slice().reverse();
     return '<div class="momCover" id="wxCover"' +
@@ -5433,4 +5433,5 @@ window.xmAsk = xmAsk;
   ['touchstart', 'pointerdown', 'mousedown', 'click'].forEach(function(t){
     document.addEventListener(t, go, true);
   });
+})();
 })();
