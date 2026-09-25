@@ -1838,7 +1838,7 @@ setTimeout(function(){ if (typeof applyWall === 'function') applyWall(); }, 400)
       '<div class="meBtns">' +
         '<div class="meBtn2" onclick="xmOpenFav()">Favourites</div>' +
         '<div class="meBtn2" onclick="xmOpenEdit()">Edit Profile</div>' +
-        '<div class="meBtn2" onclick="xmOpenWxPay()">Wallet</div>' +
+        '<div class="meBtn2" onclick="showBankPage(__bankUser)">Wallet</div>' +
         '<div class="meBtn2" onclick="openSet()">Settings</div>' +
       '</div></div>';
   }
