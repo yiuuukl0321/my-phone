@@ -32,9 +32,9 @@
       'linear-gradient(rgba(0,0,0,' + dim + '),rgba(0,0,0,' + dim + ')),' +
       "url('" + w + "')", 'important');
   }
-    de.style.setProperty('height', tall() + 'px', 'important');
-    de.style.setProperty('background-color', '#ffffff', 'important');
-    de.style.setProperty('background-image', 'none', 'important');
+   de.style.setProperty('height', tall()+'px','important');
+   de.style.setProperty('background-color','#eceae5','important');
+   de.style.setProperty('background-image','none','important');
    
   window.applyWall = paint;
   paint();
