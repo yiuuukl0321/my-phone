@@ -5366,16 +5366,20 @@ window.xmAsk = xmAsk;
 })();
 
 /* ============================================================
-   Wallet 守护：谁重画「我」页面，都保证有一个 Wallet
+   Wallet 守护 v2：照抄 Favourites 的样式
    ============================================================ */
 (function(){
-  if (window.__xmWalletGuard) return;
-  window.__xmWalletGuard = 1;
+  if (window.__xmWalletGuard2) return;
+  window.__xmWalletGuard2 = 1;
 
   function openWallet(){
     if (typeof window.xmOpenWxPay === 'function'){ window.xmOpenWxPay(); return; }
     if (window.toast) toast('钱包还没接上');
   }
+
+  var COPY = ['fontSize','fontWeight','fontFamily','fontStyle','letterSpacing','lineHeight',
+              'color','backgroundColor','backgroundImage','borderRadius','border','boxShadow',
+              'padding','textAlign','flex','minWidth','height'];
 
   function ensure(){
     var wx = document.getElementById('wx');
@@ -5383,27 +5387,38 @@ window.xmAsk = xmAsk;
     var me = wx.querySelector('.meBtns');
     if (!me) return;
 
-    var hits = [];
+    var ref = null, wallet = null;
     var kids = me.children;
     for (var i = 0; i < kids.length; i++){
-      if (String(kids[i].textContent || '').trim() === 'Wallet') hits.push(kids[i]);
+      var t = String(kids[i].textContent || '').trim();
+      if (!ref && t === 'Favourites') ref = kids[i];
+      if (t === 'Wallet') wallet = kids[i];
     }
-    for (var j = 1; j < hits.length; j++) hits[j].remove();
-    if (hits.length) return;
+    if (!ref) ref = kids[0];
+    if (!ref) return;
+
+    if (wallet && wallet.__xmOk) return;
+    if (wallet) wallet.remove();
 
     var d = document.createElement('div');
-    d.className = 'meBtn2 xmWallet';
+    d.className = ref.className;
     d.textContent = 'Wallet';
-    d.style.cssText = 'padding:20px;border-radius:18px;background:#fff;' +
-      'border:1px solid rgba(0,0,0,.09);font-size:16.5px;font-weight:300;' +
-      'letter-spacing:.08em;color:#0b0b0b;box-shadow:0 1px 5px rgba(0,0,0,.03);text-align:center';
+    d.__xmOk = 1;
+
+    var cs = getComputedStyle(ref);
+    for (var k = 0; k < COPY.length; k++){
+      var prop = COPY[k].replace(/([A-Z])/g, '-$1').toLowerCase();
+      try { d.style.setProperty(prop, cs[COPY[k]], 'important'); } catch(e){}
+    }
+    d.style.setProperty('cursor', 'pointer', 'important');
     d.onclick = function(e){ e.preventDefault(); e.stopPropagation(); openWallet(); return false; };
+
     me.appendChild(d);
   }
 
   new MutationObserver(function(){ setTimeout(ensure, 20); })
     .observe(document.body, { childList: true, subtree: true });
-  setInterval(ensure, 500);
+  setInterval(ensure, 600);
   ensure();
 })();
 
