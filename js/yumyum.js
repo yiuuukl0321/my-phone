@@ -520,37 +520,49 @@ function kaiOrder(){
 }
 
 /* ---------- 桌面图标 ---------- */
-function tile(){
-  var g = document.getElementById('grid');
-  if (!g || g.querySelector('[data-k="yum"]')) return;
-  var d = document.createElement('div');
-  d.className = 'tile';
-  d.dataset.k = 'yum';
-  d.innerHTML = '<div class="ico"></div><div class="nm">外卖</div>';
-  g.appendChild(d);
-  var e = d.querySelector('.ico');
-  e.style.backgroundImage = 'url("data:image/svg+xml,' + encodeURIComponent(
-    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'>" +
-    "<rect width='512' height='512' fill='#F0EBE2'/>" +
-    "<path d='M118 240h276c0 76-62 138-138 138S118 316 118 240z' fill='#BE7F60'/>" +
-    "<rect x='98' y='214' width='316' height='26' rx='13' fill='#35322E'/>" +
-    "<path d='M256 214v-58' stroke='#35322E' stroke-width='16' stroke-linecap='round'/>" +
-    "<circle cx='256' cy='140' r='15' fill='#35322E'/></svg>") + '")';
-  e.style.backgroundSize = 'cover';
-  e.style.backgroundPosition = 'center';
-  e.style.opacity = '1';
-}
-tile();
-setInterval(tile, 1500);
-new MutationObserver(function(){ setTimeout(tile, 60); }).observe(document.body, { childList: true, subtree: true });
+(function(){
+  /* 清掉以前误存进 GRID 的 yum（留着会让桌面渲染崩掉） */
+  try {
+    ['xm_grid2','xm_dock2'].forEach(function(k){
+      var a = JSON.parse(localStorage.getItem(k) || '[]');
+      if (Array.isArray(a) && a.indexOf('yum') > -1){
+        localStorage.setItem(k, JSON.stringify(a.filter(function(x){ return x !== 'yum'; })));
+      }
+    });
+  } catch(e){}
 
-document.addEventListener('click', function(e){
-  var t = e.target.closest && e.target.closest('[data-k="yum"]');
-  if (!t) return;
-  if (document.body.classList.contains('edit')) return;
-  if (document.body.classList.contains('dragging')) return;
-  openYum();
-});
+  function tile(){
+    var g = document.getElementById('grid');
+    if (!g || g.querySelector('[data-app="yum"]')) return;
+    var d = document.createElement('div');
+    d.className = 'tile';
+    d.dataset.app = 'yum';
+    d.innerHTML = '<div class="ico"></div><div class="nm">外卖</div>';
+    g.appendChild(d);
+    var e = d.querySelector('.ico');
+    e.style.backgroundImage = 'url("data:image/svg+xml,' + encodeURIComponent(
+      "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'>" +
+      "<rect width='512' height='512' fill='#F0EBE2'/>" +
+      "<path d='M118 240h276c0 76-62 138-138 138S118 316 118 240z' fill='#BE7F60'/>" +
+      "<rect x='98' y='214' width='316' height='26' rx='13' fill='#35322E'/>" +
+      "<path d='M256 214v-58' stroke='#35322E' stroke-width='16' stroke-linecap='round'/>" +
+      "<circle cx='256' cy='140' r='15' fill='#35322E'/></svg>") + '")';
+    e.style.backgroundSize = 'cover';
+    e.style.backgroundPosition = 'center';
+    e.style.opacity = '1';
+  }
+  tile();
+  setInterval(tile, 1200);
+  new MutationObserver(function(){ setTimeout(tile, 60); }).observe(document.body, { childList: true, subtree: true });
+
+  document.addEventListener('click', function(e){
+    var t = e.target.closest && e.target.closest('[data-app="yum"]');
+    if (!t) return;
+    if (document.body.classList.contains('edit')) return;
+    if (document.body.classList.contains('dragging')) return;
+    openYum();
+  });
+})();
 
 window.XM_YUM = { open: openYum, shops: SHOPS };
 })();
